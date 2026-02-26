@@ -3,7 +3,7 @@
 # ============================================================
 
 # ---- location ----
-set(OYI_ASSIMP_DIR ${CMAKE_SOURCE_DIR}/Engine/Packages/assimp)
+set(OYI_ASSIMP_DIR ${CMAKE_SOURCE_DIR}/Packages/assimp)
 
 # ---- build form ----
 set(BUILD_SHARED_LIBS ON CACHE BOOL "" FORCE)

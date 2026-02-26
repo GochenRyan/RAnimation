@@ -1,16 +1,43 @@
 // NRI骨骼动画播放实现模板
 // Week 1 周二实践日 - 实现简单的骨骼动画播放功能
 // 基于试学内容中的完整示例代码简化而来
-
-#include <NRI.h>
-#include <NRIDeviceCreation.h>
-#include <NRIHelper.h>
-#include <glm/glm.hpp>
-#include <glm/gtc/matrix_transform.hpp>
-#include <glm/gtc/type_ptr.hpp>
-#include <vector>
-#include <cmath>
+#pragma once
 #include <algorithm>
+#include <array>
+#include <cmath>
+#include <vector>
+
+#include <glm/glm.hpp>
+#include <ml.h>
+
+#include <SkeletalAnimation/Utils.h>
+#include <SkeletalAnimation/NRIInterface.h>
+
+
+#define NRI_ABORT_ON_FAILURE(result) \
+    if (result != nri::Result::SUCCESS) \
+        exit(1);
+
+template <typename T, uint32_t N>
+constexpr uint32_t GetCountOf(T const (&)[N]) {
+    return N;
+}
+
+struct Vertex {
+    float position[3];
+};
+
+struct QueuedFrame {
+    nri::CommandAllocator* commandAllocatorGraphics;
+    nri::CommandAllocator* commandAllocatorCompute;
+    std::array<nri::CommandBuffer*, 3> commandBufferGraphics;
+    nri::CommandBuffer* commandBufferCompute;
+};
+
+// Settings
+constexpr nri::VKBindingOffsets VK_BINDING_OFFSETS = { 0, 128, 32, 64 };
+constexpr bool D3D11_ENABLE_COMMAND_BUFFER_EMULATION = false;
+constexpr bool D3D12_DISABLE_ENHANCED_BARRIERS = false;
 
 // ============================================================================
 // 常量定义
@@ -53,12 +80,14 @@ struct SkinnedVertex {
 
 class SkeletalAnimationSystem {
 public:
-    SkeletalAnimationSystem(nri::Device& device, nri::CommandAllocator& commandAllocator)
-        : m_device(device)
-        , m_commandAllocator(commandAllocator)
+    SkeletalAnimationSystem()
+        : m_device(nullptr)
+        , m_commandAllocator(nullptr)
         , m_currentTime(0.0f)
         , m_currentKeyframe(0)
         , m_nextKeyframe(1) {
+
+        Initialize();
         
         // TODO: 初始化资源
         InitializeResources();
@@ -98,9 +127,51 @@ public:
     }
     
 private:
+    nri::AllocationCallbacks m_AllocationCallbacks = {};
+    uint2 m_OutputResolution = { 1920, 1080 };
+    uint32_t m_RngState = 0;
+    uint32_t m_AdapterIndex = 0;
+    float m_MouseSensitivity = 1.0f;
+    uint8_t m_HalfTimeLimitReached = 2;
+    bool m_Vsync = false;
+    bool m_DebugAPI = false;
+    bool m_DebugNRI = false;
+    bool m_AlwaysActive = false;
+    bool m_Resizable = false;
+
+    NRIInterface NRI = {};
+    nri::Device* m_Device = nullptr;
+    nri::Streamer* m_Streamer = nullptr;
+    nri::SwapChain* m_SwapChain = nullptr;
+    nri::Queue* m_GraphicsQueue = nullptr;
+    nri::Queue* m_ComputeQueue = nullptr;
+    nri::Fence* m_FrameFence = nullptr;
+    nri::Fence* m_ComputeFence = nullptr;
+    nri::DescriptorPool* m_DescriptorPool = nullptr;
+    nri::PipelineLayout* m_SharedPipelineLayout = nullptr;
+    nri::Pipeline* m_GraphicsPipeline = nullptr;
+    nri::Pipeline* m_ComputePipeline = nullptr;
+    nri::Buffer* m_GeometryBuffer = nullptr;
+    nri::Texture* m_Texture = nullptr;
+    nri::DescriptorSet* m_DescriptorSet = nullptr;
+    nri::Descriptor* m_Descriptor = nullptr;
+    std::vector<QueuedFrame> m_QueuedFrames = {};
+    std::vector<SwapChainTexture> m_SwapChainTextures;
+    std::vector<nri::Memory*> m_MemoryAllocations;
+    bool m_IsAsyncMode = false;
+    bool m_HasComputeQueue = false;
+
+    bool m_Vsync = false;
+    bool m_DebugAPI = false;
+    bool m_DebugNRI = false;
+    bool m_AlwaysActive = false;
+    bool m_Resizable = false;
+
+    nri::Window m_NRIWindow = {};
+
     // NRI设备相关
-    nri::Device& m_device;
-    nri::CommandAllocator& m_commandAllocator;
+    nri::Device* m_device;
+    nri::CommandAllocator* m_commandAllocator;
     
     // 资源句柄
     nri::Buffer* m_boneMatrixBuffer = nullptr;
@@ -116,9 +187,206 @@ private:
     uint32_t m_nextKeyframe;
     float m_blendFactor;
     
+    inline uint8_t GetQueuedFrameNum() const {
+        return m_Vsync ? 2 : 3;
+    }
+
+    inline const nri::Window& GetWindow() const {
+        return m_NRIWindow;
+    }
+
+    inline uint2 GetOutputResolution() const {
+        return m_OutputResolution;
+    }
+
+    inline uint8_t GetOptimalSwapChainTextureNum() const {
+        return GetQueuedFrameNum() + 1;
+    }
+
     // ============================================================================
     // 私有方法 - 需要你实现的部分
     // ============================================================================
+    void Initialize()
+    {
+        nri::GraphicsAPI graphicsAPI = nri::GraphicsAPI::VK;
+        bool debugAPI = false;
+        bool debugNRI = false;
+        uint32_t adapterIndex = 0;
+
+        // Adapters
+        nri::AdapterDesc adapterDesc[2] = {};
+        uint32_t adapterDescsNum = 2;
+        NRI_ABORT_ON_FAILURE(nriEnumerateAdapters(adapterDesc, adapterDescsNum));
+
+        // Device
+        nri::QueueFamilyDesc queueFamilies[2] = {};
+        queueFamilies[0].queueNum = 1;
+        queueFamilies[0].queueType = nri::QueueType::GRAPHICS;
+        queueFamilies[1].queueNum = 1;
+        queueFamilies[1].queueType = nri::QueueType::COMPUTE;
+
+        nri::DeviceCreationDesc deviceCreationDesc = {};
+        deviceCreationDesc.graphicsAPI = graphicsAPI;
+        deviceCreationDesc.queueFamilies = queueFamilies;
+        deviceCreationDesc.queueFamilyNum = GetCountOf(queueFamilies);
+        deviceCreationDesc.enableGraphicsAPIValidation = m_DebugAPI;
+        deviceCreationDesc.enableNRIValidation = m_DebugNRI;
+        deviceCreationDesc.enableD3D11CommandBufferEmulation = D3D11_ENABLE_COMMAND_BUFFER_EMULATION;
+        deviceCreationDesc.disableD3D12EnhancedBarriers = D3D12_DISABLE_ENHANCED_BARRIERS;
+        deviceCreationDesc.vkBindingOffsets = VK_BINDING_OFFSETS;
+        deviceCreationDesc.adapterDesc = &adapterDesc[std::min(m_AdapterIndex, adapterDescsNum - 1)];
+        deviceCreationDesc.allocationCallbacks = m_AllocationCallbacks;
+        NRI_ABORT_ON_FAILURE(nri::nriCreateDevice(deviceCreationDesc, m_Device));
+
+        // NRI
+        NRI_ABORT_ON_FAILURE(nri::nriGetInterface(*m_Device, NRI_INTERFACE(nri::CoreInterface), (nri::CoreInterface*)&NRI));
+        NRI_ABORT_ON_FAILURE(nri::nriGetInterface(*m_Device, NRI_INTERFACE(nri::HelperInterface), (nri::HelperInterface*)&NRI));
+        NRI_ABORT_ON_FAILURE(nri::nriGetInterface(*m_Device, NRI_INTERFACE(nri::StreamerInterface), (nri::StreamerInterface*)&NRI));
+        NRI_ABORT_ON_FAILURE(nri::nriGetInterface(*m_Device, NRI_INTERFACE(nri::SwapChainInterface), (nri::SwapChainInterface*)&NRI));
+
+        const nri::DeviceDesc& deviceDesc = NRI.GetDeviceDesc(*m_Device);
+
+        // Create streamer
+        nri::StreamerDesc streamerDesc = {};
+        streamerDesc.dynamicBufferMemoryLocation = nri::MemoryLocation::HOST_UPLOAD;
+        streamerDesc.dynamicBufferDesc = { 0, 0, nri::BufferUsageBits::VERTEX_BUFFER | nri::BufferUsageBits::INDEX_BUFFER };
+        streamerDesc.constantBufferMemoryLocation = nri::MemoryLocation::HOST_UPLOAD;
+        streamerDesc.queuedFrameNum = GetQueuedFrameNum();
+        NRI_ABORT_ON_FAILURE(NRI.CreateStreamer(*m_Device, streamerDesc, m_Streamer));
+
+        // Command queues
+        NRI_ABORT_ON_FAILURE(NRI.GetQueue(*m_Device, nri::QueueType::GRAPHICS, 0, m_GraphicsQueue));
+        NRI.SetDebugName(m_GraphicsQueue, "GraphicsQueue");
+
+        NRI.GetQueue(*m_Device, nri::QueueType::COMPUTE, 0, m_ComputeQueue);
+        if (m_ComputeQueue)
+            NRI.SetDebugName(m_ComputeQueue, "ComputeQueue");
+
+        m_HasComputeQueue = m_ComputeQueue && graphicsAPI != nri::GraphicsAPI::D3D11;
+        m_IsAsyncMode = m_HasComputeQueue;
+
+        // Fences
+        NRI_ABORT_ON_FAILURE(NRI.CreateFence(*m_Device, 0, m_ComputeFence));
+        NRI_ABORT_ON_FAILURE(NRI.CreateFence(*m_Device, 0, m_FrameFence));
+
+        // Swap chain
+        nri::Format swapChainFormat;
+        {
+            nri::SwapChainDesc swapChainDesc = {};
+            swapChainDesc.window = GetWindow();
+            swapChainDesc.queue = m_GraphicsQueue;
+            swapChainDesc.format = nri::SwapChainFormat::BT709_G22_8BIT;
+            swapChainDesc.flags = (m_Vsync ? nri::SwapChainBits::VSYNC : nri::SwapChainBits::NONE) | nri::SwapChainBits::ALLOW_TEARING;
+            swapChainDesc.width = (uint16_t)GetOutputResolution().x;
+            swapChainDesc.height = (uint16_t)GetOutputResolution().y;
+            swapChainDesc.textureNum = GetOptimalSwapChainTextureNum();
+            swapChainDesc.queuedFrameNum = GetQueuedFrameNum();
+            NRI_ABORT_ON_FAILURE(NRI.CreateSwapChain(*m_Device, swapChainDesc, m_SwapChain));
+
+            uint32_t swapChainTextureNum;
+            nri::Texture* const* swapChainTextures = NRI.GetSwapChainTextures(*m_SwapChain, swapChainTextureNum);
+
+            swapChainFormat = NRI.GetTextureDesc(*swapChainTextures[0]).format;
+
+            for (uint32_t i = 0; i < swapChainTextureNum; i++) {
+                nri::Texture2DViewDesc textureViewDesc = { swapChainTextures[i], nri::Texture2DViewType::COLOR_ATTACHMENT, swapChainFormat };
+
+                nri::Descriptor* colorAttachment = nullptr;
+                NRI_ABORT_ON_FAILURE(NRI.CreateTexture2DView(textureViewDesc, colorAttachment));
+
+                nri::Fence* acquireSemaphore = nullptr;
+                NRI_ABORT_ON_FAILURE(NRI.CreateFence(*m_Device, nri::SWAPCHAIN_SEMAPHORE, acquireSemaphore));
+
+                nri::Fence* releaseSemaphore = nullptr;
+                NRI_ABORT_ON_FAILURE(NRI.CreateFence(*m_Device, nri::SWAPCHAIN_SEMAPHORE, releaseSemaphore));
+
+                SwapChainTexture& swapChainTexture = m_SwapChainTextures.emplace_back();
+
+                swapChainTexture = {};
+                swapChainTexture.acquireSemaphore = acquireSemaphore;
+                swapChainTexture.releaseSemaphore = releaseSemaphore;
+                swapChainTexture.texture = swapChainTextures[i];
+                swapChainTexture.colorAttachment = colorAttachment;
+                swapChainTexture.attachmentFormat = swapChainFormat;
+            }
+        }
+
+        // Queued frames
+        m_QueuedFrames.resize(GetQueuedFrameNum());
+        for (QueuedFrame& queuedFrame : m_QueuedFrames) {
+            NRI_ABORT_ON_FAILURE(NRI.CreateCommandAllocator(*m_GraphicsQueue, queuedFrame.commandAllocatorGraphics));
+            for (size_t i = 0; i < queuedFrame.commandBufferGraphics.size(); i++)
+                NRI_ABORT_ON_FAILURE(NRI.CreateCommandBuffer(*queuedFrame.commandAllocatorGraphics, queuedFrame.commandBufferGraphics[i]));
+
+            if (m_IsAsyncMode) {
+                NRI_ABORT_ON_FAILURE(NRI.CreateCommandAllocator(*m_ComputeQueue, queuedFrame.commandAllocatorCompute));
+                NRI_ABORT_ON_FAILURE(NRI.CreateCommandBuffer(*queuedFrame.commandAllocatorCompute, queuedFrame.commandBufferCompute));
+            }
+        }
+
+        { // Pipeline layout
+            nri::DescriptorRangeDesc descriptorRangeStorage = { 0, 1, nri::DescriptorType::STORAGE_TEXTURE, nri::StageBits::COMPUTE_SHADER };
+
+            nri::DescriptorSetDesc descriptorSetDesc = { 0, &descriptorRangeStorage, 1 };
+
+            nri::PipelineLayoutDesc pipelineLayoutDesc = {};
+            pipelineLayoutDesc.descriptorSetNum = 1;
+            pipelineLayoutDesc.descriptorSets = &descriptorSetDesc;
+            pipelineLayoutDesc.shaderStages = nri::StageBits::COMPUTE_SHADER | nri::StageBits::VERTEX_SHADER | nri::StageBits::FRAGMENT_SHADER;
+            NRI_ABORT_ON_FAILURE(NRI.CreatePipelineLayout(*m_Device, pipelineLayoutDesc, m_SharedPipelineLayout));
+        }
+
+        utils::ShaderCodeStorage shaderCodeStorage;
+        { // Graphics pipeline
+            nri::VertexStreamDesc vertexStreamDesc = {};
+            vertexStreamDesc.bindingSlot = 0;
+
+            nri::VertexAttributeDesc vertexAttributeDesc[1] = {};
+            {
+                vertexAttributeDesc[0].format = nri::Format::RGB32_SFLOAT;
+                vertexAttributeDesc[0].streamIndex = 0;
+                vertexAttributeDesc[0].offset = offsetof(Vertex, position);
+                vertexAttributeDesc[0].d3d = { "POSITION", 0 };
+                vertexAttributeDesc[0].vk.location = { 0 };
+            }
+
+            nri::VertexInputDesc vertexInputDesc = {};
+            vertexInputDesc.attributes = vertexAttributeDesc;
+            vertexInputDesc.attributeNum = (uint8_t)GetCountOf(vertexAttributeDesc);
+            vertexInputDesc.streams = &vertexStreamDesc;
+            vertexInputDesc.streamNum = 1;
+
+            nri::InputAssemblyDesc inputAssemblyDesc = {};
+            inputAssemblyDesc.topology = nri::Topology::TRIANGLE_LIST;
+
+            nri::RasterizationDesc rasterizationDesc = {};
+            rasterizationDesc.fillMode = nri::FillMode::SOLID;
+            rasterizationDesc.cullMode = nri::CullMode::NONE;
+
+            nri::ColorAttachmentDesc colorAttachmentDesc = {};
+            colorAttachmentDesc.format = swapChainFormat;
+            colorAttachmentDesc.colorWriteMask = nri::ColorWriteBits::RGBA;
+
+            nri::OutputMergerDesc outputMergerDesc = {};
+            outputMergerDesc.colors = &colorAttachmentDesc;
+            outputMergerDesc.colorNum = 1;
+
+            nri::ShaderDesc shaderStages[] = {
+                utils::LoadShader(deviceDesc.graphicsAPI, "sample_1.vs", shaderCodeStorage),
+                utils::LoadShader(deviceDesc.graphicsAPI, "sample_1.fs", shaderCodeStorage),
+            };
+
+            nri::GraphicsPipelineDesc graphicsPipelineDesc = {};
+            graphicsPipelineDesc.pipelineLayout = m_SharedPipelineLayout;
+            graphicsPipelineDesc.vertexInput = &vertexInputDesc;
+            graphicsPipelineDesc.inputAssembly = inputAssemblyDesc;
+            graphicsPipelineDesc.rasterization = rasterizationDesc;
+            graphicsPipelineDesc.outputMerger = outputMergerDesc;
+            graphicsPipelineDesc.shaders = shaderStages;
+            graphicsPipelineDesc.shaderNum = GetCountOf(shaderStages);
+            NRI_ABORT_ON_FAILURE(NRI.CreateGraphicsPipeline(*m_Device, graphicsPipelineDesc, m_GraphicsPipeline));
+        }
+    }
     
     void InitializeResources() {
         // TODO: 创建骨骼矩阵缓冲区
@@ -127,6 +395,16 @@ private:
         // 3. 创建顶点/索引缓冲区（用于测试网格）
         
         // 提示：参考试学内容中的nriCreateBuffer和nriCreateDescriptor调用
+
+        nri::BufferDesc boneBufferDesc{};
+        boneBufferDesc.size = MAX_BONE_COUNT * sizeof(glm::mat4);
+        boneBufferDesc.usage = nri::BufferUsageBits::SHADER_RESOURCE;
+
+        nri::Buffer* boneBuffer;
+        NRI.CreateBuffer(*m_device, boneBufferDesc, boneBuffer);
+
+        // 创建SRV描述符
+        nri::Descriptor* boneSRV;
     }
     
     void InitializeAnimationData() {
