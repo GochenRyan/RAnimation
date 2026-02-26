@@ -6,7 +6,3 @@
 	path = Packages/NRI
 	url = https://github.com/NVIDIA-RTX/NRI.git
 	branch = main
-[submodule "Packages/glm"]
-	path = Packages/glm
-	url = https://github.com/icaven/glm.git
-	branch = master
