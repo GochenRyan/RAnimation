@@ -1,16 +1,16 @@
 #pragma once
 // NRI: core & extensions
-#include "NRI.h"
+#include <NRI.h>
 
-#include "Extensions/NRIDeviceCreation.h"
-#include "Extensions/NRIHelper.h"
-#include "Extensions/NRIImgui.h"
-#include "Extensions/NRILowLatency.h"
-#include "Extensions/NRIMeshShader.h"
-#include "Extensions/NRIRayTracing.h"
-#include "Extensions/NRIStreamer.h"
-#include "Extensions/NRISwapChain.h"
-#include "Extensions/NRIUpscaler.h"
+#include <Extensions/NRIDeviceCreation.h>
+#include <Extensions/NRIHelper.h>
+#include <Extensions/NRIImgui.h>
+#include <Extensions/NRILowLatency.h>
+#include <Extensions/NRIMeshShader.h>
+#include <Extensions/NRIRayTracing.h>
+#include <Extensions/NRIStreamer.h>
+#include <Extensions/NRISwapChain.h>
+#include <Extensions/NRIUpscaler.h>
 
 struct NRIInterface
     : public nri::CoreInterface,
