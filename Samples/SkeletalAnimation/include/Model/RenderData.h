@@ -1,5 +1,4 @@
 #pragma once
-
 #include <cstdint>
 #include <string>
 #include <unordered_map>
@@ -7,94 +6,115 @@
 
 #include <assimp/material.h>
 #include <glm/glm.hpp>
+#include <ml.h>
 
 #include <RHIWrap/NRIInterface.h>
+#include <RHIWrap/Utils.h>
 
-struct RVertex
+namespace RAnimation
 {
-    glm::vec3 position = glm::vec3(0.0f);
-    glm::vec4 color = glm::vec4(1.0f);
-    glm::vec3 normal = glm::vec3(0.0f);
-    glm::vec2 uv = glm::vec2(0.0f);
-    glm::uvec4 boneNumber = glm::uvec4(0);
-    glm::vec4 boneWeight = glm::vec4(0.0f);
-};
+    struct RVertex
+    {
+        glm::vec3 position = glm::vec3(0.0f);
+        glm::vec4 color = glm::vec4(1.0f);
+        glm::vec3 normal = glm::vec3(0.0f);
+        glm::vec2 uv = glm::vec2(0.0f);
+        glm::uvec4 boneNumber = glm::uvec4(0);
+        glm::vec4 boneWeight = glm::vec4(0.0f);
+    };
 
-struct RMesh 
-{
-    std::vector<RVertex> vertices{};
-    std::vector<uint32_t> indices{};
-    std::unordered_map<aiTextureType, std::string> textures{};
-    bool usesPBRColors = false;
-};
+    struct RMesh
+    {
+        std::vector<RVertex> vertices{};
+        std::vector<uint32_t> indices{};
+        std::unordered_map<aiTextureType, std::string> textures{};
+        bool usesPBRColors = false;
+    };
 
-struct RUploadMatrices 
-{
-    glm::mat4 viewMatrix{};
-    glm::mat4 projectionMatrix{};
-};
+    struct RUploadMatrices
+    {
+        glm::mat4 viewMatrix{};
+        glm::mat4 projectionMatrix{};
+    };
 
-struct RRenderData
-{
-    unsigned int rdTriangleCount = 0;
-    unsigned int rdMatricesSize = 0;
+    struct RTextureData
+    {
+        nri::Texture* nriTexture = nullptr;
+        utils::Texture texture{};
+        nri::TextureUploadDesc textureUploadDesc{};
+    };
 
-    int rdFieldOfView = 60;
+    struct QueuedFrame
+    {
+        nri::CommandAllocator* commandAllocator;
+        nri::CommandBuffer* commandBuffer;
+        nri::Descriptor* constantBufferView;
+        nri::DescriptorSet* constantBufferDescriptorSet;
+        uint64_t constantBufferViewOffset;
+    };
 
-    float rdFrameTime = 0.0f;
-    float rdMatrixGenerateTime = 0.0f;
-    float rdUploadToVBOTime = 0.0f;
-    float rdUploadToUBOTime = 0.0f;
-    float rdUIGenerateTime = 0.0f;
-    float rdUIDrawTime = 0.0f;
+    struct RRenderData
+    {
+        unsigned int rdTriangleCount = 0;
+        unsigned int rdMatricesSize = 0;
 
-    int rdMoveForward = 0;
-    int rdMoveRight = 0;
-    int rdMoveUp = 0;
+        int rdFieldOfView = 60;
 
-    float rdViewAzimuth = 330.0f;
-    float rdViewElevation = -20.0f;
-    glm::vec3 rdCameraWorldPosition = glm::vec3(2.0f, 5.0f, 7.0f);
+        float rdFrameTime = 0.0f;
+        float rdMatrixGenerateTime = 0.0f;
+        float rdUploadToVBOTime = 0.0f;
+        float rdUploadToUBOTime = 0.0f;
+        float rdUIGenerateTime = 0.0f;
+        float rdUIDrawTime = 0.0f;
 
-    nri::AllocationCallbacks mAllocationCallbacks = {};
-    uint2 mOutputResolution = { 1920, 1080 };
-    uint32_t mRngState = 0;
-    uint32_t mAdapterIndex = 0;
-    float mMouseSensitivity = 1.0f;
-    uint8_t mHalfTimeLimitReached = 2;
-    bool mVsync = false;
-    bool mDebugAPI = false;
-    bool mDebugNRI = false;
-    bool mAlwaysActive = false;
-    bool mResizable = false;
+        int rdMoveForward = 0;
+        int rdMoveRight = 0;
+        int rdMoveUp = 0;
 
-    NRIInterface NRI = {};
-    nri::Device* mDevice = nullptr;
-    nri::Streamer* mStreamer = nullptr;
-    nri::SwapChain* mSwapChain = nullptr;
-    nri::Queue* mGraphicsQueue = nullptr;
-    nri::Queue* mComputeQueue = nullptr;
-    nri::Fence* mFrameFence = nullptr;
-    nri::Fence* mComputeFence = nullptr;
-    nri::DescriptorPool* mDescriptorPool = nullptr;
-    nri::PipelineLayout* mSharedPipelineLayout = nullptr;
-    nri::Pipeline* mGraphicsPipeline = nullptr;
-    nri::Pipeline* mComputePipeline = nullptr;
-    nri::Buffer* mGeometryBuffer = nullptr;
-    nri::Texture* mTexture = nullptr;
-    nri::DescriptorSet* mDescriptorSet = nullptr;
-    nri::Descriptor* mDescriptor = nullptr;
-    std::vector<QueuedFrame> mQueuedFrames = {};
-    std::vector<SwapChainTexture> mSwapChainTextures;
-    std::vector<nri::Memory*> mMemoryAllocations;
-    bool mIsAsyncMode = false;
-    bool mHasComputeQueue = false;
+        float rdViewAzimuth = 330.0f;
+        float rdViewElevation = -20.0f;
+        glm::vec3 rdCameraWorldPosition = glm::vec3(2.0f, 5.0f, 7.0f);
 
-    bool mVsync = false;
-    bool mDebugAPI = false;
-    bool mDebugNRI = false;
-    bool mAlwaysActive = false;
-    bool mResizable = false;
+        nri::AllocationCallbacks mAllocationCallbacks = {};
+        uint2 mOutputResolution = {1920, 1080};
+        uint32_t mRngState = 0;
+        uint32_t mAdapterIndex = 0;
+        float mMouseSensitivity = 1.0f;
+        uint8_t mHalfTimeLimitReached = 2;
+        bool mVsync = false;
+        bool mDebugAPI = false;
+        bool mDebugNRI = false;
+        bool mAlwaysActive = false;
+        bool mResizable = false;
 
-    nri::Window mNRIWindow = {};
-}
+        NRIInterface NRI = {};
+        nri::Device* mDevice = nullptr;
+        nri::Streamer* mStreamer = nullptr;
+        nri::SwapChain* mSwapChain = nullptr;
+        nri::Queue* mGraphicsQueue = nullptr;
+        nri::Queue* mComputeQueue = nullptr;
+        nri::Fence* mFrameFence = nullptr;
+        nri::Fence* mComputeFence = nullptr;
+        nri::DescriptorPool* mDescriptorPool = nullptr;
+        nri::PipelineLayout* mSharedPipelineLayout = nullptr;
+        nri::Pipeline* mGraphicsPipeline = nullptr;
+        nri::Pipeline* mComputePipeline = nullptr;
+        nri::Buffer* mGeometryBuffer = nullptr;
+        nri::Texture* mTexture = nullptr;
+        nri::DescriptorSet* mDescriptorSet = nullptr;
+        nri::Descriptor* mDescriptor = nullptr;
+        std::vector<QueuedFrame> mQueuedFrames = {};
+        std::vector<SwapChainTexture> mSwapChainTextures;
+        std::vector<nri::Memory*> mMemoryAllocations;
+        bool mIsAsyncMode = false;
+        bool mHasComputeQueue = false;
+
+        bool mVsync = false;
+        bool mDebugAPI = false;
+        bool mDebugNRI = false;
+        bool mAlwaysActive = false;
+        bool mResizable = false;
+
+        nri::Window mNRIWindow = {};
+    };
+} // namespace RAnimation

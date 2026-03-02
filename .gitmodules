@@ -14,3 +14,11 @@
 	path = Packages/Mathlib
 	url = https://github.com/NVIDIA-RTX/MathLib.git
 	branch = main
+[submodule "Packages/fmt"]
+	path = Packages/fmt
+	url = https://github.com/fmtlib/fmt.git
+	branch = master
+[submodule "Packages/detex"]
+	path = Packages/detex
+	url = https://github.com/GochenRyan/detex.git
+	branch = master

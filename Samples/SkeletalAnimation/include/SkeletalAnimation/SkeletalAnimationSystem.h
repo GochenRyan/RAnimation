@@ -2,31 +2,31 @@
 // Week 1 周二实践日 - 实现简单的骨骼动画播放功能
 // 基于试学内容中的完整示例代码简化而来
 #pragma once
+#include <RHIWrap/Utils.h>
 #include <algorithm>
 #include <array>
 #include <cmath>
-#include <vector>
-
 #include <glm/glm.hpp>
 #include <ml.h>
+#include <vector>
 
-#include <SkeletalAnimation/Utils.h>
 
-
-#define NRI_ABORT_ON_FAILURE(result) \
-    if (result != nri::Result::SUCCESS) \
+#define NRI_ABORT_ON_FAILURE(result)                                                                                   \
+    if (result != nri::Result::SUCCESS)                                                                                \
         exit(1);
 
-template <typename T, uint32_t N>
-constexpr uint32_t GetCountOf(T const (&)[N]) {
+template <typename T, uint32_t N> constexpr uint32_t GetCountOf(T const (&)[N])
+{
     return N;
 }
 
-struct Vertex {
+struct Vertex
+{
     float position[3];
 };
 
-struct QueuedFrame {
+struct QueuedFrame
+{
     nri::CommandAllocator* commandAllocatorGraphics;
     nri::CommandAllocator* commandAllocatorCompute;
     std::array<nri::CommandBuffer*, 3> commandBufferGraphics;
@@ -41,90 +41,92 @@ constexpr bool D3D12_DISABLE_ENHANCED_BARRIERS = false;
 // 常量定义
 // ============================================================================
 
-constexpr uint32_t MAX_BONE_COUNT = 64;          // 最大骨骼数量
-constexpr uint32_t MAX_VERTEX_COUNT = 4096;      // 最大顶点数量
-constexpr uint32_t MAX_INDEX_COUNT = 8192;       // 最大索引数量
-constexpr uint32_t MAX_KEYFRAME_COUNT = 10;      // 最大关键帧数量
+constexpr uint32_t MAX_BONE_COUNT = 64;     // 最大骨骼数量
+constexpr uint32_t MAX_VERTEX_COUNT = 4096; // 最大顶点数量
+constexpr uint32_t MAX_INDEX_COUNT = 8192;  // 最大索引数量
+constexpr uint32_t MAX_KEYFRAME_COUNT = 10; // 最大关键帧数量
 
 // ============================================================================
 // 数据结构定义
 // ============================================================================
 
 // 骨骼变换数据
-struct BoneData {
-    glm::mat4 localTransform;      // 局部变换矩阵
-    glm::mat4 globalTransform;     // 全局变换矩阵
-    int32_t parentIndex;          // 父骨骼索引（-1表示根骨骼）
+struct BoneData
+{
+    glm::mat4 localTransform;  // 局部变换矩阵
+    glm::mat4 globalTransform; // 全局变换矩阵
+    int32_t parentIndex;       // 父骨骼索引（-1表示根骨骼）
 };
 
 // 动画关键帧
-struct AnimationKeyframe {
-    float timestamp;              // 时间戳（秒）
+struct AnimationKeyframe
+{
+    float timestamp;                          // 时间戳（秒）
     glm::mat4 boneTransforms[MAX_BONE_COUNT]; // 各骨骼的变换矩阵
 };
 
 // 顶点数据结构（用于蒙皮）
-struct SkinnedVertex {
+struct SkinnedVertex
+{
     glm::vec3 position;
     glm::vec3 normal;
     glm::vec2 texcoord;
-    glm::uvec4 boneIndices;            // 影响该顶点的骨骼索引（最多4个）
-    float boneWeights;           // 对应权重（总和为1.0）
+    glm::uvec4 boneIndices; // 影响该顶点的骨骼索引（最多4个）
+    float boneWeights;      // 对应权重（总和为1.0）
 };
 
 // ============================================================================
 // 骨骼动画系统类
 // ============================================================================
 
-class SkeletalAnimationSystem {
+class SkeletalAnimationSystem
+{
 public:
-    SkeletalAnimationSystem()
-        : m_currentTime(0.0f)
-        , m_currentKeyframe(0)
-        , m_nextKeyframe(1) {
-
+    SkeletalAnimationSystem() : m_currentTime(0.0f), m_currentKeyframe(0), m_nextKeyframe(1)
+    {
         Initialize();
-        
+
         // TODO: 初始化资源
         InitializeResources();
-        
+
         // TODO: 初始化动画数据
         InitializeAnimationData();
     }
-    
-    ~SkeletalAnimationSystem() {
+
+    ~SkeletalAnimationSystem()
+    {
         // TODO: 清理资源
         CleanupResources();
     }
-    
+
     // 更新骨骼动画
-    void Update(float deltaTime) {
+    void Update(float deltaTime)
+    {
         m_currentTime += deltaTime;
-        
+
         // TODO: 步骤1 - 计算动画进度和插值因子
         // 1. 获取动画总时长
         // 2. 计算归一化时间（循环播放）
         // 3. 查找当前关键帧和下一关键帧
         // 4. 计算插值因子（blendFactor）
-        
+
         // TODO: 步骤2 - 更新骨骼变换矩阵
         UpdateBoneTransforms();
-        
+
         // TODO: 步骤3 - 更新GPU缓冲区
         UpdateGPUBuffers();
     }
-    
+
     // 渲染动画模型
-    void Render(nri::CommandBuffer& commandBuffer) {
+    void Render(nri::CommandBuffer& commandBuffer)
+    {
         // TODO: 绑定骨骼矩阵缓冲区到着色器
         // 1. 设置描述符表
         // 2. 绑定顶点/索引缓冲区
         // 3. 绘制调用
     }
-    
+
 private:
-    
-    
     // 动画数据
     std::vector<BoneData> m_boneData;
     std::vector<AnimationKeyframe> m_keyframes;
@@ -132,7 +134,7 @@ private:
     uint32_t m_currentKeyframe;
     uint32_t m_nextKeyframe;
     float m_blendFactor;
-    
+
     // inline uint8_t GetQueuedFrameNum() const {
     //     return m_Vsync ? 2 : 3;
     // }
@@ -185,19 +187,21 @@ private:
         // NRI_ABORT_ON_FAILURE(nri::nriCreateDevice(deviceCreationDesc, m_Device));
 
         // // NRI
-        // NRI_ABORT_ON_FAILURE(nri::nriGetInterface(*m_Device, NRI_INTERFACE(nri::CoreInterface), (nri::CoreInterface*)&NRI));
-        // NRI_ABORT_ON_FAILURE(nri::nriGetInterface(*m_Device, NRI_INTERFACE(nri::HelperInterface), (nri::HelperInterface*)&NRI));
-        // NRI_ABORT_ON_FAILURE(nri::nriGetInterface(*m_Device, NRI_INTERFACE(nri::StreamerInterface), (nri::StreamerInterface*)&NRI));
-        // NRI_ABORT_ON_FAILURE(nri::nriGetInterface(*m_Device, NRI_INTERFACE(nri::SwapChainInterface), (nri::SwapChainInterface*)&NRI));
+        // NRI_ABORT_ON_FAILURE(nri::nriGetInterface(*m_Device, NRI_INTERFACE(nri::CoreInterface),
+        // (nri::CoreInterface*)&NRI)); NRI_ABORT_ON_FAILURE(nri::nriGetInterface(*m_Device,
+        // NRI_INTERFACE(nri::HelperInterface), (nri::HelperInterface*)&NRI));
+        // NRI_ABORT_ON_FAILURE(nri::nriGetInterface(*m_Device, NRI_INTERFACE(nri::StreamerInterface),
+        // (nri::StreamerInterface*)&NRI)); NRI_ABORT_ON_FAILURE(nri::nriGetInterface(*m_Device,
+        // NRI_INTERFACE(nri::SwapChainInterface), (nri::SwapChainInterface*)&NRI));
 
         // const nri::DeviceDesc& deviceDesc = NRI.GetDeviceDesc(*m_Device);
 
         // // Create streamer
         // nri::StreamerDesc streamerDesc = {};
         // streamerDesc.dynamicBufferMemoryLocation = nri::MemoryLocation::HOST_UPLOAD;
-        // streamerDesc.dynamicBufferDesc = { 0, 0, nri::BufferUsageBits::VERTEX_BUFFER | nri::BufferUsageBits::INDEX_BUFFER };
-        // streamerDesc.constantBufferMemoryLocation = nri::MemoryLocation::HOST_UPLOAD;
-        // streamerDesc.queuedFrameNum = GetQueuedFrameNum();
+        // streamerDesc.dynamicBufferDesc = { 0, 0, nri::BufferUsageBits::VERTEX_BUFFER |
+        // nri::BufferUsageBits::INDEX_BUFFER }; streamerDesc.constantBufferMemoryLocation =
+        // nri::MemoryLocation::HOST_UPLOAD; streamerDesc.queuedFrameNum = GetQueuedFrameNum();
         // NRI_ABORT_ON_FAILURE(NRI.CreateStreamer(*m_Device, streamerDesc, m_Streamer));
 
         // // Command queues
@@ -222,8 +226,8 @@ private:
         //     swapChainDesc.window = GetWindow();
         //     swapChainDesc.queue = m_GraphicsQueue;
         //     swapChainDesc.format = nri::SwapChainFormat::BT709_G22_8BIT;
-        //     swapChainDesc.flags = (m_Vsync ? nri::SwapChainBits::VSYNC : nri::SwapChainBits::NONE) | nri::SwapChainBits::ALLOW_TEARING;
-        //     swapChainDesc.width = (uint16_t)GetOutputResolution().x;
+        //     swapChainDesc.flags = (m_Vsync ? nri::SwapChainBits::VSYNC : nri::SwapChainBits::NONE) |
+        //     nri::SwapChainBits::ALLOW_TEARING; swapChainDesc.width = (uint16_t)GetOutputResolution().x;
         //     swapChainDesc.height = (uint16_t)GetOutputResolution().y;
         //     swapChainDesc.textureNum = GetOptimalSwapChainTextureNum();
         //     swapChainDesc.queuedFrameNum = GetQueuedFrameNum();
@@ -235,7 +239,8 @@ private:
         //     swapChainFormat = NRI.GetTextureDesc(*swapChainTextures[0]).format;
 
         //     for (uint32_t i = 0; i < swapChainTextureNum; i++) {
-        //         nri::Texture2DViewDesc textureViewDesc = { swapChainTextures[i], nri::Texture2DViewType::COLOR_ATTACHMENT, swapChainFormat };
+        //         nri::Texture2DViewDesc textureViewDesc = { swapChainTextures[i],
+        //         nri::Texture2DViewType::COLOR_ATTACHMENT, swapChainFormat };
 
         //         nri::Descriptor* colorAttachment = nullptr;
         //         NRI_ABORT_ON_FAILURE(NRI.CreateTexture2DView(textureViewDesc, colorAttachment));
@@ -262,24 +267,29 @@ private:
         // for (QueuedFrame& queuedFrame : m_QueuedFrames) {
         //     NRI_ABORT_ON_FAILURE(NRI.CreateCommandAllocator(*m_GraphicsQueue, queuedFrame.commandAllocatorGraphics));
         //     for (size_t i = 0; i < queuedFrame.commandBufferGraphics.size(); i++)
-        //         NRI_ABORT_ON_FAILURE(NRI.CreateCommandBuffer(*queuedFrame.commandAllocatorGraphics, queuedFrame.commandBufferGraphics[i]));
+        //         NRI_ABORT_ON_FAILURE(NRI.CreateCommandBuffer(*queuedFrame.commandAllocatorGraphics,
+        //         queuedFrame.commandBufferGraphics[i]));
 
         //     if (m_IsAsyncMode) {
-        //         NRI_ABORT_ON_FAILURE(NRI.CreateCommandAllocator(*m_ComputeQueue, queuedFrame.commandAllocatorCompute));
-        //         NRI_ABORT_ON_FAILURE(NRI.CreateCommandBuffer(*queuedFrame.commandAllocatorCompute, queuedFrame.commandBufferCompute));
+        //         NRI_ABORT_ON_FAILURE(NRI.CreateCommandAllocator(*m_ComputeQueue,
+        //         queuedFrame.commandAllocatorCompute));
+        //         NRI_ABORT_ON_FAILURE(NRI.CreateCommandBuffer(*queuedFrame.commandAllocatorCompute,
+        //         queuedFrame.commandBufferCompute));
         //     }
         // }
 
         // { // Pipeline layout
-        //     nri::DescriptorRangeDesc descriptorRangeStorage = { 0, 1, nri::DescriptorType::STORAGE_TEXTURE, nri::StageBits::COMPUTE_SHADER };
+        //     nri::DescriptorRangeDesc descriptorRangeStorage = { 0, 1, nri::DescriptorType::STORAGE_TEXTURE,
+        //     nri::StageBits::COMPUTE_SHADER };
 
         //     nri::DescriptorSetDesc descriptorSetDesc = { 0, &descriptorRangeStorage, 1 };
 
         //     nri::PipelineLayoutDesc pipelineLayoutDesc = {};
         //     pipelineLayoutDesc.descriptorSetNum = 1;
         //     pipelineLayoutDesc.descriptorSets = &descriptorSetDesc;
-        //     pipelineLayoutDesc.shaderStages = nri::StageBits::COMPUTE_SHADER | nri::StageBits::VERTEX_SHADER | nri::StageBits::FRAGMENT_SHADER;
-        //     NRI_ABORT_ON_FAILURE(NRI.CreatePipelineLayout(*m_Device, pipelineLayoutDesc, m_SharedPipelineLayout));
+        //     pipelineLayoutDesc.shaderStages = nri::StageBits::COMPUTE_SHADER | nri::StageBits::VERTEX_SHADER |
+        //     nri::StageBits::FRAGMENT_SHADER; NRI_ABORT_ON_FAILURE(NRI.CreatePipelineLayout(*m_Device,
+        //     pipelineLayoutDesc, m_SharedPipelineLayout));
         // }
 
         // utils::ShaderCodeStorage shaderCodeStorage;
@@ -333,13 +343,14 @@ private:
         //     NRI_ABORT_ON_FAILURE(NRI.CreateGraphicsPipeline(*m_Device, graphicsPipelineDesc, m_GraphicsPipeline));
         // }
     }
-    
-    void InitializeResources() {
+
+    void InitializeResources()
+    {
         // TODO: 创建骨骼矩阵缓冲区
         // 1. 创建结构化缓冲区（BufferUsage::SHADER_RESOURCE）
         // 2. 创建SRV描述符
         // 3. 创建顶点/索引缓冲区（用于测试网格）
-        
+
         // 提示：参考试学内容中的nriCreateBuffer和nriCreateDescriptor调用
 
         // nri::BufferDesc boneBufferDesc{};
@@ -352,61 +363,69 @@ private:
         // // 创建SRV描述符
         // nri::Descriptor* boneSRV;
     }
-    
-    void InitializeAnimationData() {
+
+    void InitializeAnimationData()
+    {
         // TODO: 初始化示例骨骼层级结构
         // 创建简单的3骨骼层级：Root -> Bone1 -> Bone2
         // 为每个骨骼设置：
         // - parentIndex: 父骨骼索引（Root为-1）
         // - localTransform: 局部变换矩阵（位置、旋转）
         // - globalTransform: 初始全局变换矩阵
-        
+
         // TODO: 创建简单的动画关键帧
         // 创建2-3个关键帧，每帧包含所有骨骼的变换矩阵
         // 关键帧之间应有明显的姿态变化
     }
-    
-    void UpdateBoneTransforms() {
+
+    void UpdateBoneTransforms()
+    {
         // TODO: 计算当前帧的骨骼变换矩阵
         // 1. 对每个骨骼，插值当前关键帧和下一关键帧的变换矩阵
         // 2. 从根骨骼开始，递归计算全局变换矩阵
         // 3. 存储最终骨骼矩阵到m_boneData[i].globalTransform
-        
+
         // 提示：使用矩阵线性插值（实际项目中可能需要四元数插值）
         // globalTransform = parentGlobalTransform × localTransform
     }
-    
-    void UpdateGPUBuffers() {
+
+    void UpdateGPUBuffers()
+    {
         // TODO: 更新GPU骨骼矩阵缓冲区
         // 1. 将m_boneData中的globalTransform矩阵复制到映射内存
         // 2. 使用NRI的缓冲区更新机制
-        
+
         // 提示：使用nri::BufferUploadHelper或直接内存映射
     }
-    
-    void CleanupResources() {
+
+    void CleanupResources()
+    {
         // TODO: 释放所有NRI资源
         // 释放缓冲区、描述符等
     }
-    
+
     // ============================================================================
     // 辅助函数
     // ============================================================================
-    
+
     // 矩阵线性插值（简化版，实际项目可能需要四元数插值）
-    glm::mat4 LerpMatrix(const glm::mat4& a, const glm::mat4& b, float t) {
+    glm::mat4 LerpMatrix(const glm::mat4& a, const glm::mat4& b, float t)
+    {
         // GLM矩阵可以通过下标访问，矩阵按列存储：mat4[col][row]
         glm::mat4 result;
-        for (int i = 0; i < 4; ++i) {
-            for (int j = 0; j < 4; ++j) {
+        for (int i = 0; i < 4; ++i)
+        {
+            for (int j = 0; j < 4; ++j)
+            {
                 result[i][j] = a[i][j] * (1.0f - t) + b[i][j] * t;
             }
         }
         return result;
     }
-    
+
     // 创建简单的测试网格（圆柱体模拟肢体）
-    void CreateTestMesh(std::vector<SkinnedVertex>& vertices, std::vector<uint32_t>& indices) {
+    void CreateTestMesh(std::vector<SkinnedVertex>& vertices, std::vector<uint32_t>& indices)
+    {
         // TODO: 创建简单的测试网格
         // 可创建一个圆柱体或长方体，顶点绑定到相应的骨骼
         // 用于验证动画效果
@@ -442,16 +461,16 @@ struct VS_OUTPUT {
 // 蒙皮顶点着色器
 VS_OUTPUT SkinVS(VS_INPUT input) {
     VS_OUTPUT output;
-    
+
     // TODO: 实现矩阵调色板蒙皮计算
     // 1. 初始化变换后的位置和法线
     // 2. 遍历所有影响的骨骼（最多4个）
     // 3. 应用骨骼权重进行混合
     // 4. 变换顶点位置和法线
-    
+
     // 提示：使用g_boneMatrices[boneIndex]变换顶点
     // 注意法线变换需要使用逆转置矩阵或3x3子矩阵
-    
+
     return output;
 }
 */

@@ -1,0 +1,88 @@
+# .clang-format (engine-ish C++ style)
+BasedOnStyle: LLVM
+Language: Cpp
+
+# Indentation / tabs
+IndentWidth: 4
+TabWidth: 4
+UseTab: Never
+ContinuationIndentWidth: 8
+IndentCaseLabels: true
+IndentCaseBlocks: false
+IndentGotoLabels: false
+IndentPPDirectives: AfterHash
+
+# Line length
+ColumnLimit: 120
+
+# Braces (Allman)
+BreakBeforeBraces: Allman
+BraceWrapping:
+  AfterClass: true
+  AfterControlStatement: true
+  AfterEnum: true
+  AfterFunction: true
+  AfterNamespace: true
+  AfterStruct: true
+  AfterUnion: true
+  BeforeCatch: true
+  BeforeElse: true
+  IndentBraces: false
+  SplitEmptyFunction: true
+  SplitEmptyRecord: true
+  SplitEmptyNamespace: true
+
+# Function / call formatting (don’t over-pack arguments)
+BinPackArguments: false
+BinPackParameters: false
+AllowAllArgumentsOnNextLine: true
+AllowAllParametersOnNextLine: true
+AllowShortFunctionsOnASingleLine: InlineOnly
+AllowShortIfStatementsOnASingleLine: Never
+AllowShortLoopsOnASingleLine: false
+AllowShortBlocksOnASingleLine: Never
+BreakConstructorInitializers: AfterColon
+ConstructorInitializerIndentWidth: 4
+
+# Spacing
+PointerAlignment: Left
+ReferenceAlignment: Left
+SpaceBeforeParens: ControlStatements
+SpacesInParentheses: false
+SpacesInSquareBrackets: false
+SpaceInEmptyBlock: false
+SpaceAfterCStyleCast: true
+
+# Alignments (engine code often prefers readable vertical alignment)
+AlignAfterOpenBracket: Align
+AlignOperands: Align
+AlignConsecutiveAssignments:
+  Enabled: false
+  AcrossEmptyLines: false
+  AcrossComments: false
+AlignConsecutiveDeclarations:
+  Enabled: false
+  AcrossEmptyLines: false
+  AcrossComments: false
+
+# Includes
+SortIncludes: false
+IncludeBlocks: Preserve
+
+# Namespaces / access specifiers
+NamespaceIndentation: All
+FixNamespaceComments: true
+AccessModifierOffset: -4
+
+# Misc
+Cpp11BracedListStyle: true
+DerivePointerAlignment: false
+KeepEmptyLinesAtTheStartOfBlocks: false
+MaxEmptyLinesToKeep: 2
+ReflowComments: true
+
+# Good for engine-style macros & long expressions
+PenaltyBreakAssignment: 30
+PenaltyBreakBeforeFirstCallParameter: 60
+PenaltyBreakComment: 300
+PenaltyReturnTypeOnItsOwnLine: 200

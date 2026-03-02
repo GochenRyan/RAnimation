@@ -28,6 +28,12 @@ message(STATUS "Build type: ${CMAKE_BUILD_TYPE}")
 
 include(CMake/OutputDirectories.cmake)
 
+include(CMake/Release/fmt_release.cmake)
+setup_output_directories(fmt)
+
+include(CMake/Release/detex_release.cmake)
+setup_output_directories(detex)
+
 # Assimp defines _USE_MATH_DEFINES internally in some translation units.
 # Keep the global define for the rest of the project, but temporarily remove it
 # while configuring Assimp to avoid MSVC C4005 macro redefinition promoted by /WX.
