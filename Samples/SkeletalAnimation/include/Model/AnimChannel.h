@@ -5,7 +5,7 @@
 #include <vector>
 
 #include <assimp/anim.h>
-#include <glm/gtx/quaternion.hpp>
+#include <glm/gtc/quaternion.hpp>
 #include <glm/glm.hpp>
 
 namespace RAnimation

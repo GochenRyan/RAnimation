@@ -11,10 +11,6 @@ if(PROJECT_BINARY_DIR STREQUAL PROJECT_SOURCE_DIR)
     message(WARNING "The Binary directory of CMake cannot be the same as source directory!")
 endif()
 
-if(NOT CMAKE_BUILD_TYPE)
-    set(CMAKE_BUILD_TYPE Release)
-endif()
-
 if(WIN32)
     add_definitions(-DNOMINMAX -D_USE_MATH_DEFINES)
 endif()
@@ -23,8 +19,6 @@ if (MSVC OR CMAKE_CXX_SIMULATE_ID STREQUAL "MSVC")
     set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>DLL")
     add_compile_options(/Zc:preprocessor)
 endif()
-
-message(STATUS "Build type: ${CMAKE_BUILD_TYPE}")
 
 include(CMake/OutputDirectories.cmake)
 

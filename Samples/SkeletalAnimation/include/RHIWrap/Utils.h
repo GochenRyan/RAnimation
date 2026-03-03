@@ -5,8 +5,8 @@
 #undef OPAQUE
 #undef TRANSPARENT
 
-#include <Extensions/NRIHelper.h>
 #include <NRI.h>
+#include <Extensions/NRIHelper.h>
 #include <ml.h>
 #include <string>
 #include <vector>

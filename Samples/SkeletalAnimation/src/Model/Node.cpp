@@ -17,11 +17,10 @@ std::shared_ptr<Node> Node::AddChild(std::string childName)
     std::shared_ptr<Node> child = std::make_shared<Node>(childName);
     child->mParentNode = shared_from_this();
 
-    fmt::print(stdout,
-               "{0}: -- adding child {1} to parent {2}\n",
+    fmt::print("{}: -- adding child {} to parent {}\n",
                __FUNCTION__,
-               childName.c_str(),
-               child->GetParentNodeName().c_str());
+               childName,
+               child->GetParentNodeName());
 
     mChildNodes.push_back(child);
     return child;
@@ -34,11 +33,10 @@ void Node::AddChilds(std::vector<std::string> childNodes)
         std::shared_ptr<Node> child = std::make_shared<Node>(childName);
         child->mParentNode = shared_from_this();
 
-        fmt::print(stdout,
-                   "{0}: -- adding child {1} to parent {2}\n",
+        fmt::print("{}: -- adding child {} to parent {}\n",
                    __FUNCTION__,
-                   childName.c_str(),
-                   child->GetParentNodeName().c_str());
+                   childName,
+                   child->GetParentNodeName());
 
         mChildNodes.push_back(child);
     }

@@ -3,10 +3,9 @@
 
 using namespace RAnimation;
 
-
 Bone::Bone(unsigned int id, std::string name, glm::mat4 matrix) : mBoneId(id), mNodeName(name), mOffsetMatrix(matrix)
 {
-    fmt::print(stdout, "{0}: --- added bone {1} for node name '{2}'\n", __FUNCTION__, mBoneId, mNodeName.c_str());
+    fmt::print("{}: --- added bone {} for node name '{}'\n", __FUNCTION__, mBoneId, mNodeName);
 }
 
 unsigned int Bone::GetBoneId()

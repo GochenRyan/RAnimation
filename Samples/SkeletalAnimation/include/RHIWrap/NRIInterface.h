@@ -1,5 +1,6 @@
 #pragma once
 // NRI: core & extensions
+#include <NRI.h>
 #include <Extensions/NRIDeviceCreation.h>
 #include <Extensions/NRIHelper.h>
 #include <Extensions/NRIImgui.h>
@@ -9,7 +10,7 @@
 #include <Extensions/NRIStreamer.h>
 #include <Extensions/NRISwapChain.h>
 #include <Extensions/NRIUpscaler.h>
-#include <NRI.h>
+
 
 struct NRIInterface : public nri::CoreInterface,
                       public nri::HelperInterface,
@@ -45,3 +46,7 @@ struct SwapChainTexture
     nri::Descriptor* colorAttachment;
     nri::Format attachmentFormat;
 };
+
+#define NRI_ABORT_ON_FAILURE(result)                                                                                   \
+    if (result != nri::Result::SUCCESS)                                                                                \
+        exit(1);

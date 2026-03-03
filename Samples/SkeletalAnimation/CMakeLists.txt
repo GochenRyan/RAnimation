@@ -13,3 +13,9 @@ target_link_libraries(SkeletalAniamation PRIVATE assimp)
 target_link_libraries(SkeletalAniamation PRIVATE detex::detex)
 target_link_libraries(SkeletalAniamation PRIVATE fmt::fmt)
 target_link_libraries(SkeletalAniamation PRIVATE NRI_Shared)
+
+set_property(TARGET SkeletalAniamation PROPERTY COMPILE_WARNING_AS_ERROR OFF)
+
+if(MSVC)
+  set_property(TARGET SkeletalAniamation APPEND_STRING PROPERTY COMPILE_OPTIONS " /WX-")
+endif()

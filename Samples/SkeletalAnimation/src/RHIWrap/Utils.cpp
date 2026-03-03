@@ -7,8 +7,43 @@
 #include <functional>
 #include <stb_image.h>
 
-const char* utils::GetFileName(const std::string& path)
-{
+//========================================================================================================================
+// TEXTURE
+//========================================================================================================================
+
+inline detexTexture** ToTexture(utils::Mip* mips) {
+    return (detexTexture**)mips;
+}
+
+inline detexTexture* ToMip(utils::Mip mip) {
+    return (detexTexture*)mip;
+}
+
+utils::Texture::~Texture() {
+    detexFreeTexture(ToTexture(mips), mipNum);
+}
+
+void utils::Texture::GetSubresource(nri::TextureSubresourceUploadDesc& subresource, uint32_t mipIndex, uint32_t arrayIndex) const {
+    // TODO: 3D images are not supported, "subresource.slices" needs to be allocated to store pointers to all slices of the current mipmap
+    assert(GetDepth() == 1);
+    (void)(arrayIndex); // TODO: unused
+
+    detexTexture* mip = ToMip(mips[mipIndex]);
+
+    int rowPitch, slicePitch;
+    detexComputePitch(mip->format, mip->width, mip->height, &rowPitch, &slicePitch);
+
+    subresource.slices = mip->data;
+    subresource.sliceNum = 1;
+    subresource.rowPitch = (uint32_t)rowPitch;
+    subresource.slicePitch = (uint32_t)slicePitch;
+}
+
+bool utils::Texture::IsBlockCompressed() const {
+    return detexFormatIsCompressed(ToMip(mips[0])->format);
+}
+
+const char* utils::GetFileName(const std::string& path) {
     const size_t slashPos = path.find_last_of("\\/");
     if (slashPos != std::string::npos)
         return path.c_str() + slashPos + 1;
@@ -61,6 +96,16 @@ bool utils::LoadFile(const std::string& path, std::vector<uint8_t>& data)
     fclose(file);
 
     return !data.empty() && readSize == 1;
+}
+
+inline const char* GetShaderExt(nri::GraphicsAPI graphicsAPI)
+{
+    if (graphicsAPI == nri::GraphicsAPI::D3D11)
+        return ".dxbc";
+    else if (graphicsAPI == nri::GraphicsAPI::D3D12)
+        return ".dxil";
+
+    return ".spirv";
 }
 
 struct Shader
@@ -124,85 +169,11 @@ nri::ShaderDesc utils::LoadShader(nri::GraphicsAPI graphicsAPI,
     return shaderDesc;
 }
 
-bool utils::LoadTexture(const std::string& path, Texture& texture, bool computeAvgColorAndAlphaMode)
-{
-    printf("Loading texture '%s'...\n", GetFileName(path));
-
-    detexTexture** dTexture = nullptr;
-    int mipNum = 0;
-
-    if (!detexLoadTextureFileWithMipmaps(path.c_str(), 32, &dTexture, &mipNum))
-    {
-        printf("ERROR: Can't load texture '%s'\n", path.c_str());
-
-        return false;
-    }
-
-    PostProcessTexture(path, texture, computeAvgColorAndAlphaMode, dTexture, mipNum);
-
-    return true;
-}
-
-bool utils::LoadTextureFromMemory(
-        const std::string& name, const uint8_t* data, int dataSize, Texture& texture, bool computeAvgColorAndAlphaMode)
-{
-    printf("Loading embedded texture '%s'...\n", name.c_str());
-
-    int x, y, comp;
-    unsigned char* image = stbi_load_from_memory((stbi_uc const*) data, dataSize, &x, &y, &comp, STBI_rgb_alpha);
-    if (!image)
-    {
-        printf("Could not read memory for embedded texture %s. Reason: %s", name.c_str(), stbi_failure_reason());
-        return false;
-    }
-    detexTexture** dTexture = (detexTexture**) malloc(sizeof(detexTexture*));
-    dTexture[0] = (detexTexture*) malloc(sizeof(detexTexture));
-    dTexture[0]->format = DETEX_PIXEL_FORMAT_RGBA8;
-    dTexture[0]->width = x;
-    dTexture[0]->height = y;
-    dTexture[0]->width_in_blocks = x;
-    dTexture[0]->height_in_blocks = y;
-    size_t size = x * y * detexGetPixelSize(DETEX_PIXEL_FORMAT_RGBA8);
-    dTexture[0]->data = (uint8_t*) malloc(size);
-    memcpy(dTexture[0]->data, image, size);
-    stbi_image_free(image);
-
-    const int kMipNum = 1;
-    PostProcessTexture(name, texture, computeAvgColorAndAlphaMode, dTexture, kMipNum);
-    return true;
-}
-
-void utils::LoadTextureFromMemory(
-        nri::Format format, uint32_t width, uint32_t height, const uint8_t* pixels, Texture& texture)
-{
-    assert(format == nri::Format::R8_UNORM);
-
-    detexTexture** dTexture;
-    detexLoadTextureFromMemory(DETEX_PIXEL_FORMAT_R8, width, height, pixels, &dTexture);
-
-    texture.mipNum = 1;
-    texture.layerNum = 1;
-    texture.depth = 1;
-    texture.format = format;
-    texture.alphaMode = AlphaMode::OPAQUE;
-    texture.mips = (Mip*) dTexture;
-}
-
-inline const char* GetShaderExt(nri::GraphicsAPI graphicsAPI)
-{
-    if (graphicsAPI == nri::GraphicsAPI::D3D11)
-        return ".dxbc";
-    else if (graphicsAPI == nri::GraphicsAPI::D3D12)
-        return ".dxil";
-
-    return ".spirv";
-}
-
 static struct FormatMapping
 {
     uint32_t detexFormat;
     nri::Format nriFormat;
-} formatTable[] = {
+} nriFormatTable[] = {
         // Uncompressed formats.
         {DETEX_PIXEL_FORMAT_RGB8, nri::Format::UNKNOWN},
         {DETEX_PIXEL_FORMAT_RGBA8, nri::Format::RGBA8_UNORM},
@@ -249,7 +220,7 @@ static struct FormatMapping
 
 static nri::Format GetFormatNRI(uint32_t detexFormat)
 {
-    for (auto& entry : formatTable)
+    for (auto& entry : nriFormatTable)
     {
         if (entry.detexFormat == detexFormat)
             return entry.nriFormat;
@@ -338,3 +309,67 @@ namespace utils
         }
     }
 } // namespace utils
+
+bool utils::LoadTexture(const std::string& path, Texture& texture, bool computeAvgColorAndAlphaMode)
+{
+    printf("Loading texture '%s'...\n", GetFileName(path));
+
+    detexTexture** dTexture = nullptr;
+    int mipNum = 0;
+
+    if (!detexLoadTextureFileWithMipmaps(path.c_str(), 32, &dTexture, &mipNum))
+    {
+        printf("ERROR: Can't load texture '%s'\n", path.c_str());
+
+        return false;
+    }
+
+    PostProcessTexture(path, texture, computeAvgColorAndAlphaMode, dTexture, mipNum);
+
+    return true;
+}
+
+bool utils::LoadTextureFromMemory(
+        const std::string& name, const uint8_t* data, int dataSize, Texture& texture, bool computeAvgColorAndAlphaMode)
+{
+    printf("Loading embedded texture '%s'...\n", name.c_str());
+
+    int x, y, comp;
+    unsigned char* image = stbi_load_from_memory((stbi_uc const*) data, dataSize, &x, &y, &comp, STBI_rgb_alpha);
+    if (!image)
+    {
+        printf("Could not read memory for embedded texture %s. Reason: %s", name.c_str(), stbi_failure_reason());
+        return false;
+    }
+    detexTexture** dTexture = (detexTexture**) malloc(sizeof(detexTexture*));
+    dTexture[0] = (detexTexture*) malloc(sizeof(detexTexture));
+    dTexture[0]->format = DETEX_PIXEL_FORMAT_RGBA8;
+    dTexture[0]->width = x;
+    dTexture[0]->height = y;
+    dTexture[0]->width_in_blocks = x;
+    dTexture[0]->height_in_blocks = y;
+    size_t size = x * y * detexGetPixelSize(DETEX_PIXEL_FORMAT_RGBA8);
+    dTexture[0]->data = (uint8_t*) malloc(size);
+    memcpy(dTexture[0]->data, image, size);
+    stbi_image_free(image);
+
+    const int kMipNum = 1;
+    PostProcessTexture(name, texture, computeAvgColorAndAlphaMode, dTexture, kMipNum);
+    return true;
+}
+
+void utils::LoadTextureFromMemory(
+        nri::Format format, uint32_t width, uint32_t height, const uint8_t* pixels, Texture& texture)
+{
+    assert(format == nri::Format::R8_UNORM);
+
+    detexTexture** dTexture;
+    detexLoadTextureFromMemory(DETEX_PIXEL_FORMAT_R8, width, height, pixels, &dTexture);
+
+    texture.mipNum = 1;
+    texture.layerNum = 1;
+    texture.depth = 1;
+    texture.format = format;
+    texture.alphaMode = AlphaMode::OPAQUE;
+    texture.mips = (Mip*) dTexture;
+}

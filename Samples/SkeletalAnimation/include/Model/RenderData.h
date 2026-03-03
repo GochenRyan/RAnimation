@@ -109,12 +109,6 @@ namespace RAnimation
         bool mIsAsyncMode = false;
         bool mHasComputeQueue = false;
 
-        bool mVsync = false;
-        bool mDebugAPI = false;
-        bool mDebugNRI = false;
-        bool mAlwaysActive = false;
-        bool mResizable = false;
-
         nri::Window mNRIWindow = {};
     };
 } // namespace RAnimation

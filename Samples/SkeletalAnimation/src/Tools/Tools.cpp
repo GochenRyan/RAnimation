@@ -2,6 +2,7 @@
 #include <cerrno>  // errno
 #include <cstring> // strerror()
 #include <fmt/base.h>
+#include <fmt/color.h>
 #include <fstream>
 #include <iostream>
 
@@ -33,20 +34,20 @@ std::string Tools::loadFileToString(std::string fileName)
     }
     else
     {
-        fmt::print(stderr, "{0} error: could not open file {1}\n", __FUNCTION__, fileName.c_str());
-        fmt::print(stderr, "{0} error: system says '{1}'\n", __FUNCTION__, strerror(errno));
+        fmt::print(stderr, fg(fmt::color::red), "{} error: could not open file {}\n", __FUNCTION__, fileName);
+        fmt::print(stderr, fg(fmt::color::red), "{} error: system says '{}'\n", __FUNCTION__, strerror(errno));
         return std::string();
     }
 
     if (inFile.bad() || inFile.fail())
     {
-        fmt::print(stderr, "{0} error: error while reading file {1}\n", __FUNCTION__, fileName.c_str());
+        fmt::print(stderr, fg(fmt::color::red), "{} error: error while reading file {}\n", __FUNCTION__, fileName);
         inFile.close();
         return std::string();
     }
 
     inFile.close();
-    fmt::print(stdout, "{0}: file {1} successfully read to string\n", __FUNCTION__, fileName.c_str());
+    fmt::print("{}: file {} successfully read to string\n", __FUNCTION__, fileName);
     return str;
 }
 

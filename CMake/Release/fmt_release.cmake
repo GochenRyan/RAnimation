@@ -1,4 +1,4 @@
-add_subdirectory(${CMAKE_SOURCE_DIR}/Engine/Packages/fmt EXCLUDE_FROM_ALL)
+add_subdirectory(${CMAKE_SOURCE_DIR}/Packages/fmt EXCLUDE_FROM_ALL)
 set_target_properties(fmt PROPERTIES
     MAP_IMPORTED_CONFIG_DEBUG RELEASE
     MAP_IMPORTED_CONFIG_RELWITHDEBINFO RELEASE

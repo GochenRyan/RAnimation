@@ -2,6 +2,7 @@
 #include <memory>
 
 #include <fmt/base.h>
+#include <fmt/color.h>
 #include <NRI.h>
 
 #include <Model/Mesh.h>
@@ -19,30 +20,25 @@ bool Mesh::ProcessMesh(RRenderData& renderData,
     mTriangleCount = mesh->mNumFaces;
     mVertexCount = mesh->mNumVertices;
 
-    fmt::print(stdout,
-               "{0}: -- mesh '{1}' has {2} faces ({3} vertices)\n",
-               __FUNCTION__,
-               mMeshName.c_str(),
-               mTriangleCount,
-               mVertexCount);
+    fmt::print("{}: -- mesh '{}' has {} faces ({} vertices)\n", __FUNCTION__, mMeshName, mTriangleCount, mVertexCount);
     for (size_t i = 0; i < AI_MAX_NUMBER_OF_COLOR_SETS; ++i)
     {
         if (mesh->HasVertexColors(i))
         {
-            fmt::print(stdout, "{0}: --- mesh has vertex colors in set {1}\n", __FUNCTION__, i);
+            fmt::print("{}: --- mesh has vertex colors in set {}\n", __FUNCTION__, i);
         }
     }
 
     if (mesh->HasNormals())
     {
-        fmt::print(stdout, "{0}: --- mesh has normals\n", __FUNCTION__);
+        fmt::print("{}: --- mesh has normals\n", __FUNCTION__);
     }
 
     for (size_t i = 0; i < AI_MAX_NUMBER_OF_TEXTURECOORDS; ++i)
     {
         if (mesh->HasTextureCoords(i))
         {
-            fmt::print(stdout, "{0}: --- mesh has texture cooords in set {1}\n", __FUNCTION__, i);
+            fmt::print("{}: --- mesh has texture cooords in set {}\n", __FUNCTION__, i);
         }
     }
 
@@ -50,7 +46,7 @@ bool Mesh::ProcessMesh(RRenderData& renderData,
     if (material)
     {
         aiString materialName = material->GetName();
-        fmt::print(stdout, "{0}: - material found, name '{1}'\n", __FUNCTION__, materialName.C_Str());
+        fmt::print("{}: - material found, name '{}'\n", __FUNCTION__, materialName.C_Str());
 
         if (mesh->mMaterialIndex >= 0)
         {
@@ -61,12 +57,11 @@ bool Mesh::ProcessMesh(RRenderData& renderData,
                 unsigned int textureCount = material->GetTextureCount(texType);
                 if (textureCount > 0)
                 {
-                    fmt::print(stdout,
-                               "{0}: -- material '{1}' has %i images of type {2}\n",
+                    fmt::print("{}: -- material '{}' has %i images of type {}\n",
                                __FUNCTION__,
                                materialName.C_Str(),
                                textureCount,
-                               texType);
+                               static_cast<int>(texType));
                     for (size_t i = 0; i < textureCount; ++i)
                     {
                         aiString textureName;
@@ -77,17 +72,14 @@ bool Mesh::ProcessMesh(RRenderData& renderData,
                         // Windows does understand forward slashes but Linux no backslashes
                         std::replace(texName.begin(), texName.end(), '\\', '/');
 
-                        fmt::print(stdout, "{0}: --- image {1} has name '{2}'\n", __FUNCTION__, i, texName.c_str());
+                        fmt::print("{}: --- image {} has name '{}'\n", __FUNCTION__, i, texName);
 
                         mMesh.textures.insert({texType, texName});
 
                         /* skip already loaded textures */
                         if (textures.count(texName) > 0)
                         {
-                            fmt::print(stdout,
-                                       "{0}: texture '{1}' already loaded, skipping\n",
-                                       __FUNCTION__,
-                                       texName.c_str());
+                            fmt::print("{}: texture '{}' already loaded, skipping\n", __FUNCTION__, texName);
                             continue;
                         }
 
@@ -99,9 +91,10 @@ bool Mesh::ProcessMesh(RRenderData& renderData,
                             if (!utils::LoadTexture(texNameWithPath, newTex.texture))
                             {
                                 fmt::print(stderr,
-                                           "{0} error: could not load texture file '{1}', skipping\n",
+                                           fg(fmt::color::red),
+                                           "{} error: could not load texture file '{}', skipping\n",
                                            __FUNCTION__,
-                                           texNameWithPath.c_str());
+                                           texNameWithPath);
                                 continue;
                             }
                             textures.insert({texName, newTex});
@@ -180,16 +173,15 @@ bool Mesh::ProcessMesh(RRenderData& renderData,
     if (mesh->HasBones())
     {
         unsigned int numBones = mesh->mNumBones;
-        fmt::print(stdout, "{0}: -- mesh has information about {1} bones\n", __FUNCTION__, numBones);
+        fmt::print("{}: -- mesh has information about {} bones\n", __FUNCTION__, numBones);
         for (unsigned int boneId = 0; boneId < numBones; ++boneId)
         {
             std::string boneName = mesh->mBones[boneId]->mName.C_Str();
             unsigned int numWeights = mesh->mBones[boneId]->mNumWeights;
-            fmt::print(stdout,
-                       "{0}: --- bone nr. {1} has name {2}, contains {3} weights\n",
+            fmt::print("{}: --- bone nr. {} has name {}, contains {} weights\n",
                        __FUNCTION__,
                        boneId,
-                       boneName.c_str(),
+                       boneName,
                        numWeights);
 
             std::shared_ptr<Bone> newBone = std::make_shared<Bone>(

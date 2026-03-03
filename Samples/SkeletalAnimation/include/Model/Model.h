@@ -11,15 +11,15 @@
 #include <Model/Bone.h>
 #include <Model/Node.h>
 #include <Model/RenderData.h>
-#include <NRI.h>
+#include <RHIWrap/NRIInterface.h>
 
 namespace RAnimation
 {
-    class AssimpModel
+    class Model
     {
     public:
         bool LoadModel(RRenderData& renderData, std::string modelFilename, unsigned int extraImportFlags = 0);
-        glm::mat4 getRootTranformationMatrix();
+        glm::mat4 GetRootTranformationMatrix();
 
         void Draw(RRenderData& renderData);
         void DrawInstanced(RRenderData& renderData, uint32_t instanceCount);
@@ -67,13 +67,13 @@ namespace RAnimation
         std::vector<std::shared_ptr<AnimClip>> mAnimClips{};
 
         std::vector<RMesh> mModelMeshes{};
-        std::vector<nri::Buffer> mVertexBuffers{};
-        std::vector<nri::Buffer> mIndexBuffers{};
+        std::vector<nri::Buffer*> mVertexBuffers{};
+        std::vector<nri::Buffer*> mIndexBuffers{};
 
         // map textures to external or internal texture names
-        std::unordered_map<std::string, nri::Texture> mTextures{};
-        nri::Texture mPlaceholderTexture{};
-        nri::Texture mWhiteTexture{};
+        std::unordered_map<std::string, RTextureData> mTextures{};
+        RTextureData mPlaceholderTexture{};
+        RTextureData mWhiteTexture{};
 
         glm::mat4 mRootTransformMatrix = glm::mat4(1.0f);
 

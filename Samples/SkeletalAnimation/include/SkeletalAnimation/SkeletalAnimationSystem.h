@@ -10,11 +10,6 @@
 #include <ml.h>
 #include <vector>
 
-
-#define NRI_ABORT_ON_FAILURE(result)                                                                                   \
-    if (result != nri::Result::SUCCESS)                                                                                \
-        exit(1);
-
 template <typename T, uint32_t N> constexpr uint32_t GetCountOf(T const (&)[N])
 {
     return N;
