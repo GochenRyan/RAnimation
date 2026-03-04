@@ -52,9 +52,11 @@ namespace RAnimation
         nri::DescriptorSet* constantBufferDescriptorSet;
         uint64_t constantBufferViewOffset;
     };
-
+    
     struct RRenderData
     {
+        uint2 rdOutputResolution = {1920, 1080};
+
         unsigned int rdTriangleCount = 0;
         unsigned int rdMatricesSize = 0;
 
@@ -74,41 +76,55 @@ namespace RAnimation
         float rdViewAzimuth = 330.0f;
         float rdViewElevation = -20.0f;
         glm::vec3 rdCameraWorldPosition = glm::vec3(2.0f, 5.0f, 7.0f);
-
-        nri::AllocationCallbacks mAllocationCallbacks = {};
-        uint2 mOutputResolution = {1920, 1080};
-        uint32_t mRngState = 0;
-        uint32_t mAdapterIndex = 0;
-        float mMouseSensitivity = 1.0f;
-        uint8_t mHalfTimeLimitReached = 2;
-        bool mVsync = false;
-        bool mDebugAPI = false;
-        bool mDebugNRI = false;
-        bool mAlwaysActive = false;
-        bool mResizable = false;
-
+        
+        uint32_t rdRngState = 0;
+        uint32_t rdAdapterIndex = 0;
+        float rdMouseSensitivity = 1.0f;
+        uint8_t rdHalfTimeLimitReached = 2;
+        bool rdVsync = false;
+        bool rdDebugAPI = false;
+        bool rdDebugNRI = false;
+        bool rdAlwaysActive = false;
+        bool rdResizable = false;
+        bool rdIsAsyncMode = false;
+        bool rdHasComputeQueue = false;
+        
+        /* Nri specific stuff */
+        nri::Window rdNRIWindow = {};
+        nri::AllocationCallbacks rdAllocationCallbacks = {};
+        
         NRIInterface NRI = {};
-        nri::Device* mDevice = nullptr;
-        nri::Streamer* mStreamer = nullptr;
-        nri::SwapChain* mSwapChain = nullptr;
-        nri::Queue* mGraphicsQueue = nullptr;
-        nri::Queue* mComputeQueue = nullptr;
-        nri::Fence* mFrameFence = nullptr;
-        nri::Fence* mComputeFence = nullptr;
+        nri::Device* rdDevice = nullptr;
+        nri::SwapChain* rdSwapChain = nullptr;
+
+        std::vector<SwapChainTexture> mSwapChainTextures;
+
+        nri::Queue* rdGraphicsQueue = nullptr;
+        nri::Queue* rdComputeQueue = nullptr;
+
+        nri::Format rdDepthFormat = nri::Format::UNKNOWN;
+        nri::Texture* rdDepthTexture = nullptr;
+        nri::Descriptor* rdDepthAttachment = nullptr;
+
+        nri::PipelineLayout* rdPipelineLayout = nullptr;
+        nri::PipelineLayout* rdSkinningPipelineLayout = nullptr;
+
+        nri::Pipeline* rdPipeline = nullptr;
+        nri::Pipeline* rdSkinningPipeline = nullptr;
+
+        QueuedFrame rdQueuedFrame = {};
+        QueuedFrame rdSkinningQueuedFrame = {};
+
         nri::DescriptorPool* mDescriptorPool = nullptr;
-        nri::PipelineLayout* mSharedPipelineLayout = nullptr;
-        nri::Pipeline* mGraphicsPipeline = nullptr;
-        nri::Pipeline* mComputePipeline = nullptr;
-        nri::Buffer* mGeometryBuffer = nullptr;
-        nri::Texture* mTexture = nullptr;
         nri::DescriptorSet* mDescriptorSet = nullptr;
         nri::Descriptor* mDescriptor = nullptr;
-        std::vector<QueuedFrame> mQueuedFrames = {};
-        std::vector<SwapChainTexture> mSwapChainTextures;
-        std::vector<nri::Memory*> mMemoryAllocations;
-        bool mIsAsyncMode = false;
-        bool mHasComputeQueue = false;
 
-        nri::Window mNRIWindow = {};
+        nri::Fence* rdFrameFence = nullptr;
+        
+        std::vector<nri::Texture*> rdTextures;
+
+        nri::Streamer* mStreamer = nullptr;
+
+        std::vector<nri::Memory*> mMemoryAllocations;
     };
 } // namespace RAnimation

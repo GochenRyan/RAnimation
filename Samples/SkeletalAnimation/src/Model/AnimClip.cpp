@@ -29,12 +29,12 @@ std::string AnimClip::GetClipName()
 
 float AnimClip::GetClipDuration()
 {
-    return mClipDuration;
+    return static_cast<float>(mClipDuration);
 }
 
 float AnimClip::GetClipTicksPerSecond()
 {
-    return mClipTicksPerSecond;
+    return static_cast<float>(mClipTicksPerSecond);
 }
 
 void AnimClip::SetClipName(std::string name)

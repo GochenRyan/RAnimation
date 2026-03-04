@@ -37,7 +37,7 @@ namespace RAnimation
         const std::vector<std::shared_ptr<Bone>>& GetBoneList();
         const std::unordered_map<std::string, glm::mat4>& GetBoneOffsetMatrices();
 
-        const std::shared_ptr<Node> GetRootNode();
+    const std::shared_ptr<Node> GetRootNode();
 
         void Cleanup(RRenderData& renderData);
 
@@ -47,9 +47,6 @@ namespace RAnimation
                          aiNode* aNode,
                          const aiScene* scene,
                          std::string assetDirectory);
-        void createNodeList(std::shared_ptr<Node> node,
-                            std::shared_ptr<Node> newNode,
-                            std::vector<std::shared_ptr<Node>>& list);
 
         unsigned int mTriangleCount = 0;
         unsigned int mVertexCount = 0;

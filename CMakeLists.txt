@@ -57,4 +57,7 @@ include(CMake/Release/nri_release.cmake)
 setup_output_directories(NRI)
 endif()
 
+include(CMake/sdl_options.cmake)
+setup_output_directories(SDL3-shared)
+
 add_subdirectory(Samples/SkeletalAnimation)

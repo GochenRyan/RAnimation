@@ -21,7 +21,7 @@ bool Mesh::ProcessMesh(RRenderData& renderData,
     mVertexCount = mesh->mNumVertices;
 
     fmt::print("{}: -- mesh '{}' has {} faces ({} vertices)\n", __FUNCTION__, mMeshName, mTriangleCount, mVertexCount);
-    for (size_t i = 0; i < AI_MAX_NUMBER_OF_COLOR_SETS; ++i)
+    for (unsigned int i = 0; i < AI_MAX_NUMBER_OF_COLOR_SETS; ++i)
     {
         if (mesh->HasVertexColors(i))
         {
@@ -34,7 +34,7 @@ bool Mesh::ProcessMesh(RRenderData& renderData,
         fmt::print("{}: --- mesh has normals\n", __FUNCTION__);
     }
 
-    for (size_t i = 0; i < AI_MAX_NUMBER_OF_TEXTURECOORDS; ++i)
+    for (unsigned int i = 0; i < AI_MAX_NUMBER_OF_TEXTURECOORDS; ++i)
     {
         if (mesh->HasTextureCoords(i))
         {
@@ -62,7 +62,7 @@ bool Mesh::ProcessMesh(RRenderData& renderData,
                                materialName.C_Str(),
                                textureCount,
                                static_cast<int>(texType));
-                    for (size_t i = 0; i < textureCount; ++i)
+                    for (unsigned int i = 0; i < textureCount; ++i)
                     {
                         aiString textureName;
                         material->GetTexture(texType, i, &textureName);

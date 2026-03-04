@@ -8,6 +8,7 @@
 #include <fmt/color.h>
 
 #include <Model/Model.h>
+#include <Model/Mesh.h>
 #include <Tools/Tools.h>
 
 using namespace RAnimation;
@@ -53,12 +54,12 @@ bool Model::LoadModel(RRenderData& renderData, std::string modelFilename, unsign
     {
         unsigned int numTextures = scene->mNumTextures;
 
-        for (int i = 0; i < scene->mNumTextures; ++i)
+        for (unsigned int i = 0; i < scene->mNumTextures; ++i)
         {
             std::string texName = scene->mTextures[i]->mFilename.C_Str();
 
-            int height = scene->mTextures[i]->mHeight;
-            int width = scene->mTextures[i]->mWidth;
+            unsigned int height = scene->mTextures[i]->mHeight;
+            unsigned int width = scene->mTextures[i]->mWidth;
             aiTexel* data = scene->mTextures[i]->pcData;
 
             RTextureData newTex{};
@@ -152,14 +153,14 @@ bool Model::LoadModel(RRenderData& renderData, std::string modelFilename, unsign
         nri::BufferDesc vertexBufferDesc = {};
         vertexBufferDesc.size = mesh.vertices.size() * sizeof(RVertex);
         vertexBufferDesc.usage = nri::BufferUsageBits::VERTEX_BUFFER;
-        NRI_ABORT_ON_FAILURE(renderData.NRI.CreateBuffer(*renderData.mDevice, vertexBufferDesc, vertexBuffer));
+        NRI_ABORT_ON_FAILURE(renderData.NRI.CreateBuffer(*renderData.rdDevice, vertexBufferDesc, vertexBuffer));
         mVertexBuffers.emplace_back(vertexBuffer);
 
         nri::Buffer* indexBuffer = nullptr;
         nri::BufferDesc indexBufferDesc = {};
         indexBufferDesc.size = mesh.indices.size() * sizeof(uint32_t);
         indexBufferDesc.usage = nri::BufferUsageBits::INDEX_BUFFER;
-        NRI_ABORT_ON_FAILURE(renderData.NRI.CreateBuffer(*renderData.mDevice, indexBufferDesc, indexBuffer));
+        NRI_ABORT_ON_FAILURE(renderData.NRI.CreateBuffer(*renderData.rdDevice, indexBufferDesc, indexBuffer));
         mIndexBuffers.emplace_back(indexBuffer);
     }
 
@@ -196,10 +197,8 @@ bool Model::LoadModel(RRenderData& renderData, std::string modelFilename, unsign
                __FUNCTION__,
                mTextures.size(),
                mTextures.size() == 1 ? "" : "s");
-    fmt::print("{}: - model has a total of {} bone{}\n",
-               __FUNCTION__,
-               mBoneList.size(),
-               mBoneList.size() == 1 ? "" : "s");
+    fmt::print(
+            "{}: - model has a total of {} bone{}\n", __FUNCTION__, mBoneList.size(), mBoneList.size() == 1 ? "" : "s");
     fmt::print("{}: - model has a total of {} animation{}\n", __FUNCTION__, numAnims, numAnims == 1 ? "" : "s");
 
     fmt::print("{}: successfully loaded model '{}' ({})\n", __FUNCTION__, modelFilename, mModelFilename);
@@ -213,6 +212,21 @@ glm::mat4 Model::GetRootTranformationMatrix()
 
 void Model::Draw(RRenderData& renderData)
 {
+    for (unsigned int i = 0; i < mModelMeshes.size(); ++i)
+    {
+        RMesh& mesh = mModelMeshes.at(i);
+        // find diffuse texture by name
+        RTextureData diffuseTex{};
+        auto diffuseTexName = mesh.textures.find(aiTextureType_DIFFUSE);
+        if (diffuseTexName != mesh.textures.end())
+        {
+            auto diffuseTexture = mTextures.find(diffuseTexName->second);
+            if (diffuseTexture != mTextures.end())
+            {
+                diffuseTex = diffuseTexture->second;
+            }
+        }
+    }
 }
 
 void Model::DrawInstanced(RRenderData& renderData, uint32_t instanceCount)
@@ -279,10 +293,50 @@ void Model::processNode(RRenderData& renderData,
                         const aiScene* scene,
                         std::string assetDirectory)
 {
-}
+    std::string nodeName = aNode->mName.C_Str();
+    fmt::print("{}: node name: '{}'\n", __FUNCTION__, nodeName);
 
-void Model::createNodeList(std::shared_ptr<Node> node,
-                           std::shared_ptr<Node> newNode,
-                           std::vector<std::shared_ptr<Node>>& list)
-{
+    unsigned int numMeshes = aNode->mNumMeshes;
+    if (numMeshes > 0)
+    {
+        fmt::print("{}: - node has {} meshes\n", __FUNCTION__, numMeshes);
+        for (unsigned int i = 0; i < numMeshes; ++i)
+        {
+            aiMesh* modelMesh = scene->mMeshes[aNode->mMeshes[i]];
+
+            Mesh mesh;
+            mesh.ProcessMesh(renderData, modelMesh, scene, assetDirectory, mTextures);
+
+            mModelMeshes.emplace_back(mesh.GetMesh());
+
+            /* avoid inserting duplicate bone Ids - meshes can reference the same bones */
+            std::vector<std::shared_ptr<Bone>> flatBones = mesh.GetBoneList();
+            for (const auto& bone : flatBones)
+            {
+                const auto iter = std::find_if(mBoneList.begin(),
+                                               mBoneList.end(),
+                                               [bone](std::shared_ptr<Bone>& otherBone)
+                                               { return bone->GetBoneId() == otherBone->GetBoneId(); });
+                if (iter == mBoneList.end())
+                {
+                    mBoneList.emplace_back(bone);
+                }
+            }
+        }
+    }
+
+    mNodeMap.insert({nodeName, node});
+    mNodeList.emplace_back(node);
+
+    unsigned int numChildren = aNode->mNumChildren;
+    fmt::print("{}: - node has {} children \n", __FUNCTION__, numChildren);
+
+    for (unsigned int i = 0; i < numChildren; ++i)
+    {
+        std::string childName = aNode->mChildren[i]->mName.C_Str();
+        fmt::print("{}: --- found child node '{}'\n", __FUNCTION__, childName);
+
+        std::shared_ptr<Node> childNode = node->AddChild(childName);
+        processNode(renderData, childNode, aNode->mChildren[i], scene, assetDirectory);
+    }
 }

@@ -22,3 +22,7 @@
 	path = Packages/detex
 	url = https://github.com/GochenRyan/detex.git
 	branch = master
+[submodule "Packages/SDL"]
+	path = Packages/SDL
+	url = https://github.com/libsdl-org/SDL.git
+	branch = main
