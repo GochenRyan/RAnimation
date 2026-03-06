@@ -59,7 +59,7 @@ namespace RAnimation
         std::vector<std::shared_ptr<Node>> mNodeList{};
 
         std::vector<std::shared_ptr<Bone>> mBoneList;
-        std::unordered_map<std::string, glm::mat4> mBoneOffsetMatrices{};
+        std::unordered_map<std::string, glm::mat4> mInverseBindMatrices{};
 
         std::vector<std::shared_ptr<AnimClip>> mAnimClips{};
 

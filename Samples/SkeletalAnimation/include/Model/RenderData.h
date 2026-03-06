@@ -41,7 +41,8 @@ namespace RAnimation
     {
         nri::Texture* nriTexture = nullptr;
         utils::Texture texture{};
-        nri::TextureUploadDesc textureUploadDesc{};
+        // nri::TextureUploadDesc textureUploadDesc{};
+        nri::DescriptorSet* descriptorSet = nullptr;
     };
 
     struct QueuedFrame
@@ -113,7 +114,6 @@ namespace RAnimation
         nri::Pipeline* rdSkinningPipeline = nullptr;
 
         QueuedFrame rdQueuedFrame = {};
-        QueuedFrame rdSkinningQueuedFrame = {};
 
         nri::DescriptorPool* mDescriptorPool = nullptr;
         nri::DescriptorSet* mDescriptorSet = nullptr;

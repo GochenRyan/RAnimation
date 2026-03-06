@@ -69,10 +69,10 @@ void Node::UpdateTRSMatrix()
 {
     if (std::shared_ptr<Node> parentNode = mParentNode.lock())
     {
-        mParentNodeMatrix = parentNode->GetTRSMatrix();
+        mParentGlobalMatrix = parentNode->GetTRSMatrix();
     }
 
-    mLocalTRSMatrix = mRootTransformMatrix * mParentNodeMatrix * mTranslationMatrix * mRotationMatrix * mScalingMatrix;
+    mLocalTRSMatrix = mRootTransformMatrix * mParentGlobalMatrix * mTranslationMatrix * mRotationMatrix * mScalingMatrix;
 }
 
 glm::mat4 Node::GetTRSMatrix()

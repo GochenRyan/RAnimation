@@ -47,7 +47,7 @@ namespace RAnimation
         glm::mat4 mRotationMatrix = glm::mat4(1.0f);
         glm::mat4 mScalingMatrix = glm::mat4(1.0f);
 
-        glm::mat4 mParentNodeMatrix = glm::mat4(1.0f);
+        glm::mat4 mParentGlobalMatrix = glm::mat4(1.0f);
         glm::mat4 mLocalTRSMatrix = glm::mat4(1.0f);
 
         /* extra matrix to move model instances around */

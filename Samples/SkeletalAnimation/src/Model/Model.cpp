@@ -141,7 +141,7 @@ bool Model::LoadModel(RRenderData& renderData, std::string modelFilename, unsign
                                            { return bone->GetBoneName() == nodeName; });
         if (boneIter != mBoneList.end())
         {
-            mBoneOffsetMatrices.insert(
+            mInverseBindMatrices.insert(
                     {nodeName, mBoneList.at(std::distance(mBoneList.begin(), boneIter))->GetOffsetMatrix()});
         }
     }
@@ -212,6 +212,7 @@ glm::mat4 Model::GetRootTranformationMatrix()
 
 void Model::Draw(RRenderData& renderData)
 {
+    nri::CommandBuffer& commandBuffer = *renderData.rdQueuedFrame.commandBuffer;
     for (unsigned int i = 0; i < mModelMeshes.size(); ++i)
     {
         RMesh& mesh = mModelMeshes.at(i);
@@ -226,11 +227,114 @@ void Model::Draw(RRenderData& renderData)
                 diffuseTex = diffuseTexture->second;
             }
         }
+
+        /* switch between animated and non-animated pipeline layout */
+        nri::PipelineLayout* renderPipelineLayout = nullptr;
+        if (HasAnimations())
+        {
+            renderPipelineLayout = renderData.rdSkinningPipelineLayout;
+        }
+        else
+        {
+            renderPipelineLayout = renderData.rdPipelineLayout;
+        }
+
+        renderData.NRI.CmdSetPipelineLayout(commandBuffer, nri::BindPoint::GRAPHICS, *renderPipelineLayout);
+
+        if (diffuseTex.nriTexture != nullptr)
+        {
+            // todo: set
+            nri::SetDescriptorSetDesc materialSet = {1, diffuseTex.descriptorSet};
+            renderData.NRI.CmdSetDescriptorSet(commandBuffer, materialSet);
+        }
+        else
+        {
+            if (mesh.usesPBRColors)
+            {
+                // todo: set
+                nri::SetDescriptorSetDesc materialSet = {1, mWhiteTexture.descriptorSet};
+                renderData.NRI.CmdSetDescriptorSet(commandBuffer, materialSet);
+            }
+            else
+            {
+                // todo: set
+                nri::SetDescriptorSetDesc materialSet = {1, mPlaceholderTexture.descriptorSet};
+                renderData.NRI.CmdSetDescriptorSet(commandBuffer, materialSet);
+            }
+        }
+
+        nri::VertexBufferDesc vertexBufferDesc = {};
+        vertexBufferDesc.buffer = mVertexBuffers.at(i);
+        vertexBufferDesc.offset = 0;
+        vertexBufferDesc.stride = sizeof(RVertex);
+        renderData.NRI.CmdSetVertexBuffers(commandBuffer, 0, &vertexBufferDesc, 1);
+        renderData.NRI.CmdSetIndexBuffer(commandBuffer, *mIndexBuffers.at(i), 0, nri::IndexType::UINT32);
+        renderData.NRI.CmdDrawIndexed(commandBuffer, {static_cast<uint32_t>(mesh.indices.size()), 1, 0, 0, 0});
     }
 }
 
 void Model::DrawInstanced(RRenderData& renderData, uint32_t instanceCount)
 {
+    nri::CommandBuffer& commandBuffer = *renderData.rdQueuedFrame.commandBuffer;
+    for (unsigned int i = 0; i < mModelMeshes.size(); ++i)
+    {
+        RMesh& mesh = mModelMeshes.at(i);
+        // find diffuse texture by name
+        RTextureData diffuseTex{};
+        auto diffuseTexName = mesh.textures.find(aiTextureType_DIFFUSE);
+        if (diffuseTexName != mesh.textures.end())
+        {
+            auto diffuseTexture = mTextures.find(diffuseTexName->second);
+            if (diffuseTexture != mTextures.end())
+            {
+                diffuseTex = diffuseTexture->second;
+            }
+        }
+
+        /* switch between animated and non-animated pipeline layout */
+        nri::PipelineLayout* renderPipelineLayout = nullptr;
+        if (HasAnimations())
+        {
+            renderPipelineLayout = renderData.rdSkinningPipelineLayout;
+        }
+        else
+        {
+            renderPipelineLayout = renderData.rdPipelineLayout;
+        }
+
+        renderData.NRI.CmdSetPipelineLayout(commandBuffer, nri::BindPoint::GRAPHICS, *renderPipelineLayout);
+
+        if (diffuseTex.nriTexture != nullptr)
+        {
+            // todo: set
+            nri::SetDescriptorSetDesc materialSet = {1, diffuseTex.descriptorSet};
+            renderData.NRI.CmdSetDescriptorSet(commandBuffer, materialSet);
+        }
+        else
+        {
+            if (mesh.usesPBRColors)
+            {
+                // todo: set
+                nri::SetDescriptorSetDesc materialSet = {1, mWhiteTexture.descriptorSet};
+                renderData.NRI.CmdSetDescriptorSet(commandBuffer, materialSet);
+            }
+            else
+            {
+                // todo: set
+                nri::SetDescriptorSetDesc materialSet = {1, mPlaceholderTexture.descriptorSet};
+                renderData.NRI.CmdSetDescriptorSet(commandBuffer, materialSet);
+            }
+        }
+
+        nri::VertexBufferDesc vertexBufferDesc = {};
+        vertexBufferDesc.buffer = mVertexBuffers.at(i);
+        vertexBufferDesc.offset = 0;
+        vertexBufferDesc.stride = sizeof(RVertex);
+        renderData.NRI.CmdSetVertexBuffers(commandBuffer, 0, &vertexBufferDesc, 1);
+        renderData.NRI.CmdSetIndexBuffer(commandBuffer, *mIndexBuffers.at(i), 0, nri::IndexType::UINT32);
+        renderData.NRI.CmdDrawIndexed(commandBuffer,
+                                      {static_cast<uint32_t>(mesh.indices.size()), instanceCount, 0, 0, 0});
+    }
 }
 
 unsigned int Model::GetTriangleCount()
@@ -275,7 +379,7 @@ const std::vector<std::shared_ptr<Bone>>& Model::GetBoneList()
 
 const std::unordered_map<std::string, glm::mat4>& Model::GetBoneOffsetMatrices()
 {
-    return mBoneOffsetMatrices;
+    return mInverseBindMatrices;
 }
 
 const std::shared_ptr<Node> Model::GetRootNode()
