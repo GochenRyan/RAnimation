@@ -377,7 +377,7 @@ const std::vector<std::shared_ptr<Bone>>& Model::GetBoneList()
     return mBoneList;
 }
 
-const std::unordered_map<std::string, glm::mat4>& Model::GetBoneOffsetMatrices()
+const std::unordered_map<std::string, glm::mat4>& Model::GetInverseBindMatrices()
 {
     return mInverseBindMatrices;
 }

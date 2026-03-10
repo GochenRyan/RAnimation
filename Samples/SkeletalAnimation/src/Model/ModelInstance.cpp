@@ -132,4 +132,42 @@ void ModelInstance::UpdateModelRootMatrix()
 
 void ModelInstance::UpdateAnimation(float deltaTime)
 {
+    mInstanceSettings.mAnimPlayTimePos +=
+            deltaTime * mModel->GetAnimClips().at(mInstanceSettings.mAnimClipNr)->GetClipTicksPerSecond() *
+            mInstanceSettings.mAnimSpeedFactor;
+    mInstanceSettings.mAnimPlayTimePos =
+            std::fmod(mInstanceSettings.mAnimPlayTimePos,
+                      mModel->GetAnimClips().at(mInstanceSettings.mAnimClipNr)->GetClipDuration());
+
+    std::vector<std::shared_ptr<AnimChannel>> animChannels =
+            mModel->GetAnimClips().at(mInstanceSettings.mAnimClipNr)->GetChannels();
+
+    /* animate clip via channels */
+    for (const auto& channel : animChannels)
+    {
+        std::string nodeNameToAnimate = channel->GetTargetNodeName();
+        std::shared_ptr<Node> node = mModel->GetNodeMap().at(nodeNameToAnimate);
+
+        node->SetRotation(channel->GetRotation(mInstanceSettings.mAnimPlayTimePos));
+        node->SetScaling(channel->GetScaling(mInstanceSettings.mAnimPlayTimePos));
+        node->SetTranslation(channel->GetTranslation(mInstanceSettings.mAnimPlayTimePos));
+    }
+
+    /* set root node transform matrix, enabling instance movement */
+    mModel->GetRootNode()->SetRootTransformMatrix(mLocalTransformMatrix * mModel->GetRootTranformationMatrix());
+
+    /* flat node map contains nodes in parent->child order, starting with root node, update matrices down the skeleton
+     * tree */
+    mBoneMatrices.clear();
+    for (auto& node : mModel->GetNodeList())
+    {
+        std::string nodeName = node->GetNodeName();
+
+        node->UpdateTRSMatrix();
+        if (mModel->GetInverseBindMatrices().count(nodeName) > 0)
+        {
+            mBoneMatrices.emplace_back(mModel->GetNodeMap().at(nodeName)->GetTRSMatrix() *
+                                       mModel->GetInverseBindMatrices().at(nodeName));
+        }
+    }
 }

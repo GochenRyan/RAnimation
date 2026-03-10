@@ -8,29 +8,32 @@
 #include <functional>
 
 // forward declaration
-class Model;
-class ModelInstance;
+namespace RAnimation
+{
+    class Model;
+    class ModelInstance;
+}
 
 using modelCheckCallback = std::function<bool(std::string)>;
 using modelAddCallback = std::function<bool(std::string)>;
 using modelDeleteCallback = std::function<void(std::string)>;
 
-using instanceAddCallback = std::function<std::shared_ptr<ModelInstance>(std::shared_ptr<Model>)>;
-using instanceAddManyCallback = std::function<void(std::shared_ptr<Model>, int)>;
-using instanceDeleteCallback = std::function<void(std::shared_ptr<ModelInstance>)>;
-using instanceCloneCallback = std::function<void(std::shared_ptr<ModelInstance>)>;
+using instanceAddCallback = std::function<std::shared_ptr<RAnimation::ModelInstance>(std::shared_ptr<RAnimation::Model>)>;
+using instanceAddManyCallback = std::function<void(std::shared_ptr<RAnimation::Model>, int)>;
+using instanceDeleteCallback = std::function<void(std::shared_ptr<RAnimation::ModelInstance>)>;
+using instanceCloneCallback = std::function<void(std::shared_ptr<RAnimation::ModelInstance>)>;
 
 struct ModelAndInstanceData
 {
-    std::vector<std::shared_ptr<Model>> miModelList{};
+    std::vector<std::shared_ptr<RAnimation::Model>> miModelList{};
     int miSelectedModel = 0;
 
-    std::vector<std::shared_ptr<ModelInstance>> miModelInstances{};
-    std::unordered_map<std::string, std::vector<std::shared_ptr<ModelInstance>>> miModelInstancesPerModel{};
+    std::vector<std::shared_ptr<RAnimation::ModelInstance>> miModelInstances{};
+    std::unordered_map<std::string, std::vector<std::shared_ptr<RAnimation::ModelInstance>>> miModelInstancesPerModel{};
     int miSelectedInstance = 0;
 
     /* delete models that were loaded during application runtime */
-    std::unordered_set<std::shared_ptr<Model>> miPendingDeleteModels{};
+    std::unordered_set<std::shared_ptr<RAnimation::Model>> miPendingDeleteModels{};
 
     /* callbacks */
     modelCheckCallback miModelCheckCallbackFunction;

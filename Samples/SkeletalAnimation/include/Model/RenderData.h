@@ -53,7 +53,7 @@ namespace RAnimation
         nri::DescriptorSet* constantBufferDescriptorSet;
         uint64_t constantBufferViewOffset;
     };
-    
+
     struct RRenderData
     {
         uint2 rdOutputResolution = {1920, 1080};
@@ -77,7 +77,7 @@ namespace RAnimation
         float rdViewAzimuth = 330.0f;
         float rdViewElevation = -20.0f;
         glm::vec3 rdCameraWorldPosition = glm::vec3(2.0f, 5.0f, 7.0f);
-        
+
         uint32_t rdRngState = 0;
         uint32_t rdAdapterIndex = 0;
         float rdMouseSensitivity = 1.0f;
@@ -89,11 +89,11 @@ namespace RAnimation
         bool rdResizable = false;
         bool rdIsAsyncMode = false;
         bool rdHasComputeQueue = false;
-        
+
         /* Nri specific stuff */
         nri::Window rdNRIWindow = {};
         nri::AllocationCallbacks rdAllocationCallbacks = {};
-        
+
         NRIInterface NRI = {};
         nri::Device* rdDevice = nullptr;
         nri::SwapChain* rdSwapChain = nullptr;
@@ -113,18 +113,22 @@ namespace RAnimation
         nri::Pipeline* rdPipeline = nullptr;
         nri::Pipeline* rdSkinningPipeline = nullptr;
 
-        QueuedFrame rdQueuedFrame = {};
+        std::vector<QueuedFrame> rdQueuedFrames;
 
-        nri::DescriptorPool* mDescriptorPool = nullptr;
-        nri::DescriptorSet* mDescriptorSet = nullptr;
-        nri::Descriptor* mDescriptor = nullptr;
+        nri::DescriptorPool* rdDescriptorPool = nullptr;
+        nri::DescriptorSet* rdDescriptorSet = nullptr;
+        nri::Descriptor* rdDescriptor = nullptr;
 
         nri::Fence* rdFrameFence = nullptr;
-        
+
         std::vector<nri::Texture*> rdTextures;
 
-        nri::Streamer* mStreamer = nullptr;
+        nri::Streamer* rdStreamer = nullptr;
 
-        std::vector<nri::Memory*> mMemoryAllocations;
+        std::vector<nri::Memory*> rdMemoryAllocations;
+
+        inline uint8_t GetQueuedFrameNum() const { return rdVsync ? 2 : 3; }
+
+        inline uint8_t GetOptimalSwapChainTextureNum() const { return GetQueuedFrameNum() + 1; }
     };
 } // namespace RAnimation

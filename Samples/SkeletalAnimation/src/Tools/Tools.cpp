@@ -1,10 +1,11 @@
-#include <Tools/Tools.h>
 #include <cerrno>  // errno
 #include <cstring> // strerror()
 #include <fmt/base.h>
 #include <fmt/color.h>
 #include <fstream>
 #include <iostream>
+
+#include <Tools/Tools.h>
 
 std::string Tools::getFilenameExt(std::string filename)
 {

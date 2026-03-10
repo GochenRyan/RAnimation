@@ -1,4 +1,8 @@
 #pragma once
+#include <SDL3/SDL.h>
+#if defined(__APPLE__)
+#include <SDL3/SDL_metal.h>
+#endif
 
 #include <Platform/Window.h>
 
@@ -25,6 +29,15 @@ public:
     SDL_Window* GetSDLHandle() const { return m_window; }
 
 private:
+#if defined(__APPLE__)
+    bool EnsureMetalView() const;
+#endif
+
+private:
     SDL_Window* m_window = nullptr;
     bool m_shouldClose = false;
+
+#if defined(__APPLE__)
+    mutable SDL_MetalView m_metalView = nullptr;
+#endif
 };
