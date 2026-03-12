@@ -60,4 +60,8 @@ endif()
 include(CMake/sdl_options.cmake)
 setup_output_directories(SDL3-shared)
 
+# Assets
+set(ASSETS_SRC_DIR "${CMAKE_SOURCE_DIR}/Assets")
+add_compile_definitions(ASSETS_SRC_DIR="${ASSETS_SRC_DIR}")
+
 add_subdirectory(Samples/SkeletalAnimation)

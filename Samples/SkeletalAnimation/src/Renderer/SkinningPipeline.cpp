@@ -119,6 +119,7 @@ bool SkinningPipeline::Init(RRenderData& renderData,
     return true;
 }
 
-void SkinningPipeline::Cleanup(RRenderData& renderData, nri::Pipeline& pipeline)
+void SkinningPipeline::Cleanup(RRenderData& renderData, nri::Pipeline* pipeline)
 {
+    renderData.NRI.DestroyPipeline(pipeline);
 }

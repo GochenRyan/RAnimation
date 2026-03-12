@@ -42,6 +42,9 @@ namespace RAnimation
 
         void Cleanup();
 
+private:
+        bool createPipelines();
+
     private:
         RRenderData mRenderData{};
         ModelAndInstanceData mModelInstData{};

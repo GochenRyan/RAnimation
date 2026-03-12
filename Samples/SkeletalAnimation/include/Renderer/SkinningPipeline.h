@@ -16,6 +16,6 @@ namespace RAnimation
     {
     public:
         static bool Init(RRenderData& renderData, nri::PipelineLayout& pipelineLayout, nri::Pipeline* pipeline, std::string vertexShaderFilename, std::string fragmentShaderFilename);
-        static void Cleanup(RRenderData& renderData, nri::Pipeline& pipeline);
+        static void Cleanup(RRenderData& renderData, nri::Pipeline* pipeline);
     };
 } // namespace RAnimation

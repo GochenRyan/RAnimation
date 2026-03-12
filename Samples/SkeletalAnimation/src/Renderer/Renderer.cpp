@@ -4,6 +4,7 @@
 #include <fmt/color.h>
 
 #include <Renderer/Renderer.h>
+#include <Renderer/SkinningPipeline.h>
 #include <RHIWrap/Helper.h>
 
 using namespace RAnimation;
@@ -98,8 +99,6 @@ bool Renderer::Init(unsigned int width, unsigned int height)
     // Fences
     NRI_ABORT_ON_FAILURE(mRenderData.NRI.CreateFence(*mRenderData.rdDevice, 0, mRenderData.rdFrameFence));
 
-    mRenderData.rdDepthFormat = nri::GetSupportedDepthFormat(mRenderData.NRI, *mRenderData.rdDevice, 24, true);
-
     { // Swap chain
         nri::SwapChainDesc swapChainDesc = {};
         swapChainDesc.window = mRenderData.rdNRIWindow;
@@ -174,7 +173,67 @@ bool Renderer::Init(unsigned int width, unsigned int height)
                 *mRenderData.rdDevice, pipelineLayoutDesc, mRenderData.rdSkinningPipelineLayout));
     }
 
-    
+    createPipelines();
+
+    uint32_t swapChainTextureNum;
+    nri::Texture* const* swapChainTextures = mRenderData.NRI.GetSwapChainTextures(*mRenderData.rdSwapChain,
+                                                                                  swapChainTextureNum);
+    nri::Format swapChainFormat = mRenderData.NRI.GetTextureDesc(*swapChainTextures[0]).format;
+    mRenderData.rdDepthFormat = nri::GetSupportedDepthFormat(mRenderData.NRI, *mRenderData.rdDevice, 24, true);
+
+    // Depth attachment
+    nri::Texture* depthTexture = nullptr;
+    {
+        nri::TextureDesc textureDesc = {};
+        textureDesc.type = nri::TextureType::TEXTURE_2D;
+        textureDesc.usage = nri::TextureUsageBits::DEPTH_STENCIL_ATTACHMENT;
+        textureDesc.format = mRenderData.rdDepthFormat;
+        textureDesc.width = static_cast<uint16_t>(mRenderData.rdOutputResolution.x);
+        textureDesc.height = static_cast<uint16_t>(mRenderData.rdOutputResolution.y);
+        textureDesc.mipNum = 1;
+
+        NRI_ABORT_ON_FAILURE(mRenderData.NRI.CreateTexture(*mRenderData.rdDevice, textureDesc, depthTexture));
+        mRenderData.rdTextures.push_back(depthTexture);
+    }
+
+    { // Depth buffer
+        nri::Texture2DViewDesc texture2DViewDesc = {depthTexture,
+                                                    nri::Texture2DViewType::DEPTH_STENCIL_ATTACHMENT,
+                                                    mRenderData.rdDepthFormat};
+
+        NRI_ABORT_ON_FAILURE(mRenderData.NRI.CreateTexture2DView(texture2DViewDesc, mRenderData.rdDepthAttachment));
+    }
+
+    // Swap chain
+    for (uint32_t i = 0; i < swapChainTextureNum; i++)
+    {
+        nri::Texture2DViewDesc textureViewDesc = {swapChainTextures[i],
+                                                  nri::Texture2DViewType::COLOR_ATTACHMENT,
+                                                  swapChainFormat};
+
+        nri::Descriptor* colorAttachment = nullptr;
+        NRI_ABORT_ON_FAILURE(mRenderData.NRI.CreateTexture2DView(textureViewDesc, colorAttachment));
+
+        nri::Fence* acquireSemaphore = nullptr;
+        NRI_ABORT_ON_FAILURE(
+                mRenderData.NRI.CreateFence(*mRenderData.rdDevice, nri::SWAPCHAIN_SEMAPHORE, acquireSemaphore));
+
+        nri::Fence* releaseSemaphore = nullptr;
+        NRI_ABORT_ON_FAILURE(
+                mRenderData.NRI.CreateFence(*mRenderData.rdDevice, nri::SWAPCHAIN_SEMAPHORE, releaseSemaphore));
+
+        SwapChainTexture& swapChainTexture = mRenderData.rdSwapChainTextures.emplace_back();
+
+        swapChainTexture = {};
+        swapChainTexture.acquireSemaphore = acquireSemaphore;
+        swapChainTexture.releaseSemaphore = releaseSemaphore;
+        swapChainTexture.texture = swapChainTextures[i];
+        swapChainTexture.colorAttachment = colorAttachment;
+        swapChainTexture.attachmentFormat = swapChainFormat;
+    }
+
+    // todo: imgui
+
     /* required for perspective */
     mRenderData.rdOutputResolution = {width, height};
 
@@ -258,4 +317,33 @@ void Renderer::CloneInstance(std::shared_ptr<RAnimation::ModelInstance> instance
 
 void Renderer::Cleanup()
 {
+}
+
+bool Renderer::createPipelines()
+{
+    // todo: nri shader
+    std::string vertexShaderFile = ASSETS_SRC_DIR "/SkeletalAnimation/shader/assimp.vert.spv";
+    std::string fragmentShaderFile = ASSETS_SRC_DIR "/SkeletalAnimation/shader/assimp.frag.spv";
+    if (!SkinningPipeline::Init(mRenderData,
+                                *mRenderData.rdPipelineLayout,
+                                mRenderData.rdPipeline,
+                                vertexShaderFile,
+                                fragmentShaderFile))
+    {
+        fmt::print(stderr, "{} error: could not init shader pipeline\n", __FUNCTION__);
+        return false;
+    }
+
+    vertexShaderFile = ASSETS_SRC_DIR "/SkeletalAnimation/shader/assimp_skinning.vert.spv";
+    fragmentShaderFile = ASSETS_SRC_DIR "/SkeletalAnimation/shader/assimp_skinning.frag.spv";
+    if (!SkinningPipeline::Init(mRenderData,
+                                *mRenderData.rdSkinningPipelineLayout,
+                                mRenderData.rdSkinningPipeline,
+                                vertexShaderFile,
+                                fragmentShaderFile))
+    {
+        fmt::print(stderr, "{} error: could not init Skinning shader pipeline\n", __FUNCTION__);
+        return false;
+    }
+    return true;
 }

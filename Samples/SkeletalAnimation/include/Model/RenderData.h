@@ -98,7 +98,7 @@ namespace RAnimation
         nri::Device* rdDevice = nullptr;
         nri::SwapChain* rdSwapChain = nullptr;
 
-        std::vector<SwapChainTexture> mSwapChainTextures;
+        std::vector<SwapChainTexture> rdSwapChainTextures;
 
         nri::Queue* rdGraphicsQueue = nullptr;
         nri::Queue* rdComputeQueue = nullptr;
