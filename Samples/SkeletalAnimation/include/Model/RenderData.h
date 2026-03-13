@@ -127,6 +127,8 @@ namespace RAnimation
 
         std::vector<nri::Memory*> rdMemoryAllocations;
 
+        std::vector<nri::Buffer*> rdBuffers;
+
         inline uint8_t GetQueuedFrameNum() const { return rdVsync ? 2 : 3; }
 
         inline uint8_t GetOptimalSwapChainTextureNum() const { return GetQueuedFrameNum() + 1; }

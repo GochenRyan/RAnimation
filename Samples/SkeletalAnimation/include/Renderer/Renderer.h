@@ -42,8 +42,19 @@ namespace RAnimation
 
         void Cleanup();
 
-private:
+    private:
+        bool initDevice();
+        bool initNRI();
+        bool createStreamer();
+        bool getQueue();
+        bool createSyncObjects();
+        bool createSwapchain();
+        bool createQueuedFrames();
+        bool createPipelineLayout();
         bool createPipelines();
+        bool createMatrixUBO();
+        bool createSSBOs();
+        bool createSwapchainTextures();
 
     private:
         RRenderData mRenderData{};
@@ -57,5 +68,11 @@ private:
 
         UserInterface mUserInterface{};
         Camera mCamera;
+
+        /* for non-animated models */
+        std::vector<glm::mat4> mWorldPosMatrices;
+
+        /* for animated models */
+        std::vector<glm::mat4> mModelBoneMatrices;
     };
 } // namespace RAnimation
