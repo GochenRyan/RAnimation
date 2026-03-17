@@ -37,6 +37,12 @@ namespace RAnimation
         glm::mat4 projectionMatrix{};
     };
 
+    struct RPushConstants
+    {
+        int modelStride;
+        int worldPosOffset;
+    };
+
     struct RTextureData
     {
         nri::Texture* nriTexture = nullptr;
@@ -114,10 +120,12 @@ namespace RAnimation
         nri::Pipeline* rdSkinningPipeline = nullptr;
 
         std::vector<QueuedFrame> rdQueuedFrames;
+        uint32_t queuedFrameIndex = 0;
 
         nri::DescriptorPool* rdDescriptorPool = nullptr;
-        nri::DescriptorSet* rdDescriptorSet = nullptr;
-        nri::Descriptor* rdDescriptor = nullptr;
+        std::vector<nri::DescriptorSetDesc> rdDescriptorSetDescs;
+        std::vector<nri::DescriptorSet*> rdDescriptorSets;
+        std::vector<nri::Descriptor*> rdDescriptors;
 
         nri::Fence* rdFrameFence = nullptr;
 
@@ -129,8 +137,13 @@ namespace RAnimation
 
         std::vector<nri::Buffer*> rdBuffers;
 
-        inline uint8_t GetQueuedFrameNum() const { return rdVsync ? 2 : 3; }
+        uint8_t GetQueuedFrameNum() const { return rdVsync ? 2 : 3; }
 
-        inline uint8_t GetOptimalSwapChainTextureNum() const { return GetQueuedFrameNum() + 1; }
+        uint8_t GetOptimalSwapChainTextureNum() const { return GetQueuedFrameNum() + 1; }
+
+        const QueuedFrame& GetCurrentQueueFrame() const 
+        {
+            return rdQueuedFrames[queuedFrameIndex];
+        }
     };
 } // namespace RAnimation

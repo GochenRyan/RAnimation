@@ -59,6 +59,8 @@ bool Renderer::Init(unsigned int width, unsigned int height)
     getQueue();
     createSyncObjects();
     createSwapchain();
+    createMatrixUBO();
+    createSSBOs();
     createQueuedFrames();
     createPipelineLayout();
     createPipelines();
@@ -254,47 +256,18 @@ bool Renderer::createQueuedFrames()
 
 bool Renderer::createPipelineLayout()
 {
-    // set 0: texture + sampler
-    nri::DescriptorRangeDesc textureRanges[] = {{0, // binding 0
-                                                 1,
-                                                 nri::DescriptorType::TEXTURE, // image view
-                                                 nri::StageBits::FRAGMENT_SHADER},
-                                                {0, // binding 0
-                                                 1,
-                                                 nri::DescriptorType::SAMPLER, // sampler
-                                                 nri::StageBits::FRAGMENT_SHADER}};
+    nri::RootConstantDesc rootConstantDesc = {};
+    rootConstantDesc.registerIndex = 0;
+    rootConstantDesc.shaderStages = nri::StageBits::VERTEX_SHADER;
+    rootConstantDesc.size = sizeof(RPushConstants);
 
-    nri::DescriptorSetDesc textureSetDesc = {0, // set = 0
-                                             textureRanges,
-                                             std::size(textureRanges),
-                                             nri::DescriptorSetBits::NONE};
-
-    // set 1: UBO + SSBO
-    nri::DescriptorRangeDesc bufferRanges[] = {{0, // binding 0
-                                                1,
-                                                nri::DescriptorType::CONSTANT_BUFFER, // UBO
-                                                nri::StageBits::VERTEX_SHADER},
-                                               {1, // binding 1
-                                                1,
-                                                nri::DescriptorType::STRUCTURED_BUFFER, // readonly SSBO
-                                                nri::StageBits::VERTEX_SHADER}};
-
-    nri::DescriptorSetDesc bufferSetDesc = {1, // set = 1
-                                            bufferRanges,
-                                            std::size(bufferRanges)};
-
-    nri::DescriptorSetDesc descriptorSets[] = {textureSetDesc, bufferSetDesc};
-
-    nri::PipelineLayoutDesc pipelineLayoutDesc = {2,
-                                                  nullptr,
-                                                  0,
-                                                  nullptr,
-                                                  0,
-                                                  nullptr,
-                                                  0,
-                                                  descriptorSets,
-                                                  std::size(descriptorSets),
-                                                  nri::StageBits::VERTEX_SHADER | nri::StageBits::FRAGMENT_SHADER};
+    nri::PipelineLayoutDesc pipelineLayoutDesc = {};
+    pipelineLayoutDesc.rootConstantNum = 1;
+    pipelineLayoutDesc.rootConstants = &rootConstantDesc;
+    pipelineLayoutDesc.rootRegisterSpace = 2;
+    pipelineLayoutDesc.descriptorSetNum = std::size(mRenderData.rdDescriptorSetDescs);
+    pipelineLayoutDesc.descriptorSets = mRenderData.rdDescriptorSetDescs.data();
+    pipelineLayoutDesc.shaderStages = nri::StageBits::VERTEX_SHADER | nri::StageBits::FRAGMENT_SHADER;
 
     NRI_ABORT_ON_FAILURE(mRenderData.NRI.CreatePipelineLayout(
             *mRenderData.rdDevice, pipelineLayoutDesc, mRenderData.rdPipelineLayout));
@@ -350,29 +323,118 @@ bool Renderer::createMatrixUBO()
 
 bool Renderer::createSSBOs()
 {
-    // {
-    //     uint64_t bufferSize = uint64_t(sizeof(glm::mat4)) * mWorldPosMatrices.size();
+    {
+        uint64_t bufferSize = uint64_t(sizeof(glm::mat4)) * mWorldPosMatrices.size();
 
-    //     nri::BufferDesc bufferDesc = {};
-    //     bufferDesc.size = bufferSize;
-    //     bufferDesc.usage = nri::BufferUsageBits::SHADER_RESOURCE;
+        nri::BufferDesc bufferDesc = {};
+        bufferDesc.size = bufferSize;
+        bufferDesc.usage = nri::BufferUsageBits::SHADER_RESOURCE;
 
-    //     nri::Buffer* buffer = nullptr;
-    //     NRI_ABORT_ON_FAILURE(mRenderData.NRI.CreateBuffer(*mRenderData.rdDevice, bufferDesc, buffer));
-    //     mRenderData.rdBuffers.push_back(buffer);
-    // }
+        nri::Buffer* buffer = nullptr;
+        NRI_ABORT_ON_FAILURE(mRenderData.NRI.CreateBuffer(*mRenderData.rdDevice, bufferDesc, buffer));
+        mRenderData.rdBuffers.push_back(buffer);
+    }
 
-    // {
-    //     uint64_t bufferSize = 
+    {
+        uint64_t bufferSize = uint64_t(sizeof(glm::mat4)) * mModelBoneMatrices.size();
 
-    //     nri::BufferDesc bufferDesc = {};
-    //     bufferDesc.size = bufferSize;
-    //     bufferDesc.usage = nri::BufferUsageBits::SHADER_RESOURCE;
+        nri::BufferDesc bufferDesc = {};
+        bufferDesc.size = bufferSize;
+        bufferDesc.usage = nri::BufferUsageBits::SHADER_RESOURCE;
 
-    //     nri::Buffer* buffer = nullptr;
-    //     NRI_ABORT_ON_FAILURE(mRenderData.NRI.CreateBuffer(*mRenderData.rdDevice, bufferDesc, buffer));
-    //     mRenderData.rdBuffers.push_back(buffer);
-    // }
+        nri::Buffer* buffer = nullptr;
+        NRI_ABORT_ON_FAILURE(mRenderData.NRI.CreateBuffer(*mRenderData.rdDevice, bufferDesc, buffer));
+        mRenderData.rdBuffers.push_back(buffer);
+    }
+}
+
+bool Renderer::allocateAndBindMemory()
+{
+    nri::ResourceGroupDesc resourceGroupDesc = {};
+    resourceGroupDesc.memoryLocation = nri::MemoryLocation::HOST_UPLOAD;
+    resourceGroupDesc.bufferNum = 1;
+    resourceGroupDesc.buffers = &mRenderData.rdBuffers[VP_MATRIX_BUFFER];
+
+    size_t baseAllocation = mRenderData.rdMemoryAllocations.size();
+    mRenderData.rdMemoryAllocations.resize(baseAllocation + 1, nullptr);
+    NRI_ABORT_ON_FAILURE(mRenderData.NRI.AllocateAndBindMemory(
+            *mRenderData.rdDevice, resourceGroupDesc, mRenderData.rdMemoryAllocations.data() + baseAllocation));
+
+    resourceGroupDesc.memoryLocation = nri::MemoryLocation::DEVICE;
+    resourceGroupDesc.bufferNum = 2;
+    resourceGroupDesc.buffers = &mRenderData.rdBuffers[WORLD_POS_BUFFER];
+
+    baseAllocation = mRenderData.rdMemoryAllocations.size();
+    uint32_t allocationNum = mRenderData.NRI.CalculateAllocationNumber(*mRenderData.rdDevice, resourceGroupDesc);
+    mRenderData.rdMemoryAllocations.resize(baseAllocation + allocationNum, nullptr);
+    NRI_ABORT_ON_FAILURE(mRenderData.NRI.AllocateAndBindMemory(
+            *mRenderData.rdDevice, resourceGroupDesc, mRenderData.rdMemoryAllocations.data() + baseAllocation));
+    return true;
+}
+
+bool Renderer::createDescriptors()
+{
+    return true;
+}
+
+bool Renderer::createDescriptorPool()
+{
+    uint32_t materialNum = 1;
+    nri::DescriptorPoolDesc descriptorPoolDesc = {};
+    descriptorPoolDesc.descriptorSetMaxNum = materialNum + mRenderData.GetQueuedFrameNum();
+    descriptorPoolDesc.textureMaxNum = materialNum * TEXTURES_PER_MATERIAL;
+    descriptorPoolDesc.samplerMaxNum = mRenderData.GetQueuedFrameNum();
+    descriptorPoolDesc.constantBufferMaxNum = mRenderData.GetQueuedFrameNum();
+
+    NRI_ABORT_ON_FAILURE(mRenderData.NRI.CreateDescriptorPool(
+            *mRenderData.rdDevice, descriptorPoolDesc, mRenderData.rdDescriptorPool));
+
+    return true;
+}
+
+bool Renderer::createDescriptorLayouts()
+{
+    // set 0: texture + sampler
+    nri::DescriptorRangeDesc textureRanges[] = {{0, // binding 0
+                                                 1,
+                                                 nri::DescriptorType::TEXTURE, // image view
+                                                 nri::StageBits::FRAGMENT_SHADER},
+                                                {0, // binding 0
+                                                 1,
+                                                 nri::DescriptorType::SAMPLER, // sampler
+                                                 nri::StageBits::FRAGMENT_SHADER}};
+
+    nri::DescriptorSetDesc textureSetDesc = {0, // set = 0
+                                             textureRanges,
+                                             std::size(textureRanges),
+                                             nri::DescriptorSetBits::NONE};
+
+    // set 1: UBO + SSBO
+    nri::DescriptorRangeDesc bufferRanges[] = {{0, // binding 0
+                                                1,
+                                                nri::DescriptorType::CONSTANT_BUFFER, // UBO
+                                                nri::StageBits::VERTEX_SHADER},
+                                               {1, // binding 1
+                                                1,
+                                                nri::DescriptorType::STRUCTURED_BUFFER, // readonly SSBO
+                                                nri::StageBits::VERTEX_SHADER}};
+
+    nri::DescriptorSetDesc bufferSetDesc = {1, // set = 1
+                                            bufferRanges,
+                                            std::size(bufferRanges)};
+
+    mRenderData.rdDescriptorSetDescs = {textureSetDesc, bufferSetDesc};
+
+    return true;
+}
+
+bool Renderer::createDescriptorSets()
+{
+    uint8_t materialNum = 1;
+    mRenderData.rdDescriptorSets.resize(mRenderData.GetQueuedFrameNum() + materialNum);
+
+
+    return true;
 }
 
 bool Renderer::createSwapchainTextures()

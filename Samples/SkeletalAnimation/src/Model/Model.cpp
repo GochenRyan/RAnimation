@@ -212,7 +212,7 @@ glm::mat4 Model::GetRootTranformationMatrix()
 
 void Model::Draw(RRenderData& renderData)
 {
-    nri::CommandBuffer& commandBuffer = *renderData.rdQueuedFrame.commandBuffer;
+    nri::CommandBuffer& commandBuffer = *renderData.GetCurrentQueueFrame().commandBuffer;
     for (unsigned int i = 0; i < mModelMeshes.size(); ++i)
     {
         RMesh& mesh = mModelMeshes.at(i);
@@ -275,7 +275,7 @@ void Model::Draw(RRenderData& renderData)
 
 void Model::DrawInstanced(RRenderData& renderData, uint32_t instanceCount)
 {
-    nri::CommandBuffer& commandBuffer = *renderData.rdQueuedFrame.commandBuffer;
+    nri::CommandBuffer& commandBuffer = *renderData.GetCurrentQueueFrame().commandBuffer;
     for (unsigned int i = 0; i < mModelMeshes.size(); ++i)
     {
         RMesh& mesh = mModelMeshes.at(i);
