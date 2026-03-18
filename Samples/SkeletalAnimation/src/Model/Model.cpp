@@ -9,6 +9,7 @@
 
 #include <Model/Model.h>
 #include <Model/Mesh.h>
+#include <Renderer/NRITexture.h>
 #include <Tools/Tools.h>
 
 using namespace RAnimation;
@@ -68,6 +69,8 @@ bool Model::LoadModel(RRenderData& renderData, std::string modelFilename, unsign
                 return false;
             }
 
+            NRITexture::LoadTexture(renderData, newTex);
+
             std::string internalTexName = "*" + std::to_string(i);
             fmt::print("{}: - added internal texture '{}'\n", __FUNCTION__, internalTexName);
             mTextures.insert({internalTexName, newTex});
@@ -88,6 +91,8 @@ bool Model::LoadModel(RRenderData& renderData, std::string modelFilename, unsign
         return false;
     }
 
+    NRITexture::LoadTexture(renderData, mWhiteTexture);
+
     /* add a placeholder texture in case there is no diffuse tex */
     std::string placeholderTexName = "textures/missing_tex.png";
     if (!utils::LoadTexture(placeholderTexName, mPlaceholderTexture.texture))
@@ -99,6 +104,8 @@ bool Model::LoadModel(RRenderData& renderData, std::string modelFilename, unsign
                    placeholderTexName);
         return false;
     }
+
+    NRITexture::LoadTexture(renderData, mPlaceholderTexture);
 
     /* the textures are stored directly or relative to the model file */
     std::string assetDirectory = modelFilename.substr(0, modelFilename.find_last_of('/'));
@@ -241,27 +248,27 @@ void Model::Draw(RRenderData& renderData)
 
         renderData.NRI.CmdSetPipelineLayout(commandBuffer, nri::BindPoint::GRAPHICS, *renderPipelineLayout);
 
-        if (diffuseTex.nriTexture != nullptr)
-        {
-            // todo: set
-            nri::SetDescriptorSetDesc materialSet = {1, diffuseTex.descriptorSet};
-            renderData.NRI.CmdSetDescriptorSet(commandBuffer, materialSet);
-        }
-        else
-        {
-            if (mesh.usesPBRColors)
-            {
-                // todo: set
-                nri::SetDescriptorSetDesc materialSet = {1, mWhiteTexture.descriptorSet};
-                renderData.NRI.CmdSetDescriptorSet(commandBuffer, materialSet);
-            }
-            else
-            {
-                // todo: set
-                nri::SetDescriptorSetDesc materialSet = {1, mPlaceholderTexture.descriptorSet};
-                renderData.NRI.CmdSetDescriptorSet(commandBuffer, materialSet);
-            }
-        }
+        // if (diffuseTex.nriTexture != nullptr)
+        // {
+        //     // todo: set
+        //     nri::SetDescriptorSetDesc materialSet = {1, diffuseTex.descriptorSet};
+        //     renderData.NRI.CmdSetDescriptorSet(commandBuffer, materialSet);
+        // }
+        // else
+        // {
+        //     if (mesh.usesPBRColors)
+        //     {
+        //         // todo: set
+        //         nri::SetDescriptorSetDesc materialSet = {1, mWhiteTexture.descriptorSet};
+        //         renderData.NRI.CmdSetDescriptorSet(commandBuffer, materialSet);
+        //     }
+        //     else
+        //     {
+        //         // todo: set
+        //         nri::SetDescriptorSetDesc materialSet = {1, mPlaceholderTexture.descriptorSet};
+        //         renderData.NRI.CmdSetDescriptorSet(commandBuffer, materialSet);
+        //     }
+        // }
 
         nri::VertexBufferDesc vertexBufferDesc = {};
         vertexBufferDesc.buffer = mVertexBuffers.at(i);
@@ -304,27 +311,27 @@ void Model::DrawInstanced(RRenderData& renderData, uint32_t instanceCount)
 
         renderData.NRI.CmdSetPipelineLayout(commandBuffer, nri::BindPoint::GRAPHICS, *renderPipelineLayout);
 
-        if (diffuseTex.nriTexture != nullptr)
-        {
-            // todo: set
-            nri::SetDescriptorSetDesc materialSet = {1, diffuseTex.descriptorSet};
-            renderData.NRI.CmdSetDescriptorSet(commandBuffer, materialSet);
-        }
-        else
-        {
-            if (mesh.usesPBRColors)
-            {
-                // todo: set
-                nri::SetDescriptorSetDesc materialSet = {1, mWhiteTexture.descriptorSet};
-                renderData.NRI.CmdSetDescriptorSet(commandBuffer, materialSet);
-            }
-            else
-            {
-                // todo: set
-                nri::SetDescriptorSetDesc materialSet = {1, mPlaceholderTexture.descriptorSet};
-                renderData.NRI.CmdSetDescriptorSet(commandBuffer, materialSet);
-            }
-        }
+        // if (diffuseTex.nriTexture != nullptr)
+        // {
+        //     // todo: set
+        //     nri::SetDescriptorSetDesc materialSet = {1, diffuseTex.descriptorSet};
+        //     renderData.NRI.CmdSetDescriptorSet(commandBuffer, materialSet);
+        // }
+        // else
+        // {
+        //     if (mesh.usesPBRColors)
+        //     {
+        //         // todo: set
+        //         nri::SetDescriptorSetDesc materialSet = {1, mWhiteTexture.descriptorSet};
+        //         renderData.NRI.CmdSetDescriptorSet(commandBuffer, materialSet);
+        //     }
+        //     else
+        //     {
+        //         // todo: set
+        //         nri::SetDescriptorSetDesc materialSet = {1, mPlaceholderTexture.descriptorSet};
+        //         renderData.NRI.CmdSetDescriptorSet(commandBuffer, materialSet);
+        //     }
+        // }
 
         nri::VertexBufferDesc vertexBufferDesc = {};
         vertexBufferDesc.buffer = mVertexBuffers.at(i);

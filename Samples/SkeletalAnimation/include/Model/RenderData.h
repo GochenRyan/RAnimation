@@ -47,8 +47,8 @@ namespace RAnimation
     {
         nri::Texture* nriTexture = nullptr;
         utils::Texture texture{};
-        // nri::TextureUploadDesc textureUploadDesc{};
-        nri::DescriptorSet* descriptorSet = nullptr;
+        nri::Memory* memory = nullptr;
+        nri::Descriptor* descriptor = nullptr;
     };
 
     struct QueuedFrame
@@ -113,6 +113,8 @@ namespace RAnimation
         nri::Texture* rdDepthTexture = nullptr;
         nri::Descriptor* rdDepthAttachment = nullptr;
 
+        nri::Descriptor* anisotropicSampler = nullptr;
+
         nri::PipelineLayout* rdPipelineLayout = nullptr;
         nri::PipelineLayout* rdSkinningPipelineLayout = nullptr;
 
@@ -133,7 +135,7 @@ namespace RAnimation
 
         nri::Streamer* rdStreamer = nullptr;
 
-        std::vector<nri::Memory*> rdMemoryAllocations;
+        // std::vector<nri::Memory*> rdMemoryAllocations;
 
         std::vector<nri::Buffer*> rdBuffers;
 
@@ -141,9 +143,6 @@ namespace RAnimation
 
         uint8_t GetOptimalSwapChainTextureNum() const { return GetQueuedFrameNum() + 1; }
 
-        const QueuedFrame& GetCurrentQueueFrame() const 
-        {
-            return rdQueuedFrames[queuedFrameIndex];
-        }
+        const QueuedFrame& GetCurrentQueueFrame() const { return rdQueuedFrames[queuedFrameIndex]; }
     };
 } // namespace RAnimation

@@ -279,30 +279,30 @@ bool Renderer::createPipelineLayout()
 
 bool Renderer::createPipelines()
 {
-    // todo: nri shader
-    std::string vertexShaderFile = ASSETS_SRC_DIR "/SkeletalAnimation/shader/assimp.vert.spv";
-    std::string fragmentShaderFile = ASSETS_SRC_DIR "/SkeletalAnimation/shader/assimp.frag.spv";
-    if (!SkinningPipeline::Init(mRenderData,
-                                *mRenderData.rdPipelineLayout,
-                                mRenderData.rdPipeline,
-                                vertexShaderFile,
-                                fragmentShaderFile))
-    {
-        fmt::print(stderr, "{} error: could not init shader pipeline\n", __FUNCTION__);
-        return false;
-    }
+    // // todo: nri shader
+    // std::string vertexShaderFile = ASSETS_SRC_DIR "/SkeletalAnimation/shader/assimp.vert.spv";
+    // std::string fragmentShaderFile = ASSETS_SRC_DIR "/SkeletalAnimation/shader/assimp.frag.spv";
+    // if (!SkinningPipeline::Init(mRenderData,
+    //                             *mRenderData.rdPipelineLayout,
+    //                             mRenderData.rdPipeline,
+    //                             vertexShaderFile,
+    //                             fragmentShaderFile))
+    // {
+    //     fmt::print(stderr, "{} error: could not init shader pipeline\n", __FUNCTION__);
+    //     return false;
+    // }
 
-    vertexShaderFile = ASSETS_SRC_DIR "/SkeletalAnimation/shader/assimp_skinning.vert.spv";
-    fragmentShaderFile = ASSETS_SRC_DIR "/SkeletalAnimation/shader/assimp_skinning.frag.spv";
-    if (!SkinningPipeline::Init(mRenderData,
-                                *mRenderData.rdSkinningPipelineLayout,
-                                mRenderData.rdSkinningPipeline,
-                                vertexShaderFile,
-                                fragmentShaderFile))
-    {
-        fmt::print(stderr, "{} error: could not init Skinning shader pipeline\n", __FUNCTION__);
-        return false;
-    }
+    // vertexShaderFile = ASSETS_SRC_DIR "/SkeletalAnimation/shader/assimp_skinning.vert.spv";
+    // fragmentShaderFile = ASSETS_SRC_DIR "/SkeletalAnimation/shader/assimp_skinning.frag.spv";
+    // if (!SkinningPipeline::Init(mRenderData,
+    //                             *mRenderData.rdSkinningPipelineLayout,
+    //                             mRenderData.rdSkinningPipeline,
+    //                             vertexShaderFile,
+    //                             fragmentShaderFile))
+    // {
+    //     fmt::print(stderr, "{} error: could not init Skinning shader pipeline\n", __FUNCTION__);
+    //     return false;
+    // }
     return true;
 }
 
@@ -350,25 +350,25 @@ bool Renderer::createSSBOs()
 
 bool Renderer::allocateAndBindMemory()
 {
-    nri::ResourceGroupDesc resourceGroupDesc = {};
-    resourceGroupDesc.memoryLocation = nri::MemoryLocation::HOST_UPLOAD;
-    resourceGroupDesc.bufferNum = 1;
-    resourceGroupDesc.buffers = &mRenderData.rdBuffers[VP_MATRIX_BUFFER];
+    // nri::ResourceGroupDesc resourceGroupDesc = {};
+    // resourceGroupDesc.memoryLocation = nri::MemoryLocation::HOST_UPLOAD;
+    // resourceGroupDesc.bufferNum = 1;
+    // resourceGroupDesc.buffers = &mRenderData.rdBuffers[VP_MATRIX_BUFFER];
 
-    size_t baseAllocation = mRenderData.rdMemoryAllocations.size();
-    mRenderData.rdMemoryAllocations.resize(baseAllocation + 1, nullptr);
-    NRI_ABORT_ON_FAILURE(mRenderData.NRI.AllocateAndBindMemory(
-            *mRenderData.rdDevice, resourceGroupDesc, mRenderData.rdMemoryAllocations.data() + baseAllocation));
+    // size_t baseAllocation = mRenderData.rdMemoryAllocations.size();
+    // mRenderData.rdMemoryAllocations.resize(baseAllocation + 1, nullptr);
+    // NRI_ABORT_ON_FAILURE(mRenderData.NRI.AllocateAndBindMemory(
+    //         *mRenderData.rdDevice, resourceGroupDesc, mRenderData.rdMemoryAllocations.data() + baseAllocation));
 
-    resourceGroupDesc.memoryLocation = nri::MemoryLocation::DEVICE;
-    resourceGroupDesc.bufferNum = 2;
-    resourceGroupDesc.buffers = &mRenderData.rdBuffers[WORLD_POS_BUFFER];
+    // resourceGroupDesc.memoryLocation = nri::MemoryLocation::DEVICE;
+    // resourceGroupDesc.bufferNum = 2;
+    // resourceGroupDesc.buffers = &mRenderData.rdBuffers[WORLD_POS_BUFFER];
 
-    baseAllocation = mRenderData.rdMemoryAllocations.size();
-    uint32_t allocationNum = mRenderData.NRI.CalculateAllocationNumber(*mRenderData.rdDevice, resourceGroupDesc);
-    mRenderData.rdMemoryAllocations.resize(baseAllocation + allocationNum, nullptr);
-    NRI_ABORT_ON_FAILURE(mRenderData.NRI.AllocateAndBindMemory(
-            *mRenderData.rdDevice, resourceGroupDesc, mRenderData.rdMemoryAllocations.data() + baseAllocation));
+    // baseAllocation = mRenderData.rdMemoryAllocations.size();
+    // uint32_t allocationNum = mRenderData.NRI.CalculateAllocationNumber(*mRenderData.rdDevice, resourceGroupDesc);
+    // mRenderData.rdMemoryAllocations.resize(baseAllocation + allocationNum, nullptr);
+    // NRI_ABORT_ON_FAILURE(mRenderData.NRI.AllocateAndBindMemory(
+    //         *mRenderData.rdDevice, resourceGroupDesc, mRenderData.rdMemoryAllocations.data() + baseAllocation));
     return true;
 }
 
