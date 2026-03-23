@@ -1,3 +1,6 @@
+#include <fmt/base.h>
+#include <fmt/color.h>
+
 #include <Model/RenderData.h>
 
 #include <RHIWrap/NRIInterface.h>
@@ -27,6 +30,30 @@ bool NRITexture::LoadTexture(RRenderData& renderData, RTextureData& texData)
     NRI_ABORT_ON_FAILURE(
             renderData.NRI.AllocateAndBindMemory(*renderData.rdDevice, resourceGroupDesc, &texData.memory));
 
+    if (!UploadToGPU(renderData, texData))
+    {
+        fmt::print(stderr, fg(fmt::color::red), "{} error: could not load texture '{}'\n", __FUNCTION__, texData.texture.name);
+        return false;
+    }
+
+    return true;
+}
+
+bool NRITexture::UploadToGPU(RRenderData& renderData, RTextureData& texData)
+{
+    // Prepare subresources
+    std::vector<nri::TextureSubresourceUploadDesc> subresources(texData.texture.GetMipNum());
+    for (uint32_t mip = 0; mip < texData.texture.GetMipNum(); mip++)
+        texData.texture.GetSubresource(subresources[mip], mip);
+
+    // Upload
+    nri::TextureUploadDesc textureUpload = {};
+    textureUpload.texture = texData.nriTexture;
+    textureUpload.subresources = subresources.data();
+    textureUpload.after = {nri::AccessBits::SHADER_RESOURCE, nri::Layout::SHADER_RESOURCE};
+
+    NRI_ABORT_ON_FAILURE(renderData.NRI.UploadData(*renderData.rdGraphicsQueue, &textureUpload, 1, nullptr, 0));
+
     // Descriptor
     nri::Texture2DViewDesc texture2DViewDesc = {texData.nriTexture,
                                                 nri::Texture2DViewType::SHADER_RESOURCE,
@@ -35,9 +62,13 @@ bool NRITexture::LoadTexture(RRenderData& renderData, RTextureData& texData)
 
     // In NRI, there is no independent DescriptorSetLayout interface. Instead, the ranges of all sets and
     // bindings are described directly when creating the PipelineLayout.
+    
     return true;
 }
 
 void NRITexture::Cleanup(RRenderData& renderData, RTextureData& texData)
 {
+    renderData.NRI.DestroyDescriptor(texData.descriptor);
+    renderData.NRI.DestroyTexture(texData.nriTexture);
+    renderData.NRI.FreeMemory(texData.memory);
 }

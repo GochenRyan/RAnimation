@@ -68,6 +68,8 @@ namespace RAnimation
         bool createDescriptorSets();
         bool createSwapchainTextures();
 
+        void updateTriangleCount();
+
     private:
         RRenderData mRenderData{};
         ModelAndInstanceData mModelInstData{};

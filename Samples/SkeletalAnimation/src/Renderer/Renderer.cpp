@@ -1,4 +1,5 @@
 #include <algorithm>
+#include <filesystem>
 
 #include <fmt/base.h>
 #include <fmt/color.h>
@@ -94,6 +95,13 @@ bool Renderer::Init(unsigned int width, unsigned int height)
 
 void Renderer::SetSize(unsigned int width, unsigned int height)
 {
+    /* handle minimize */
+    if (width == 0 || height == 0)
+    {
+        return;
+    }
+
+    mRenderData.rdOutputResolution = {width, height};
 }
 
 bool Renderer::Draw(float deltaTime)
@@ -115,38 +123,160 @@ void Renderer::HandleMousePositionEvents(double xPos, double yPos)
 
 bool Renderer::HasModel(std::string modelFileName)
 {
+    auto modelIter = std::find_if(mModelInstData.miModelList.begin(),
+                                  mModelInstData.miModelList.end(),
+                                  [modelFileName](const auto& model)
+                                  {
+                                      return model->GetModelFileNamePath() == modelFileName ||
+                                             model->GetModelFileName() == modelFileName;
+                                  });
     return false;
 }
 
 std::shared_ptr<RAnimation::Model> Renderer::GetModel(std::string modelFileName)
 {
-    return std::shared_ptr<RAnimation::Model>();
+    auto modelIter = std::find_if(mModelInstData.miModelList.begin(),
+                                  mModelInstData.miModelList.end(),
+                                  [modelFileName](const auto& model)
+                                  {
+                                      return model->GetModelFileNamePath() == modelFileName ||
+                                             model->GetModelFileName() == modelFileName;
+                                  });
+    if (modelIter != mModelInstData.miModelList.end())
+    {
+        return *modelIter;
+    }
+    return nullptr;
 }
 
 bool Renderer::AddModel(std::string modelFileName)
 {
-    return false;
+    if (HasModel(modelFileName))
+    {
+        fmt::print("{} warning: model '{}' already existed, skipping\n", __FUNCTION__, modelFileName);
+    }
+
+    std::shared_ptr<Model> model = std::make_shared<Model>();
+    if (!model->LoadModel(mRenderData, modelFileName))
+    {
+        fmt::print(
+                stderr, fg(fmt::color::red), "{} error: could not load model file '{}'\n", __FUNCTION__, modelFileName);
+        return false;
+    }
+
+    mModelInstData.miModelList.emplace_back(model);
+
+    /* also add a new instance here to see the model */
+    AddInstance(model);
+
+    return true;
 }
 
 void Renderer::DeleteModel(std::string modelFileName)
 {
+    std::string shortModelFileName = std::filesystem::path(modelFileName).filename().generic_string();
+
+    if (!mModelInstData.miModelInstances.empty())
+    {
+        mModelInstData.miModelInstances.erase(
+                std::remove_if(mModelInstData.miModelInstances.begin(),
+                               mModelInstData.miModelInstances.end(),
+                               [shortModelFileName](std::shared_ptr<ModelInstance> instance)
+                               { return instance->GetModel()->GetModelFileName() == shortModelFileName; }),
+                mModelInstData.miModelInstances.end());
+    }
+
+    if (mModelInstData.miModelInstancesPerModel.count(shortModelFileName) > 0)
+    {
+        mModelInstData.miModelInstancesPerModel[shortModelFileName].clear();
+        mModelInstData.miModelInstancesPerModel.erase(shortModelFileName);
+    }
+
+    /* add models to pending delete list */
+    for (const auto& model : mModelInstData.miModelList)
+    {
+        if (model && (model->GetTriangleCount() > 0))
+        {
+            mModelInstData.miPendingDeleteModels.insert(model);
+        }
+    }
+
+    mModelInstData.miModelList.erase(std::remove_if(mModelInstData.miModelList.begin(),
+                                                    mModelInstData.miModelList.end(),
+                                                    [modelFileName](std::shared_ptr<Model> model)
+                                                    { return model->GetModelFileName() == modelFileName; }));
+    updateTriangleCount();
 }
 
 std::shared_ptr<RAnimation::ModelInstance> Renderer::AddInstance(std::shared_ptr<RAnimation::Model> model)
 {
-    return std::shared_ptr<RAnimation::ModelInstance>();
+    std::shared_ptr<ModelInstance> newInst = std::make_shared<ModelInstance>();
+    mModelInstData.miModelInstances.emplace_back(newInst);
+    mModelInstData.miModelInstancesPerModel[model->GetModelFileName()].emplace_back(newInst);
+
+    updateTriangleCount();
+
+    return newInst;
 }
 
 void Renderer::AddInstances(std::shared_ptr<RAnimation::Model> model, int numInstances)
 {
+    size_t animClipNum = model->GetAnimClips().size();
+    for (int i = 0; i < numInstances; ++i)
+    {
+        int xPos = std::rand() % 50 - 25;
+        int zPos = std::rand() % 50 - 25;
+        int rotation = std::rand() % 360 - 180;
+        int clipNr = std::rand() % animClipNum;
+
+        std::shared_ptr<ModelInstance> newInstance =
+                std::make_shared<ModelInstance>(model, glm::vec3(xPos, 0.0f, zPos), glm::vec3(0.0f, rotation, 0.0f));
+        if (animClipNum > 0)
+        {
+            InstanceSettings instSettings = newInstance->GetInstanceSettings();
+            instSettings.mAnimClipNr = clipNr;
+            newInstance->SetInstanceSettings(instSettings);
+        }
+
+        mModelInstData.miModelInstances.emplace_back(newInstance);
+        mModelInstData.miModelInstancesPerModel[model->GetModelFileName()].emplace_back(newInstance);
+    }
+    updateTriangleCount();
 }
 
 void Renderer::DeleteInstance(std::shared_ptr<RAnimation::ModelInstance> instance)
 {
+    std::shared_ptr<Model> currentModel = instance->GetModel();
+    std::string currentModelName = currentModel->GetModelFileName();
+
+    mModelInstData.miModelInstances.erase(std::remove_if(mModelInstData.miModelInstances.begin(),
+                                                         mModelInstData.miModelInstances.end(),
+                                                         [instance](std::shared_ptr<ModelInstance> inst)
+                                                         { return inst == instance; }));
+
+
+    mModelInstData.miModelInstancesPerModel[currentModelName].erase(
+            std::remove_if(mModelInstData.miModelInstancesPerModel[currentModelName].begin(),
+                           mModelInstData.miModelInstancesPerModel[currentModelName].end(),
+                           [instance](std::shared_ptr<ModelInstance> inst) { return inst == instance; }));
+
+    updateTriangleCount();
 }
 
 void Renderer::CloneInstance(std::shared_ptr<RAnimation::ModelInstance> instance)
 {
+    std::shared_ptr<Model> currentModel = instance->GetModel();
+    std::shared_ptr<ModelInstance> newInstance = std::make_shared<ModelInstance>(currentModel);
+    InstanceSettings newInstanceSettings = instance->GetInstanceSettings();
+
+    /* slight offset to see new instance */
+    newInstanceSettings.mWorldPosition += glm::vec3(1.0f, 0.0f, -1.0f);
+    newInstance->SetInstanceSettings(newInstanceSettings);
+
+    mModelInstData.miModelInstances.emplace_back(newInstance);
+    mModelInstData.miModelInstancesPerModel[currentModel->GetModelFileName()].emplace_back(newInstance);
+
+    updateTriangleCount();
 }
 
 void Renderer::Cleanup()
@@ -223,20 +353,18 @@ bool Renderer::createSyncObjects()
 
 bool Renderer::createSwapchain()
 {
-    { // Swap chain
-        nri::SwapChainDesc swapChainDesc = {};
-        swapChainDesc.window = mRenderData.rdNRIWindow;
-        swapChainDesc.queue = mRenderData.rdGraphicsQueue;
-        swapChainDesc.format = nri::SwapChainFormat::BT709_G22_10BIT;
-        swapChainDesc.flags = (mRenderData.rdVsync ? nri::SwapChainBits::VSYNC : nri::SwapChainBits::NONE) |
-                              nri::SwapChainBits::ALLOW_TEARING;
-        swapChainDesc.width = static_cast<uint16_t>(mRenderData.rdOutputResolution.x);
-        swapChainDesc.height = static_cast<uint16_t>(mRenderData.rdOutputResolution.y);
-        swapChainDesc.textureNum = mRenderData.GetOptimalSwapChainTextureNum();
-        swapChainDesc.queuedFrameNum = mRenderData.GetQueuedFrameNum();
-        NRI_ABORT_ON_FAILURE(
-                mRenderData.NRI.CreateSwapChain(*mRenderData.rdDevice, swapChainDesc, mRenderData.rdSwapChain));
-    }
+    nri::SwapChainDesc swapChainDesc = {};
+    swapChainDesc.window = mRenderData.rdNRIWindow;
+    swapChainDesc.queue = mRenderData.rdGraphicsQueue;
+    swapChainDesc.format = nri::SwapChainFormat::BT709_G22_10BIT;
+    swapChainDesc.flags = (mRenderData.rdVsync ? nri::SwapChainBits::VSYNC : nri::SwapChainBits::NONE) |
+                          nri::SwapChainBits::ALLOW_TEARING;
+    swapChainDesc.width = static_cast<uint16_t>(mRenderData.rdOutputResolution.x);
+    swapChainDesc.height = static_cast<uint16_t>(mRenderData.rdOutputResolution.y);
+    swapChainDesc.textureNum = mRenderData.GetOptimalSwapChainTextureNum();
+    swapChainDesc.queuedFrameNum = mRenderData.GetQueuedFrameNum();
+    NRI_ABORT_ON_FAILURE(
+            mRenderData.NRI.CreateSwapChain(*mRenderData.rdDevice, swapChainDesc, mRenderData.rdSwapChain));
     return true;
 }
 
@@ -496,4 +624,13 @@ bool Renderer::createSwapchainTextures()
         swapChainTexture.attachmentFormat = swapChainFormat;
     }
     return true;
+}
+
+void Renderer::updateTriangleCount()
+{
+    mRenderData.rdTriangleCount = 0;
+    for (const auto& inst : mModelInstData.miModelInstances)
+    {
+        mRenderData.rdTriangleCount += inst->GetModel()->GetTriangleCount();
+    }
 }

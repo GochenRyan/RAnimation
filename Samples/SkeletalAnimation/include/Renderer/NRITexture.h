@@ -10,6 +10,7 @@ namespace RAnimation
     {
     public:
         static bool LoadTexture(RRenderData& renderData, RTextureData& texData);
+        static bool UploadToGPU(RRenderData& renderData, RTextureData& texData);
         static void Cleanup(RRenderData& renderData, RTextureData& texData);
     };
 } // namespace RAnimation
