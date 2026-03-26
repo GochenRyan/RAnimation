@@ -1,23 +1,31 @@
-project(SkeletalAniamation)
+project(SkeletalAnimation)
 
 file(GLOB_RECURSE src CONFIGURE_DEPENDS "*.cpp" "*.h")
 
-add_executable(SkeletalAniamation ${src})
-setup_output_directories(SkeletalAniamation)
+add_executable(SkeletalAnimation ${src})
+setup_output_directories(SkeletalAnimation)
 
-target_include_directories(SkeletalAniamation PRIVATE ${CMAKE_SOURCE_DIR}/Packages/Mathlib)
-target_include_directories(SkeletalAniamation PRIVATE ${CMAKE_SOURCE_DIR}/Packages/glm)
-target_include_directories(SkeletalAniamation PUBLIC include)
+add_shader_make_target(
+    SkeletalAnimationShaders
+    "${CMAKE_SOURCE_DIR}/Assets/SkeletalAnimation/shader"
+    "${CMAKE_SOURCE_DIR}/Assets/SkeletalAnimation/shader/Shaders.cfg"
+    "SkeletalAnimation"
+)
+add_dependencies(SkeletalAnimation SkeletalAnimationShaders)
 
-target_link_libraries(SkeletalAniamation PRIVATE assimp)
-target_link_libraries(SkeletalAniamation PRIVATE detex::detex)
-target_link_libraries(SkeletalAniamation PRIVATE fmt::fmt)
-target_link_libraries(SkeletalAniamation PRIVATE NRI_Shared)
-target_link_libraries(SkeletalAniamation PRIVATE SDL3::SDL3)
+target_include_directories(SkeletalAnimation PRIVATE ${CMAKE_SOURCE_DIR}/Packages/Mathlib)
+target_include_directories(SkeletalAnimation PRIVATE ${CMAKE_SOURCE_DIR}/Packages/glm)
+target_include_directories(SkeletalAnimation PUBLIC include)
 
-set_property(TARGET SkeletalAniamation PROPERTY COMPILE_WARNING_AS_ERROR OFF)
+target_link_libraries(SkeletalAnimation PRIVATE assimp)
+target_link_libraries(SkeletalAnimation PRIVATE detex::detex)
+target_link_libraries(SkeletalAnimation PRIVATE fmt::fmt)
+target_link_libraries(SkeletalAnimation PRIVATE NRI_Shared)
+target_link_libraries(SkeletalAnimation PRIVATE SDL3::SDL3)
+
+set_property(TARGET SkeletalAnimation PROPERTY COMPILE_WARNING_AS_ERROR OFF)
 
 if(MSVC)
-  set_property(TARGET SkeletalAniamation APPEND_STRING PROPERTY COMPILE_OPTIONS " /WX-")
-  target_compile_options(SkeletalAniamation PRIVATE /wd4459)
+  set_property(TARGET SkeletalAnimation APPEND_STRING PROPERTY COMPILE_OPTIONS " /WX-")
+  target_compile_options(SkeletalAnimation PRIVATE /wd4459)
 endif()

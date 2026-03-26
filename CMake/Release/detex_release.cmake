@@ -1,4 +1,4 @@
-add_subdirectory(${CMAKE_SOURCE_DIR}/Packages/detex EXCLUDE_FROM_ALL)
+add_subdirectory(${CMAKE_SOURCE_DIR}/Packages/detex)
 set_target_properties(detex PROPERTIES
     MAP_IMPORTED_CONFIG_DEBUG RELEASE
     MAP_IMPORTED_CONFIG_RELWITHDEBINFO RELEASE

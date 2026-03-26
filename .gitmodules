@@ -26,3 +26,7 @@
 	path = Packages/SDL
 	url = https://github.com/libsdl-org/SDL.git
 	branch = main
+[submodule "Packages/ShaderMake"]
+	path = Packages/ShaderMake
+	url = https://github.com/NVIDIA-RTX/ShaderMake.git
+	branch = main

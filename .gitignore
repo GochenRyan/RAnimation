@@ -43,5 +43,6 @@
 build/
 
 _Bin/
+_Shaders/
 
 *.spv

@@ -22,11 +22,11 @@ endif()
 
 include(CMake/OutputDirectories.cmake)
 
+include(CMake/add_shader_make_target.cmake)
+
 include(CMake/Release/fmt_release.cmake)
-setup_output_directories(fmt)
 
 include(CMake/Release/detex_release.cmake)
-setup_output_directories(detex)
 
 # Assimp defines _USE_MATH_DEFINES internally in some translation units.
 # Keep the global define for the rest of the project, but temporarily remove it
@@ -45,23 +45,36 @@ if(WIN32)
     add_definitions(-D_USE_MATH_DEFINES)
 endif()
 
-if(TARGET assimp)
-setup_output_directories(assimp)
-endif()
-
 if (CMAKE_BUILD_TYPE STREQUAL "Debug")
 include(CMake/Debug/nri_debug.cmake)
-setup_output_directories(NRI)
 else()
 include(CMake/Release/nri_release.cmake)
-setup_output_directories(NRI)
 endif()
 
 include(CMake/sdl_options.cmake)
-setup_output_directories(SDL3-shared)
+
+include(CMake/shadermake_options.cmake)
 
 # Assets
 set(ASSETS_SRC_DIR "${CMAKE_SOURCE_DIR}/Assets")
 add_compile_definitions(ASSETS_SRC_DIR="${ASSETS_SRC_DIR}")
 
 add_subdirectory(Samples/SkeletalAnimation)
+
+function(get_all_targets result dir)
+    get_property(subdirs DIRECTORY ${dir} PROPERTY SUBDIRECTORIES)
+
+    foreach(subdir ${subdirs})
+        get_all_targets(${result} ${subdir})
+    endforeach()
+
+    get_property(current_targets DIRECTORY ${dir} PROPERTY BUILDSYSTEM_TARGETS)
+
+    set(${result} ${${result}} ${current_targets} PARENT_SCOPE)
+endfunction()
+
+get_all_targets(ALL_TARGETS ${CMAKE_SOURCE_DIR})
+
+foreach(t ${ALL_TARGETS})
+    setup_output_directories(${t})
+endforeach()
