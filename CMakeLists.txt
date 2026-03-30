@@ -58,6 +58,8 @@ include(CMake/shadermake_options.cmake)
 # Assets
 set(ASSETS_SRC_DIR "${CMAKE_SOURCE_DIR}/Assets")
 add_compile_definitions(ASSETS_SRC_DIR="${ASSETS_SRC_DIR}")
+set(SHADER_SRC_DIR "${CMAKE_SOURCE_DIR}/_Shaders")
+add_compile_definitions(SHADER_SRC_DIR="${SHADER_SRC_DIR}")
 
 add_subdirectory(Samples/SkeletalAnimation)
 

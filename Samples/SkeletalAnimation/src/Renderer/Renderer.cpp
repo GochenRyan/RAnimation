@@ -63,8 +63,12 @@ bool Renderer::Init(unsigned int width, unsigned int height)
     createMatrixUBO();
     createSSBOs();
     createQueuedFrames();
+    createDescriptorLayouts();
     createPipelineLayout();
     createPipelines();
+    createDescriptorPool();
+    createDescriptorSets();
+    createDescriptors();
     createSwapchainTextures();
 
     // todo: imgui
@@ -407,30 +411,30 @@ bool Renderer::createPipelineLayout()
 
 bool Renderer::createPipelines()
 {
-    // // todo: nri shader
-    // std::string vertexShaderFile = ASSETS_SRC_DIR "/SkeletalAnimation/shader/assimp.vert.spv";
-    // std::string fragmentShaderFile = ASSETS_SRC_DIR "/SkeletalAnimation/shader/assimp.frag.spv";
-    // if (!SkinningPipeline::Init(mRenderData,
-    //                             *mRenderData.rdPipelineLayout,
-    //                             mRenderData.rdPipeline,
-    //                             vertexShaderFile,
-    //                             fragmentShaderFile))
-    // {
-    //     fmt::print(stderr, "{} error: could not init shader pipeline\n", __FUNCTION__);
-    //     return false;
-    // }
+    // todo: nri shader
+    std::string vertexShaderFile = SHADER_SRC_DIR "/SkeletalAnimation/assimp.vs";
+    std::string fragmentShaderFile = SHADER_SRC_DIR "/SkeletalAnimation/assimp.fs";
+    if (!SkinningPipeline::Init(mRenderData,
+                                *mRenderData.rdPipelineLayout,
+                                mRenderData.rdPipeline,
+                                vertexShaderFile,
+                                fragmentShaderFile))
+    {
+        fmt::print(stderr, "{} error: could not init shader pipeline\n", __FUNCTION__);
+        return false;
+    }
 
-    // vertexShaderFile = ASSETS_SRC_DIR "/SkeletalAnimation/shader/assimp_skinning.vert.spv";
-    // fragmentShaderFile = ASSETS_SRC_DIR "/SkeletalAnimation/shader/assimp_skinning.frag.spv";
-    // if (!SkinningPipeline::Init(mRenderData,
-    //                             *mRenderData.rdSkinningPipelineLayout,
-    //                             mRenderData.rdSkinningPipeline,
-    //                             vertexShaderFile,
-    //                             fragmentShaderFile))
-    // {
-    //     fmt::print(stderr, "{} error: could not init Skinning shader pipeline\n", __FUNCTION__);
-    //     return false;
-    // }
+    vertexShaderFile = SHADER_SRC_DIR "/SkeletalAnimation/assimp_skinning.vs";
+    fragmentShaderFile = SHADER_SRC_DIR "/SkeletalAnimation/assimp_skinning.fs";
+    if (!SkinningPipeline::Init(mRenderData,
+                                *mRenderData.rdSkinningPipelineLayout,
+                                mRenderData.rdSkinningPipeline,
+                                vertexShaderFile,
+                                fragmentShaderFile))
+    {
+        fmt::print(stderr, "{} error: could not init Skinning shader pipeline\n", __FUNCTION__);
+        return false;
+    }
     return true;
 }
 
@@ -502,6 +506,7 @@ bool Renderer::allocateAndBindMemory()
 
 bool Renderer::createDescriptors()
 {
+
     return true;
 }
 
