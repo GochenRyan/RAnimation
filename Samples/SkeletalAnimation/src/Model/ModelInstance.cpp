@@ -13,6 +13,9 @@ ModelInstance::ModelInstance(std::shared_ptr<Model> model, glm::vec3 position, g
         fmt::print(stderr, "{} error: invalid model given\n", __FUNCTION__);
         return;
     }
+
+    mModel = model;
+
     mInstanceSettings.mWorldPosition = position;
     mInstanceSettings.mWorldRotation = rotation;
     mInstanceSettings.mScale = modelScale;

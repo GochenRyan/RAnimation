@@ -135,7 +135,7 @@ namespace RAnimation
 
         nri::Streamer* rdStreamer = nullptr;
 
-        // std::vector<nri::Memory*> rdMemoryAllocations;
+        std::vector<nri::Memory*> rdMemoryAllocations;
 
         std::vector<nri::Buffer*> rdBuffers;
 

@@ -5,7 +5,7 @@ using namespace RAnimation;
 
 std::shared_ptr<Node> Node::CreateNode(std::string nodeName)
 {
-    return std::shared_ptr<Node>();
+    return std::make_shared<Node>(nodeName);
 }
 
 Node::Node(std::string nodeName) : mNodeName(nodeName)

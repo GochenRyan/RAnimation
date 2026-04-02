@@ -54,6 +54,9 @@ Renderer::Renderer(NativeWindowHandle* window)
 
 bool Renderer::Init(unsigned int width, unsigned int height)
 {
+    /* required for perspective */
+    mRenderData.rdOutputResolution = {width, height};
+
     initDevice();
     initNRI();
     createStreamer();
@@ -72,9 +75,6 @@ bool Renderer::Init(unsigned int width, unsigned int height)
     createSwapchainTextures();
 
     // todo: imgui
-
-    /* required for perspective */
-    mRenderData.rdOutputResolution = {width, height};
 
     /* register callbacks */
     mModelInstData.miModelCheckCallbackFunction = [this](std::string fileName) { return HasModel(fileName); };
@@ -482,31 +482,65 @@ bool Renderer::createSSBOs()
 
 bool Renderer::allocateAndBindMemory()
 {
-    // nri::ResourceGroupDesc resourceGroupDesc = {};
-    // resourceGroupDesc.memoryLocation = nri::MemoryLocation::HOST_UPLOAD;
-    // resourceGroupDesc.bufferNum = 1;
-    // resourceGroupDesc.buffers = &mRenderData.rdBuffers[VP_MATRIX_BUFFER];
+    std::vector<nri::Memory*> allocations;
 
-    // size_t baseAllocation = mRenderData.rdMemoryAllocations.size();
-    // mRenderData.rdMemoryAllocations.resize(baseAllocation + 1, nullptr);
-    // NRI_ABORT_ON_FAILURE(mRenderData.NRI.AllocateAndBindMemory(
-    //         *mRenderData.rdDevice, resourceGroupDesc, mRenderData.rdMemoryAllocations.data() + baseAllocation));
+    auto allocGroup = [&](nri::MemoryLocation memoryLocation,
+                          nri::Buffer** buffers,
+                          uint32_t bufferNum,
+                          nri::Texture** textures,
+                          uint32_t aiTextureNum) -> bool
+    {
+        nri::ResourceGroupDesc groupDesc = {};
+        groupDesc.memoryLocation = memoryLocation;
+        groupDesc.bufferNum = bufferNum;
+        groupDesc.buffers = buffers;
+        groupDesc.textureNum = aiTextureNum;
+        groupDesc.textures = textures;
 
-    // resourceGroupDesc.memoryLocation = nri::MemoryLocation::DEVICE;
-    // resourceGroupDesc.bufferNum = 2;
-    // resourceGroupDesc.buffers = &mRenderData.rdBuffers[WORLD_POS_BUFFER];
+        const uint32_t allocNum = mRenderData.NRI.CalculateAllocationNumber(*mRenderData.rdDevice, groupDesc);
+        if (allocNum == 0)
+        {
+            return true;
+        }
 
-    // baseAllocation = mRenderData.rdMemoryAllocations.size();
-    // uint32_t allocationNum = mRenderData.NRI.CalculateAllocationNumber(*mRenderData.rdDevice, resourceGroupDesc);
-    // mRenderData.rdMemoryAllocations.resize(baseAllocation + allocationNum, nullptr);
-    // NRI_ABORT_ON_FAILURE(mRenderData.NRI.AllocateAndBindMemory(
-    //         *mRenderData.rdDevice, resourceGroupDesc, mRenderData.rdMemoryAllocations.data() + baseAllocation));
+        const size_t base = allocations.size();
+        allocations.resize(base + allocNum, nullptr);
+
+        NRI_ABORT_ON_FAILURE(
+                mRenderData.NRI.AllocateAndBindMemory(*mRenderData.rdDevice, groupDesc, allocations.data() + base));
+
+        return true;
+    };
+
+    nri::Buffer* uploadBuffers[] = {
+        mRenderData.rdBuffers[VP_MATRIX_BUFFER],
+        mRenderData.rdBuffers[WORLD_POS_BUFFER],
+        mRenderData.rdBuffers[MODEL_BONE_BUFFER]
+    };
+
+    if (!allocGroup(nri::MemoryLocation::HOST_UPLOAD, uploadBuffers, std::size(uploadBuffers), nullptr, 0))
+    {
+        fmt::print(stderr, fg(fmt::color::red), "{} error: failed to allocate and bind memory for buffers\n", __FUNCTION__);
+        return false;
+    }
+
+    nri::Texture* deviceTextures[] = {
+        mRenderData.rdDepthTexture
+    };
+
+    if (!allocGroup(nri::MemoryLocation::DEVICE, nullptr, 0, deviceTextures, std::size(deviceTextures)))
+    {
+        fmt::print(stderr, fg(fmt::color::red), "{} error: failed to allocate and bind memory for textures\n", __FUNCTION__);
+        return false;
+    }
+
+    mRenderData.rdMemoryAllocations = std::move(allocations);
+
     return true;
 }
 
 bool Renderer::createDescriptors()
 {
-
     return true;
 }
 
@@ -591,6 +625,7 @@ bool Renderer::createSwapchainTextures()
 
         NRI_ABORT_ON_FAILURE(mRenderData.NRI.CreateTexture(*mRenderData.rdDevice, textureDesc, depthTexture));
         mRenderData.rdTextures.push_back(depthTexture);
+        mRenderData.rdDepthTexture = depthTexture;
     }
 
     { // Depth buffer

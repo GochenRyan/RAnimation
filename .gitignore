@@ -46,3 +46,5 @@ _Bin/
 _Shaders/
 
 *.spv
+
+.vscode/
