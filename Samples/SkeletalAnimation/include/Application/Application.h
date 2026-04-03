@@ -2,6 +2,7 @@
 #include <memory>
 #include <string>
 
+#include <Platform/Platform.h>
 #include <Renderer/Renderer.h>
 
 namespace RAnimation
@@ -14,5 +15,6 @@ namespace RAnimation
         void Cleanup();
     private:
         std::unique_ptr<Renderer> mRenderer = nullptr;
+        std::unique_ptr<SDLPlatform> mPlatform = nullptr;
     };
 } // namespace RAnimation

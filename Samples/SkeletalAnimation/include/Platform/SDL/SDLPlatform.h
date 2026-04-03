@@ -1,6 +1,7 @@
 // Platform/SDL/SDLPlatform.h
 #pragma once
 
+#include <memory>
 #include <Platform/Platform.h>
 
 class SDLWindow;
@@ -14,7 +15,8 @@ public:
     bool Initialize() override;
     void Shutdown() override;
 
-    std::unique_ptr<IWindow> CreateWindow(const WindowDesc& desc) override;
+    IWindow* CreateWindow(const WindowDesc& desc) override;
+    IWindow* GetMainWindow() const override { return m_mainWindow.get(); }
 
     void PumpEvents() override;
     double GetTimeSeconds() const override;
@@ -24,6 +26,6 @@ public:
 
 private:
     InputState m_inputState{};
-    SDLWindow* m_mainWindow = nullptr;
+    std::unique_ptr<IWindow> m_mainWindow = nullptr;
     bool m_initialized = false;
 };

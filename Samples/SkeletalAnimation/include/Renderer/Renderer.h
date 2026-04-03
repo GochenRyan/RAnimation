@@ -70,6 +70,8 @@ namespace RAnimation
 
         void updateTriangleCount();
 
+        void latencySleep(uint32_t frameIndex);
+
     private:
         RRenderData mRenderData{};
         ModelAndInstanceData mModelInstData{};
@@ -79,6 +81,8 @@ namespace RAnimation
         Timer mUploadToUBOTimer{};
         Timer mUIGenerateTimer{};
         Timer mUIDrawTimer{};
+
+        uint32_t mFrameIndex = 0;
 
         UserInterface mUserInterface{};
         Camera mCamera;

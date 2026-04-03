@@ -12,7 +12,8 @@ public:
     virtual bool Initialize() = 0;
     virtual void Shutdown() = 0;
 
-    virtual std::unique_ptr<IWindow> CreateWindow(const WindowDesc& desc) = 0;
+    virtual IWindow* CreateWindow(const WindowDesc& desc) = 0;
+    virtual IWindow* GetMainWindow() const = 0;
 
     virtual void PumpEvents() = 0;
     virtual double GetTimeSeconds() const = 0;

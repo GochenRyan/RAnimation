@@ -62,9 +62,14 @@ bool Renderer::Init(unsigned int width, unsigned int height)
     createStreamer();
     getQueue();
     createSyncObjects();
-    createSwapchain();
+
     createMatrixUBO();
     createSSBOs();
+    createSwapchain();
+    createSwapchainTextures();
+
+    allocateAndBindMemory();
+
     createQueuedFrames();
     createDescriptorLayouts();
     createPipelineLayout();
@@ -72,7 +77,6 @@ bool Renderer::Init(unsigned int width, unsigned int height)
     createDescriptorPool();
     createDescriptorSets();
     createDescriptors();
-    createSwapchainTextures();
 
     // todo: imgui
 
@@ -110,7 +114,37 @@ void Renderer::SetSize(unsigned int width, unsigned int height)
 
 bool Renderer::Draw(float deltaTime)
 {
+    /* no update on zero diff */
+    if (deltaTime == 0.0f)
+    {
+        return true;
+    }
+
+    mRenderData.rdFrameTime = mFrameTimer.Stop();
+    mFrameTimer.Start();
+
+    /* reset timers and other values */
+    mRenderData.rdMatricesSize = 0;
+    mRenderData.rdUploadToUBOTime = 0.0f;
+    mRenderData.rdUploadToVBOTime = 0.0f;
+    mRenderData.rdMatrixGenerateTime = 0.0f;
+    mRenderData.rdUIGenerateTime = 0.0f;
+
+    latencySleep(mFrameIndex);
+
+    //todo: ImGui
+
+    //todo: update camera
+
     return false;
+}
+
+void Renderer::latencySleep(uint32_t frameIndex)
+{
+    uint32_t queuedFrameIndex = frameIndex % mRenderData.GetQueuedFrameNum();
+    const QueuedFrame& queuedFrame = mRenderData.rdQueuedFrames[queuedFrameIndex];
+    mRenderData.NRI.Wait(*mRenderData.rdFrameFence, frameIndex >= mRenderData.GetQueuedFrameNum()? 1 + frameIndex - mRenderData.GetQueuedFrameNum() : 0);
+    mRenderData.NRI.ResetCommandAllocator(*queuedFrame.commandAllocator);
 }
 
 void Renderer::HandleKeyEvents(int key, int scancode, int action, int mods)
@@ -411,7 +445,6 @@ bool Renderer::createPipelineLayout()
 
 bool Renderer::createPipelines()
 {
-    // todo: nri shader
     std::string vertexShaderFile = SHADER_SRC_DIR "/SkeletalAnimation/assimp.vs";
     std::string fragmentShaderFile = SHADER_SRC_DIR "/SkeletalAnimation/assimp.fs";
     if (!SkinningPipeline::Init(mRenderData,
@@ -512,25 +545,27 @@ bool Renderer::allocateAndBindMemory()
         return true;
     };
 
-    nri::Buffer* uploadBuffers[] = {
-        mRenderData.rdBuffers[VP_MATRIX_BUFFER],
-        mRenderData.rdBuffers[WORLD_POS_BUFFER],
-        mRenderData.rdBuffers[MODEL_BONE_BUFFER]
-    };
+    nri::Buffer* uploadBuffers[] = {mRenderData.rdBuffers[VP_MATRIX_BUFFER],
+                                    mRenderData.rdBuffers[WORLD_POS_BUFFER],
+                                    mRenderData.rdBuffers[MODEL_BONE_BUFFER]};
 
     if (!allocGroup(nri::MemoryLocation::HOST_UPLOAD, uploadBuffers, std::size(uploadBuffers), nullptr, 0))
     {
-        fmt::print(stderr, fg(fmt::color::red), "{} error: failed to allocate and bind memory for buffers\n", __FUNCTION__);
+        fmt::print(stderr,
+                   fg(fmt::color::red),
+                   "{} error: failed to allocate and bind memory for buffers\n",
+                   __FUNCTION__);
         return false;
     }
 
-    nri::Texture* deviceTextures[] = {
-        mRenderData.rdDepthTexture
-    };
+    nri::Texture* deviceTextures[] = {mRenderData.rdDepthTexture};
 
     if (!allocGroup(nri::MemoryLocation::DEVICE, nullptr, 0, deviceTextures, std::size(deviceTextures)))
     {
-        fmt::print(stderr, fg(fmt::color::red), "{} error: failed to allocate and bind memory for textures\n", __FUNCTION__);
+        fmt::print(stderr,
+                   fg(fmt::color::red),
+                   "{} error: failed to allocate and bind memory for textures\n",
+                   __FUNCTION__);
         return false;
     }
 

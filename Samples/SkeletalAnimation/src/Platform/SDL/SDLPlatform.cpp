@@ -29,7 +29,7 @@ void SDLPlatform::Shutdown()
     m_initialized = false;
 }
 
-std::unique_ptr<IWindow> SDLPlatform::CreateWindow(const WindowDesc& desc)
+IWindow* SDLPlatform::CreateWindow(const WindowDesc& desc)
 {
     SDL_WindowFlags flags = 0;
 
@@ -55,9 +55,8 @@ std::unique_ptr<IWindow> SDLPlatform::CreateWindow(const WindowDesc& desc)
         return nullptr;
     }
 
-    auto result = std::make_unique<SDLWindow>(window);
-    m_mainWindow = result.get();
-    return result;
+    m_mainWindow = std::make_unique<SDLWindow>(window);
+    return m_mainWindow.get();
 }
 
 void SDLPlatform::PumpEvents()
