@@ -132,9 +132,18 @@ bool Renderer::Draw(float deltaTime)
 
     latencySleep(mFrameIndex);
 
-    //todo: ImGui
+    mRenderData.queuedFrameIndex = mFrameIndex % mRenderData.GetQueuedFrameNum();
+    QueuedFrame& queuedFrame = mRenderData.GetCurrentQueueFrame();
 
-    //todo: update camera
+    const uint32_t recycledSemaphoreIndex = mFrameIndex % mRenderData.rdSwapChainTextures.size();
+    nri::Fence* acquiredSemaphore = mRenderData.rdSwapChainTextures[recycledSemaphoreIndex].acquireSemaphore;
+    NRI_ABORT_ON_FAILURE(mRenderData.NRI.AcquireNextTexture(*mRenderData.rdSwapChain, *acquiredSemaphore, queuedFrame.swapChainTextureIndex));
+
+    
+
+    // todo: ImGui
+
+    // todo: update camera
 
     return false;
 }
@@ -143,7 +152,10 @@ void Renderer::latencySleep(uint32_t frameIndex)
 {
     uint32_t queuedFrameIndex = frameIndex % mRenderData.GetQueuedFrameNum();
     const QueuedFrame& queuedFrame = mRenderData.rdQueuedFrames[queuedFrameIndex];
-    mRenderData.NRI.Wait(*mRenderData.rdFrameFence, frameIndex >= mRenderData.GetQueuedFrameNum()? 1 + frameIndex - mRenderData.GetQueuedFrameNum() : 0);
+    mRenderData.NRI.Wait(*mRenderData.rdFrameFence,
+                         frameIndex >= mRenderData.GetQueuedFrameNum()
+                                 ? 1 + frameIndex - mRenderData.GetQueuedFrameNum()
+                                 : 0);
     mRenderData.NRI.ResetCommandAllocator(*queuedFrame.commandAllocator);
 }
 
@@ -168,7 +180,7 @@ bool Renderer::HasModel(std::string modelFileName)
                                       return model->GetModelFileNamePath() == modelFileName ||
                                              model->GetModelFileName() == modelFileName;
                                   });
-    return false;
+    return modelIter != mModelInstData.miModelList.end();
 }
 
 std::shared_ptr<RAnimation::Model> Renderer::GetModel(std::string modelFileName)
@@ -192,6 +204,7 @@ bool Renderer::AddModel(std::string modelFileName)
     if (HasModel(modelFileName))
     {
         fmt::print("{} warning: model '{}' already existed, skipping\n", __FUNCTION__, modelFileName);
+        return true;
     }
 
     std::shared_ptr<Model> model = std::make_shared<Model>();
@@ -233,7 +246,8 @@ void Renderer::DeleteModel(std::string modelFileName)
     /* add models to pending delete list */
     for (const auto& model : mModelInstData.miModelList)
     {
-        if (model && (model->GetTriangleCount() > 0))
+        if (model && (model->GetTriangleCount() > 0) &&
+            (model->GetModelFileName() == shortModelFileName || model->GetModelFileNamePath() == modelFileName))
         {
             mModelInstData.miPendingDeleteModels.insert(model);
         }
@@ -241,8 +255,11 @@ void Renderer::DeleteModel(std::string modelFileName)
 
     mModelInstData.miModelList.erase(std::remove_if(mModelInstData.miModelList.begin(),
                                                     mModelInstData.miModelList.end(),
-                                                    [modelFileName](std::shared_ptr<Model> model)
-                                                    { return model->GetModelFileName() == modelFileName; }));
+                                                    [modelFileName, shortModelFileName](std::shared_ptr<Model> model)
+                                                    {
+                                                        return model->GetModelFileName() == shortModelFileName ||
+                                                               model->GetModelFileNamePath() == modelFileName;
+                                                    }));
     updateTriangleCount();
 }
 

@@ -18,7 +18,7 @@ bool SkinningPipeline::Init(RRenderData& renderData,
         nri::VertexStreamDesc vertexStreamDesc = {};
         vertexStreamDesc.bindingSlot = 0;
 
-        nri::VertexAttributeDesc vertexAttributeDesc[4] = {};
+        nri::VertexAttributeDesc vertexAttributeDesc[6] = {};
         {
             vertexAttributeDesc[0].format = nri::Format::RGB32_SFLOAT;
             vertexAttributeDesc[0].offset = offsetof(RVertex, position);
@@ -50,6 +50,7 @@ bool SkinningPipeline::Init(RRenderData& renderData,
             vertexAttributeDesc[5].d3d = {"BLENDWEIGHT", 0};
             vertexAttributeDesc[5].vk = {5};
         }
+
 
         nri::VertexInputDesc vertexInputDesc = {};
         vertexInputDesc.attributes = vertexAttributeDesc;

@@ -130,6 +130,7 @@ void ModelInstance::UpdateModelRootMatrix()
     mLocalRotationMatrix = glm::mat4_cast(q);
 
     mLocalTranslationMatrix = glm::translate(glm::mat4(1.0f), mInstanceSettings.mWorldPosition);
+    mLocalTransformMatrix = mLocalTranslationMatrix * mLocalRotationMatrix * mLocalSwapAxisMatrix * mLocalScaleMatrix;
     mInstanceRootMatrix = mLocalTransformMatrix * mModelRootMatrix;
 }
 

@@ -64,12 +64,12 @@ void Application::Cleanup()
     if (mRenderer)
     {
         mRenderer->Cleanup();
-        mRenderer = nullptr;
+        mRenderer.reset();
     }
 
     if (mPlatform)
     {
         mPlatform->Shutdown();
-        mPlatform = nullptr;
+        mPlatform.reset();
     }
 }

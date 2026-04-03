@@ -53,11 +53,16 @@ namespace RAnimation
 
     struct QueuedFrame
     {
-        nri::CommandAllocator* commandAllocator;
-        nri::CommandBuffer* commandBuffer;
-        nri::Descriptor* constantBufferView;
-        nri::DescriptorSet* constantBufferDescriptorSet;
-        uint64_t constantBufferViewOffset;
+        nri::CommandAllocator* commandAllocator = nullptr;
+        nri::CommandBuffer* commandBuffer = nullptr;
+        nri::Descriptor* cameraBufferView = nullptr;
+        nri::Descriptor* modelBufferView = nullptr;
+        nri::Descriptor* boneBufferView = nullptr;
+        nri::DescriptorSet* frameDescriptorSet = nullptr;
+        uint64_t cameraBufferOffset = 0;
+        uint64_t modelBufferOffset = 0;
+        uint64_t boneBufferOffset = 0;
+        uint32_t swapChainTextureIndex = 0;
     };
 
     struct RRenderData
@@ -138,11 +143,13 @@ namespace RAnimation
         std::vector<nri::Memory*> rdMemoryAllocations;
 
         std::vector<nri::Buffer*> rdBuffers;
+        uint64_t rdFrameIndex = 0;
 
         uint8_t GetQueuedFrameNum() const { return rdVsync ? 2 : 3; }
 
         uint8_t GetOptimalSwapChainTextureNum() const { return GetQueuedFrameNum() + 1; }
 
+        QueuedFrame& GetCurrentQueueFrame() { return rdQueuedFrames[queuedFrameIndex]; }
         const QueuedFrame& GetCurrentQueueFrame() const { return rdQueuedFrames[queuedFrameIndex]; }
     };
 } // namespace RAnimation

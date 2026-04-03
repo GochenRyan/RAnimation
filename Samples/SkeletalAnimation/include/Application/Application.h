@@ -2,7 +2,7 @@
 #include <memory>
 #include <string>
 
-#include <Platform/Platform.h>
+#include <Platform/SDL/SDLPlatform.h>
 #include <Renderer/Renderer.h>
 
 namespace RAnimation

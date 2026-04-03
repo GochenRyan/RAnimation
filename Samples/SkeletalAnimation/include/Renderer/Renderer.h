@@ -21,6 +21,7 @@ namespace RAnimation
     constexpr uint32_t WORLD_POS_BUFFER = 1;
     constexpr uint32_t MODEL_BONE_BUFFER = 2;
     constexpr uint32_t VERTEX_BUFFER = 3;
+    constexpr uint32_t MAX_BONES = 100;
 
     constexpr uint32_t TEXTURES_PER_MATERIAL = 1;
 
