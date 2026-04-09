@@ -11,6 +11,8 @@
 #include <RHIWrap/NRIInterface.h>
 #include <RHIWrap/Utils.h>
 
+struct SDL_Window;
+
 namespace RAnimation
 {
     struct RVertex
@@ -49,6 +51,7 @@ namespace RAnimation
         utils::Texture texture{};
         nri::Memory* memory = nullptr;
         nri::Descriptor* descriptor = nullptr;
+        nri::DescriptorSet* descriptorSet = nullptr;
     };
 
     struct QueuedFrame
@@ -58,7 +61,8 @@ namespace RAnimation
         nri::Descriptor* cameraBufferView = nullptr;
         nri::Descriptor* modelBufferView = nullptr;
         nri::Descriptor* boneBufferView = nullptr;
-        nri::DescriptorSet* frameDescriptorSet = nullptr;
+        nri::DescriptorSet* staticDescriptorSet = nullptr;
+        nri::DescriptorSet* skinnedDescriptorSet = nullptr;
         uint64_t cameraBufferOffset = 0;
         uint64_t modelBufferOffset = 0;
         uint64_t boneBufferOffset = 0;
@@ -104,10 +108,12 @@ namespace RAnimation
         /* Nri specific stuff */
         nri::Window rdNRIWindow = {};
         nri::AllocationCallbacks rdAllocationCallbacks = {};
+        SDL_Window* rdSDLWindow = nullptr;
 
         NRIInterface NRI = {};
         nri::Device* rdDevice = nullptr;
         nri::SwapChain* rdSwapChain = nullptr;
+        nri::Imgui* rdImgui = nullptr;
 
         std::vector<SwapChainTexture> rdSwapChainTextures;
 
@@ -130,6 +136,8 @@ namespace RAnimation
         uint32_t queuedFrameIndex = 0;
 
         nri::DescriptorPool* rdDescriptorPool = nullptr;
+        std::vector<nri::DescriptorRangeDesc> rdTextureDescriptorRanges;
+        std::vector<nri::DescriptorRangeDesc> rdBufferDescriptorRanges;
         std::vector<nri::DescriptorSetDesc> rdDescriptorSetDescs;
         std::vector<nri::DescriptorSet*> rdDescriptorSets;
         std::vector<nri::Descriptor*> rdDescriptors;

@@ -1,5 +1,3 @@
-add_subdirectory(${CMAKE_SOURCE_DIR}/Packages/NRI)
-
 set(CMAKE_BUILD_TYPE "Release" CACHE STRING "Single-config generator build type: Release for optimized binaries.")
 
 # Build as a shared library so the submodule exposes a dynamic NRI binary to dependents.
@@ -14,7 +12,7 @@ set(NRI_NVAPI_CUSTOM_PATH "" CACHE STRING "Leave empty to use bundled NVAPI; set
 set(NRI_ENABLE_DEBUG_NAMES_AND_ANNOTATIONS OFF CACHE BOOL "Disable debug names/annotations to avoid runtime overhead in Release.")
 set(NRI_ENABLE_NVTX_SUPPORT OFF CACHE BOOL "Disable NVTX markers to minimize Release instrumentation cost.")
 set(NRI_ENABLE_VALIDATION_SUPPORT OFF CACHE BOOL "Exclude validation layer for best Release performance.")
-set(NRI_ENABLE_IMGUI_EXTENSION OFF CACHE BOOL "Keep ImGui extension OFF by default; enable only if the project uses it.")
+set(NRI_ENABLE_IMGUI_EXTENSION ON CACHE BOOL "Enable NRIImgui extension because SkeletalAnimation uses Dear ImGui.")
 set(NRI_ENABLE_NIS_SDK OFF CACHE BOOL "Disable NIS SDK by default to avoid extra SDK dependency in Release.")
 
 # Backends and extensions: keep broad coverage for production across APIs.
@@ -33,3 +31,5 @@ set(NRI_ENABLE_XESS_SDK OFF CACHE BOOL "Disable XeSS SDK by default; enable only
 
 # Thread-safety vs. performance: leave safe by default; projects can opt out if needed.
 set(NRI_STREAMER_THREAD_SAFE ON CACHE BOOL "Keep thread-safe streamer by default to avoid data races in Release.")
+
+add_subdirectory(${CMAKE_SOURCE_DIR}/Packages/NRI)

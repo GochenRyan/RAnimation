@@ -66,6 +66,7 @@ namespace RAnimation
         std::vector<RMesh> mModelMeshes{};
         std::vector<nri::Buffer*> mVertexBuffers{};
         std::vector<nri::Buffer*> mIndexBuffers{};
+        std::vector<nri::Memory*> mBufferMemories{};
 
         // map textures to external or internal texture names
         std::unordered_map<std::string, RTextureData> mTextures{};

@@ -100,8 +100,9 @@ bool SkinningPipeline::Init(RRenderData& renderData,
         outputMergerDesc.stencil = stencilAttachmentDesc;
 
         nri::ShaderDesc shaderStages[] = {
-                utils::LoadShader(deviceDesc.graphicsAPI, vertexShaderFilename, shaderCodeStorage),
-                utils::LoadShader(deviceDesc.graphicsAPI, fragmentShaderFilename, shaderCodeStorage),
+
+            utils::LoadShader(deviceDesc.graphicsAPI, vertexShaderFilename, shaderCodeStorage),
+            utils::LoadShader(deviceDesc.graphicsAPI, fragmentShaderFilename, shaderCodeStorage),
         };
 
         nri::GraphicsPipelineDesc graphicsPipelineDesc = {};

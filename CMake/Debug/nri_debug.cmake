@@ -1,5 +1,3 @@
-add_subdirectory(${CMAKE_SOURCE_DIR}/Packages/NRI)
-
 set(CMAKE_BUILD_TYPE "Debug" CACHE STRING "Single-config generator build type: Debug for better symbols and diagnostics.")
 
 # Output/configuration paths.
@@ -12,9 +10,9 @@ set(NRI_STATIC_LIBRARY OFF CACHE BOOL "OFF builds a shared NRI library for submo
 
 # Debug/diagnostic features.
 set(NRI_ENABLE_DEBUG_NAMES_AND_ANNOTATIONS ON CACHE BOOL "Keep debug names and annotations for easier GPU/CPU debugging.")
-set(NRI_ENABLE_NVTX_SUPPORT ON CACHE BOOL "Enable NVTX markers so Nsight Systems can show NRI ranges in Debug.")
+set(NRI_ENABLE_NVTX_SUPPORT OFF CACHE BOOL "Disable NVTX in Debug to avoid an extra fetch dependency during local setup.")
 set(NRI_ENABLE_VALIDATION_SUPPORT ON CACHE BOOL "Include the NRI validation layer to catch API misuse in Debug builds.")
-set(NRI_ENABLE_IMGUI_EXTENSION OFF CACHE BOOL "Keep ImGui extension OFF by default; enable only if the project uses it.")
+set(NRI_ENABLE_IMGUI_EXTENSION ON CACHE BOOL "Enable NRIImgui extension because SkeletalAnimation uses Dear ImGui.")
 set(NRI_ENABLE_NIS_SDK OFF CACHE BOOL "Disable NIS SDK by default to avoid extra SDK dependency in Debug.")
 
 # Backends and extensions: keep broad coverage for debugging across APIs.
@@ -32,3 +30,6 @@ set(NRI_ENABLE_FFX_SDK OFF CACHE BOOL "Disable FidelityFX SDK by default; enable
 set(NRI_ENABLE_XESS_SDK OFF CACHE BOOL "Disable XeSS SDK by default; enable only when integrating XeSS.")
 
 # Thread-safety vs. performance: keep safer behavior in Debug.
+set(NRI_STREAMER_THREAD_SAFE ON CACHE BOOL "Keep thread-safe streamer by default to avoid data races in Debug.")
+
+add_subdirectory(${CMAKE_SOURCE_DIR}/Packages/NRI)

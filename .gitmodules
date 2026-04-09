@@ -30,3 +30,11 @@
 	path = Packages/ShaderMake
 	url = https://github.com/NVIDIA-RTX/ShaderMake.git
 	branch = main
+[submodule "Packages/ImGuiFileDialog"]
+	path = Packages/ImGuiFileDialog
+	url = https://github.com/aiekick/ImGuiFileDialog.git
+	branch = master
+[submodule "Packages/imgui"]
+	path = Packages/imgui
+	url = https://github.com/ocornut/imgui.git
+	branch = docking

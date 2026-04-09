@@ -10,6 +10,7 @@
 #include <Model/Model.h>
 #include <Model/Mesh.h>
 #include <Renderer/NRITexture.h>
+#include <RHIWrap/Helper.h>
 #include <Tools/Tools.h>
 
 using namespace RAnimation;
@@ -69,7 +70,10 @@ bool Model::LoadModel(RRenderData& renderData, std::string modelFilename, unsign
                 return false;
             }
 
-            NRITexture::LoadTexture(renderData, newTex);
+            if (!NRITexture::LoadTexture(renderData, newTex))
+            {
+                return false;
+            }
 
             std::string internalTexName = "*" + std::to_string(i);
             fmt::print("{}: - added internal texture '{}'\n", __FUNCTION__, internalTexName);
@@ -80,7 +84,7 @@ bool Model::LoadModel(RRenderData& renderData, std::string modelFilename, unsign
     }
 
     /* add a white texture in case there is no diffuse tex but colors */
-    std::string whiteTexName = "textures/white.png";
+    std::string whiteTexName = ASSETS_SRC_DIR "/SkeletalAnimation/textures/white.png";
     if (!utils::LoadTexture(whiteTexName, mWhiteTexture.texture))
     {
         fmt::print(stderr,
@@ -91,10 +95,13 @@ bool Model::LoadModel(RRenderData& renderData, std::string modelFilename, unsign
         return false;
     }
 
-    NRITexture::LoadTexture(renderData, mWhiteTexture);
+    if (!NRITexture::LoadTexture(renderData, mWhiteTexture))
+    {
+        return false;
+    }
 
     /* add a placeholder texture in case there is no diffuse tex */
-    std::string placeholderTexName = "textures/missing_tex.png";
+    std::string placeholderTexName = ASSETS_SRC_DIR "/SkeletalAnimation/textures/missing_tex.png";
     if (!utils::LoadTexture(placeholderTexName, mPlaceholderTexture.texture))
     {
         fmt::print(stderr,
@@ -105,7 +112,10 @@ bool Model::LoadModel(RRenderData& renderData, std::string modelFilename, unsign
         return false;
     }
 
-    NRITexture::LoadTexture(renderData, mPlaceholderTexture);
+    if (!NRITexture::LoadTexture(renderData, mPlaceholderTexture))
+    {
+        return false;
+    }
 
     /* the textures are stored directly or relative to the model file */
     std::string assetDirectory = modelFilename.substr(0, modelFilename.find_last_of('/'));
@@ -121,6 +131,17 @@ bool Model::LoadModel(RRenderData& renderData, std::string modelFilename, unsign
     processNode(renderData, mRootNode, rootNode, scene, assetDirectory);
 
     fmt::print("{}: ... processing nodes finished...\n", __FUNCTION__);
+
+    for (auto& [textureName, textureData] : mTextures)
+    {
+        if (textureData.nriTexture == nullptr)
+        {
+            if (!NRITexture::LoadTexture(renderData, textureData))
+            {
+                return false;
+            }
+        }
+    }
 
     for (const auto& entry : mNodeList)
     {
@@ -154,6 +175,8 @@ bool Model::LoadModel(RRenderData& renderData, std::string modelFilename, unsign
     }
 
     /* create vertex buffers for the meshes */
+    std::vector<nri::Buffer*> uploadBuffers;
+    std::vector<nri::BufferUploadDesc> uploadDescs;
     for (const auto& mesh : mModelMeshes)
     {
         nri::Buffer* vertexBuffer = nullptr;
@@ -162,6 +185,8 @@ bool Model::LoadModel(RRenderData& renderData, std::string modelFilename, unsign
         vertexBufferDesc.usage = nri::BufferUsageBits::VERTEX_BUFFER;
         NRI_ABORT_ON_FAILURE(renderData.NRI.CreateBuffer(*renderData.rdDevice, vertexBufferDesc, vertexBuffer));
         mVertexBuffers.emplace_back(vertexBuffer);
+        uploadBuffers.emplace_back(vertexBuffer);
+        uploadDescs.push_back({mesh.vertices.data(), vertexBuffer, {nri::AccessBits::VERTEX_BUFFER, nri::StageBits::ALL}});
 
         nri::Buffer* indexBuffer = nullptr;
         nri::BufferDesc indexBufferDesc = {};
@@ -169,6 +194,24 @@ bool Model::LoadModel(RRenderData& renderData, std::string modelFilename, unsign
         indexBufferDesc.usage = nri::BufferUsageBits::INDEX_BUFFER;
         NRI_ABORT_ON_FAILURE(renderData.NRI.CreateBuffer(*renderData.rdDevice, indexBufferDesc, indexBuffer));
         mIndexBuffers.emplace_back(indexBuffer);
+        uploadBuffers.emplace_back(indexBuffer);
+        uploadDescs.push_back({mesh.indices.data(), indexBuffer, {nri::AccessBits::INDEX_BUFFER, nri::StageBits::ALL}});
+    }
+
+    if (!uploadBuffers.empty())
+    {
+        nri::ResourceGroupDesc resourceGroupDesc = {};
+        resourceGroupDesc.memoryLocation = nri::MemoryLocation::DEVICE;
+        resourceGroupDesc.buffers = uploadBuffers.data();
+        resourceGroupDesc.bufferNum = static_cast<uint32_t>(uploadBuffers.size());
+
+        const uint32_t allocationNum = renderData.NRI.CalculateAllocationNumber(*renderData.rdDevice, resourceGroupDesc);
+        mBufferMemories.resize(allocationNum, nullptr);
+        NRI_ABORT_ON_FAILURE(
+                renderData.NRI.AllocateAndBindMemory(*renderData.rdDevice, resourceGroupDesc, mBufferMemories.data()));
+
+        NRI_ABORT_ON_FAILURE(renderData.NRI.UploadData(
+                *renderData.rdGraphicsQueue, nullptr, 0, uploadDescs.data(), static_cast<uint32_t>(uploadDescs.size())));
     }
 
     /* animations */
@@ -248,27 +291,17 @@ void Model::Draw(RRenderData& renderData)
 
         renderData.NRI.CmdSetPipelineLayout(commandBuffer, nri::BindPoint::GRAPHICS, *renderPipelineLayout);
 
-        // if (diffuseTex.nriTexture != nullptr)
-        // {
-        //     // todo: set
-        //     nri::SetDescriptorSetDesc materialSet = {1, diffuseTex.descriptorSet};
-        //     renderData.NRI.CmdSetDescriptorSet(commandBuffer, materialSet);
-        // }
-        // else
-        // {
-        //     if (mesh.usesPBRColors)
-        //     {
-        //         // todo: set
-        //         nri::SetDescriptorSetDesc materialSet = {1, mWhiteTexture.descriptorSet};
-        //         renderData.NRI.CmdSetDescriptorSet(commandBuffer, materialSet);
-        //     }
-        //     else
-        //     {
-        //         // todo: set
-        //         nri::SetDescriptorSetDesc materialSet = {1, mPlaceholderTexture.descriptorSet};
-        //         renderData.NRI.CmdSetDescriptorSet(commandBuffer, materialSet);
-        //     }
-        // }
+        nri::DescriptorSet* materialDescriptorSet = diffuseTex.descriptorSet;
+        if (materialDescriptorSet == nullptr)
+        {
+            materialDescriptorSet = mesh.usesPBRColors ? mWhiteTexture.descriptorSet : mPlaceholderTexture.descriptorSet;
+        }
+
+        if (materialDescriptorSet != nullptr)
+        {
+            nri::SetDescriptorSetDesc materialSet = {0, materialDescriptorSet, nri::BindPoint::GRAPHICS};
+            renderData.NRI.CmdSetDescriptorSet(commandBuffer, materialSet);
+        }
 
         nri::VertexBufferDesc vertexBufferDesc = {};
         vertexBufferDesc.buffer = mVertexBuffers.at(i);
@@ -311,27 +344,17 @@ void Model::DrawInstanced(RRenderData& renderData, uint32_t instanceCount)
 
         renderData.NRI.CmdSetPipelineLayout(commandBuffer, nri::BindPoint::GRAPHICS, *renderPipelineLayout);
 
-        // if (diffuseTex.nriTexture != nullptr)
-        // {
-        //     // todo: set
-        //     nri::SetDescriptorSetDesc materialSet = {1, diffuseTex.descriptorSet};
-        //     renderData.NRI.CmdSetDescriptorSet(commandBuffer, materialSet);
-        // }
-        // else
-        // {
-        //     if (mesh.usesPBRColors)
-        //     {
-        //         // todo: set
-        //         nri::SetDescriptorSetDesc materialSet = {1, mWhiteTexture.descriptorSet};
-        //         renderData.NRI.CmdSetDescriptorSet(commandBuffer, materialSet);
-        //     }
-        //     else
-        //     {
-        //         // todo: set
-        //         nri::SetDescriptorSetDesc materialSet = {1, mPlaceholderTexture.descriptorSet};
-        //         renderData.NRI.CmdSetDescriptorSet(commandBuffer, materialSet);
-        //     }
-        // }
+        nri::DescriptorSet* materialDescriptorSet = diffuseTex.descriptorSet;
+        if (materialDescriptorSet == nullptr)
+        {
+            materialDescriptorSet = mesh.usesPBRColors ? mWhiteTexture.descriptorSet : mPlaceholderTexture.descriptorSet;
+        }
+
+        if (materialDescriptorSet != nullptr)
+        {
+            nri::SetDescriptorSetDesc materialSet = {0, materialDescriptorSet, nri::BindPoint::GRAPHICS};
+            renderData.NRI.CmdSetDescriptorSet(commandBuffer, materialSet);
+        }
 
         nri::VertexBufferDesc vertexBufferDesc = {};
         vertexBufferDesc.buffer = mVertexBuffers.at(i);
@@ -396,6 +419,38 @@ const std::shared_ptr<Node> Model::GetRootNode()
 
 void Model::Cleanup(RRenderData& renderData)
 {
+    for (auto& [name, textureData] : mTextures)
+    {
+        if (textureData.nriTexture != nullptr)
+        {
+            NRITexture::Cleanup(renderData, textureData);
+        }
+    }
+
+    if (mWhiteTexture.nriTexture != nullptr)
+    {
+        NRITexture::Cleanup(renderData, mWhiteTexture);
+    }
+
+    if (mPlaceholderTexture.nriTexture != nullptr)
+    {
+        NRITexture::Cleanup(renderData, mPlaceholderTexture);
+    }
+
+    for (nri::Buffer* buffer : mVertexBuffers)
+    {
+        renderData.NRI.DestroyBuffer(buffer);
+    }
+
+    for (nri::Buffer* buffer : mIndexBuffers)
+    {
+        renderData.NRI.DestroyBuffer(buffer);
+    }
+
+    for (nri::Memory* memory : mBufferMemories)
+    {
+        renderData.NRI.FreeMemory(memory);
+    }
 }
 
 void Model::processNode(RRenderData& renderData,

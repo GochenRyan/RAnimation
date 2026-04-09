@@ -49,14 +49,18 @@ namespace helper
     };
 } // namespace helper
 
+#ifndef NRI_ABORT_ON_FAILURE
 #define NRI_ABORT_ON_FAILURE(result)                                                                                   \
     if ((result) != nri::Result::SUCCESS)                                                                              \
     {                                                                                                                  \
         exit(1);                                                                                                       \
     }
+#endif
 
+#ifndef NRI_ABORT_ON_FALSE
 #define NRI_ABORT_ON_FALSE(result)                                                                                     \
     if (!(result))                                                                                                     \
     {                                                                                                                  \
         exit(1);                                                                                                       \
     }
+#endif

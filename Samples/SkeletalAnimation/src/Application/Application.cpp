@@ -1,5 +1,8 @@
 #include <Platform/SDL/SDLPlatform.h>
+#include <Platform/SDL/SDLWindow.h>
 #include <Application/Application.h>
+
+#include <chrono>
 
 using namespace RAnimation;
 
@@ -19,18 +22,25 @@ bool Application::init(unsigned int width, unsigned int height, std::string titl
     windowDesc.highDPI = true;
     windowDesc.maximized = false;
 
-    auto window = mPlatform->CreateWindow(windowDesc);
+    IWindow* window = mPlatform->CreateWindow(windowDesc);
     if (!window)
     {
         return false;
     }
 
-    mRenderer = std::make_unique<Renderer>(window->GetNativeHandle());
+    NativeWindowHandle nativeWindowHandle = window->GetNativeHandle();
+    SDL_Window* sdlWindow = nullptr;
+    if (auto* sdlPlatformWindow = dynamic_cast<SDLWindow*>(window))
+    {
+        sdlWindow = sdlPlatformWindow->GetSDLHandle();
+    }
+
+    mRenderer = std::make_unique<Renderer>(&nativeWindowHandle, sdlWindow);
     if (!mRenderer->Init(width, height))
     {
         return false;
     }
-    return false;
+    return true;
 }
 
 void Application::MainLoop()
@@ -41,6 +51,8 @@ void Application::MainLoop()
 
     while (!mPlatform->GetMainWindow()->ShouldClose())
     {
+        mRenderer->SetSize(mPlatform->GetMainWindow()->GetWidth(), mPlatform->GetMainWindow()->GetHeight());
+
         if (!mRenderer->Draw(deltaTime))
         {
             break;

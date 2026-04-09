@@ -10,6 +10,8 @@
 #include <Tools/Timer.h>
 #include <Tools/Camera.h>
 
+struct SDL_Window;
+
 namespace RAnimation
 {
     // Settings
@@ -29,6 +31,7 @@ namespace RAnimation
     {
     public:
         Renderer(NativeWindowHandle* window);
+        Renderer(NativeWindowHandle* window, SDL_Window* sdlWindow);
         bool Init(unsigned int width, unsigned int height);
         void SetSize(unsigned int width, unsigned int height);
 

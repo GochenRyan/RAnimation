@@ -1,11 +1,13 @@
 // © 2021 NVIDIA Corporation
 
-#include <RHIWrap/Utils.h>
 #include <array>
-#include <detex.h>
 #include <filesystem>
 #include <functional>
+
+#include <detex.h>
 #include <stb_image.h>
+
+#include <RHIWrap/Utils.h>
 
 //========================================================================================================================
 // TEXTURE
@@ -49,29 +51,6 @@ const char* utils::GetFileName(const std::string& path) {
         return path.c_str() + slashPos + 1;
 
     return "";
-}
-
-std::string utils::GetFullPath(const std::string& localPath, DataFolder dataFolder)
-{
-    std::string path = "";
-    if (dataFolder == DataFolder::SHADERS)
-        path = "_Shaders/";
-    else if (dataFolder == DataFolder::TEXTURES)
-        path = "_Data/Textures/";
-    else if (dataFolder == DataFolder::SCENES)
-        path = "_Data/Scenes/";
-    else if (dataFolder == DataFolder::TESTS)
-        path = "Tests/";
-
-    for (uint32_t i = 0; i < 4; i++)
-    {
-        if (std::filesystem::exists(path))
-            break;
-
-        path = "../" + path;
-    }
-
-    return path + localPath;
 }
 
 bool utils::LoadFile(const std::string& path, std::vector<uint8_t>& data)
@@ -136,7 +115,7 @@ nri::ShaderDesc utils::LoadShader(nri::GraphicsAPI graphicsAPI,
                                   const char* entryPointName)
 {
     const char* ext = GetShaderExt(graphicsAPI);
-    std::string path = GetFullPath(shaderName + ext, DataFolder::SHADERS);
+    std::string path = shaderName + ext;
     nri::ShaderDesc shaderDesc = {};
 
     size_t i = 1;

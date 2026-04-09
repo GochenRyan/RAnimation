@@ -20,8 +20,10 @@ target_include_directories(SkeletalAnimation PUBLIC include)
 target_link_libraries(SkeletalAnimation PRIVATE assimp)
 target_link_libraries(SkeletalAnimation PRIVATE detex::detex)
 target_link_libraries(SkeletalAnimation PRIVATE fmt::fmt)
-target_link_libraries(SkeletalAnimation PRIVATE NRI_Shared)
+target_link_libraries(SkeletalAnimation PRIVATE NRI)
 target_link_libraries(SkeletalAnimation PRIVATE SDL3::SDL3)
+target_link_libraries(SkeletalAnimation PRIVATE imgui)
+target_link_libraries(SkeletalAnimation PRIVATE ImGuiFileDialog)
 
 set_property(TARGET SkeletalAnimation PROPERTY COMPILE_WARNING_AS_ERROR OFF)
 

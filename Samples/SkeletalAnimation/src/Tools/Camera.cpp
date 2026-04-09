@@ -1,4 +1,3 @@
-#include <ml.hlsli>
 #include <Tools/Camera.h>
 
 void Camera::Initialize(const float3& position, const float3& lookAt, bool isRelative) {
@@ -100,7 +99,7 @@ void Camera::Update(const CameraDesc& desc, uint32_t frameIndex) {
     state.mClipToWorld = state.mWorldToClip;
     state.mClipToWorld.Invert();
 
-    state.viewportJitter = Sequence::Halton2D(frameIndex) - 0.5f;
+    state.viewportJitter = float2(0.0f);
 
     // Previous other
     statePrev.mWorldToClip = statePrev.mViewToClip * statePrev.mWorldToView;

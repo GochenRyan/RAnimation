@@ -3,6 +3,7 @@
 
 #include <Model/RenderData.h>
 
+#include <RHIWrap/Helper.h>
 #include <RHIWrap/NRIInterface.h>
 #include <Renderer/NRITexture.h>
 
@@ -60,9 +61,21 @@ bool NRITexture::UploadToGPU(RRenderData& renderData, RTextureData& texData)
                                                 texData.texture.GetFormat()};
     NRI_ABORT_ON_FAILURE(renderData.NRI.CreateTexture2DView(texture2DViewDesc, texData.descriptor));
 
-    // In NRI, there is no independent DescriptorSetLayout interface. Instead, the ranges of all sets and
-    // bindings are described directly when creating the PipelineLayout.
-    
+    if (renderData.rdDescriptorPool != nullptr && renderData.rdPipelineLayout != nullptr &&
+        renderData.anisotropicSampler != nullptr)
+    {
+        NRI_ABORT_ON_FAILURE(renderData.NRI.AllocateDescriptorSets(
+                *renderData.rdDescriptorPool, *renderData.rdPipelineLayout, 0, &texData.descriptorSet, 1, 0));
+
+        nri::Descriptor* textureDescriptor = texData.descriptor;
+        nri::UpdateDescriptorRangeDesc updateRanges[] = {
+                {texData.descriptorSet, 0, 0, &textureDescriptor, 1},
+                {texData.descriptorSet, 1, 0, &renderData.anisotropicSampler, 1},
+        };
+
+        renderData.NRI.UpdateDescriptorRanges(updateRanges, helper::GetCountOf(updateRanges));
+    }
+
     return true;
 }
 

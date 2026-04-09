@@ -14,6 +14,7 @@
 
 struct NRIInterface : public nri::CoreInterface,
                       public nri::HelperInterface,
+                      public nri::ImguiInterface,
                       public nri::LowLatencyInterface,
                       public nri::MeshShaderInterface,
                       public nri::RayTracingInterface,
@@ -24,6 +25,8 @@ struct NRIInterface : public nri::CoreInterface,
     inline bool HasCore() const { return GetDeviceDesc != nullptr; }
 
     inline bool HasHelper() const { return CalculateAllocationNumber != nullptr; }
+
+    inline bool HasImgui() const { return CreateImgui != nullptr; }
 
     inline bool HasLowLatency() const { return SetLatencySleepMode != nullptr; }
 
@@ -47,6 +50,8 @@ struct SwapChainTexture
     nri::Format attachmentFormat;
 };
 
+#ifndef NRI_ABORT_ON_FAILURE
 #define NRI_ABORT_ON_FAILURE(result)                                                                                   \
     if (result != nri::Result::SUCCESS)                                                                                \
         exit(1);
+#endif

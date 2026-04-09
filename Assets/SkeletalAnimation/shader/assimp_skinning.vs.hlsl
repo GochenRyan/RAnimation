@@ -1,28 +1,25 @@
-#define MAX_BONES 100
+#include "NRI.hlsl"
 
-cbuffer CameraBuffer : register(b0)
+struct Constants
+{
+    int modelStride;
+    int worldPosOffset;
+};
+
+struct CameraBuffer
 {
     float4x4 view;
     float4x4 proj;
 };
 
-cbuffer ModelBuffer : register(b1)
-{
-    float4x4 model;
-};
-
-cbuffer BoneBuffer : register(b2)
-{
-    float4x4 bones[MAX_BONES];
-};
-
 struct VSInput
 {
-    float3 position : POSITION;
-    float3 normal   : NORMAL;
-    float2 texCoord : TEXCOORD0;
-    float4 weights  : BLENDWEIGHT;
-    uint4  boneIDs  : BLENDINDICES;
+    float3 position   : POSITION;
+    float4 color      : COLOR0;
+    float3 normal     : NORMAL;
+    float2 texCoord   : TEXCOORD0;
+    uint4 boneIDs     : BLENDINDICES;
+    float4 weights    : BLENDWEIGHT;
 };
 
 struct VSOutput
@@ -32,23 +29,27 @@ struct VSOutput
     float2 texCoord : TEXCOORD0;
 };
 
-VSOutput main(VSInput input)
+NRI_RESOURCE(ConstantBuffer<CameraBuffer>, g_Camera, b, 0, 1);
+NRI_RESOURCE(StructuredBuffer<float4x4>, g_BoneMatrices, t, 1, 1);
+NRI_ROOT_CONSTANTS(Constants, g_PushConstants, 0, 2);
+
+VSOutput main(VSInput input, NRI_DECLARE_DRAW_PARAMETERS)
 {
     VSOutput output;
 
+    int skinMatOffset = int(NRI_INSTANCE_ID) * g_PushConstants.modelStride + g_PushConstants.worldPosOffset;
+
     float4x4 skinMat =
-        input.weights.x * bones[input.boneIDs.x] +
-        input.weights.y * bones[input.boneIDs.y] +
-        input.weights.z * bones[input.boneIDs.z] +
-        input.weights.w * bones[input.boneIDs.w];
+        input.weights.x * g_BoneMatrices[input.boneIDs.x + skinMatOffset] +
+        input.weights.y * g_BoneMatrices[input.boneIDs.y + skinMatOffset] +
+        input.weights.z * g_BoneMatrices[input.boneIDs.z + skinMatOffset] +
+        input.weights.w * g_BoneMatrices[input.boneIDs.w + skinMatOffset];
 
-    float4 pos = mul(float4(input.position, 1.0), skinMat);
-    float4 worldPos = mul(pos, model);
+    float4 worldPos = mul(float4(input.position, 1.0f), skinMat);
+    float4 viewPos = mul(worldPos, g_Camera.view);
 
-    float4 viewPos = mul(worldPos, view);
-    output.position = mul(viewPos, proj);
-
-    output.normal = mul(input.normal, (float3x3)skinMat);
+    output.position = mul(viewPos, g_Camera.proj);
+    output.normal = mul(input.normal, (float3x3) skinMat);
     output.texCoord = input.texCoord;
 
     return output;

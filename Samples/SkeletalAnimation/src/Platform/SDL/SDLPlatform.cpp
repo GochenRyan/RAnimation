@@ -1,4 +1,6 @@
 #include <SDL3/SDL.h>
+#include <imgui.h>
+#include <imgui_impl_sdl3.h>
 
 #include <Platform/SDL/SDLPlatform.h>
 #include <Platform/SDL/SDLWindow.h>
@@ -31,6 +33,10 @@ void SDLPlatform::Shutdown()
 
 IWindow* SDLPlatform::CreateWindow(const WindowDesc& desc)
 {
+#ifdef SDL_HINT_IME_SHOW_UI
+    SDL_SetHint(SDL_HINT_IME_SHOW_UI, "1");
+#endif
+
     SDL_WindowFlags flags = 0;
 
     if (desc.resizable)
@@ -66,6 +72,11 @@ void SDLPlatform::PumpEvents()
     SDL_Event e;
     while (SDL_PollEvent(&e))
     {
+        if (ImGui::GetCurrentContext() != nullptr)
+        {
+            ImGui_ImplSDL3_ProcessEvent(&e);
+        }
+
         switch (e.type)
         {
         case SDL_EVENT_QUIT:
@@ -105,8 +116,8 @@ void SDLPlatform::PumpEvents()
 
         case SDL_EVENT_MOUSE_MOTION:
         {
-            m_inputState.SetMousePosition(e.motion.x, e.motion.y);
-            m_inputState.AddMouseDelta(e.motion.xrel, e.motion.yrel);
+            m_inputState.SetMousePosition(static_cast<int>(e.motion.x), static_cast<int>(e.motion.y));
+            m_inputState.AddMouseDelta(static_cast<int>(e.motion.xrel), static_cast<int>(e.motion.yrel));
             break;
         }
 
