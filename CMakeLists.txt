@@ -55,23 +55,9 @@ include(CMake/sdl_options.cmake)
 
 include(CMake/shadermake_options.cmake)
 
-add_library(imgui STATIC
-    Packages/imgui/imgui.cpp
-    Packages/imgui/imgui_draw.cpp
-    Packages/imgui/imgui_tables.cpp
-    Packages/imgui/imgui_widgets.cpp
-    Packages/imgui/backends/imgui_impl_sdl3.cpp
-)
-target_include_directories(imgui
-    PUBLIC
-        ${CMAKE_SOURCE_DIR}/Packages/imgui
-        ${CMAKE_SOURCE_DIR}/Packages/imgui/backends
-)
-target_link_libraries(imgui PUBLIC SDL3::SDL3)
-add_library(imgui::imgui ALIAS imgui)
+include(CMake/imgui_options.cmake)
 
-add_subdirectory(Packages/ImGuiFileDialog)
-target_link_libraries(ImGuiFileDialog PUBLIC imgui)
+include(CMake/imgui_file_dialog_options.cmake)
 
 # Assets
 set(ASSETS_SRC_DIR "${CMAKE_SOURCE_DIR}/Assets")
