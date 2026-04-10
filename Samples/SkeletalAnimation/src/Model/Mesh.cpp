@@ -86,18 +86,27 @@ bool Mesh::ProcessMesh(RRenderData& renderData,
                         // do not try to load internal textures
                         if (!texName.empty() && texName.find("*") != 0)
                         {
-                            RTextureData newTex{};
                             std::string texNameWithPath = assetDirectory + '/' + texName;
-                            if (!utils::LoadTexture(texNameWithPath, newTex.texture))
+
+                            auto [it, inserted] = textures.try_emplace(texName);
+                            if (!inserted)
+                            {
+                                continue;
+                            }
+
+                            RTextureData& texData = it->second;
+
+                            if (!utils::LoadTexture(texNameWithPath, texData.texture))
                             {
                                 fmt::print(stderr,
                                            fg(fmt::color::red),
                                            "{} error: could not load texture file '{}', skipping\n",
                                            __FUNCTION__,
                                            texNameWithPath);
+
+                                textures.erase(it);
                                 continue;
                             }
-                            textures.insert({texName, newTex});
                         }
                     }
                 }

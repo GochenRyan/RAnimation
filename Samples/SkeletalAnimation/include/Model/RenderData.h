@@ -52,6 +52,15 @@ namespace RAnimation
         nri::Memory* memory = nullptr;
         nri::Descriptor* descriptor = nullptr;
         nri::DescriptorSet* descriptorSet = nullptr;
+
+        RTextureData() = default;
+        ~RTextureData() = default;
+
+        RTextureData(const RTextureData&) = delete;
+        RTextureData& operator=(const RTextureData&) = delete;
+
+        RTextureData(RTextureData&&) noexcept = default;
+        RTextureData& operator=(RTextureData&&) noexcept = default;
     };
 
     struct QueuedFrame

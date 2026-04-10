@@ -7,7 +7,7 @@ using namespace RAnimation;
 
 bool SkinningPipeline::Init(RRenderData& renderData,
                             nri::PipelineLayout& pipelineLayout,
-                            nri::Pipeline* pipeline,
+                            nri::Pipeline*& pipeline,
                             std::string vertexShaderFilename,
                             std::string fragmentShaderFilename)
 {

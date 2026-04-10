@@ -64,20 +64,26 @@ bool Model::LoadModel(RRenderData& renderData, std::string modelFilename, unsign
             unsigned int width = scene->mTextures[i]->mWidth;
             aiTexel* data = scene->mTextures[i]->pcData;
 
-            RTextureData newTex{};
-            if (!utils::LoadTexture(texName, newTex.texture))
+            auto [it, inserted] = mTextures.try_emplace(texName);
+            if (!inserted)
+            {
+                continue;
+            }
+
+            RTextureData& texData = it->second;
+
+            if (!utils::LoadTexture(texName, texData.texture))
             {
                 return false;
             }
 
-            if (!NRITexture::LoadTexture(renderData, newTex))
+            if (!NRITexture::LoadTexture(renderData, texData))
             {
                 return false;
             }
 
             std::string internalTexName = "*" + std::to_string(i);
             fmt::print("{}: - added internal texture '{}'\n", __FUNCTION__, internalTexName);
-            mTextures.insert({internalTexName, newTex});
         }
 
         fmt::print("{}: scene has {} embedded textures\n", __FUNCTION__, numTextures);
@@ -267,14 +273,14 @@ void Model::Draw(RRenderData& renderData)
     {
         RMesh& mesh = mModelMeshes.at(i);
         // find diffuse texture by name
-        RTextureData diffuseTex{};
+        RTextureData* diffuseTex = nullptr;
         auto diffuseTexName = mesh.textures.find(aiTextureType_DIFFUSE);
         if (diffuseTexName != mesh.textures.end())
         {
             auto diffuseTexture = mTextures.find(diffuseTexName->second);
             if (diffuseTexture != mTextures.end())
             {
-                diffuseTex = diffuseTexture->second;
+                diffuseTex = &diffuseTexture->second;
             }
         }
 
@@ -291,7 +297,7 @@ void Model::Draw(RRenderData& renderData)
 
         renderData.NRI.CmdSetPipelineLayout(commandBuffer, nri::BindPoint::GRAPHICS, *renderPipelineLayout);
 
-        nri::DescriptorSet* materialDescriptorSet = diffuseTex.descriptorSet;
+        nri::DescriptorSet* materialDescriptorSet = diffuseTex->descriptorSet;
         if (materialDescriptorSet == nullptr)
         {
             materialDescriptorSet = mesh.usesPBRColors ? mWhiteTexture.descriptorSet : mPlaceholderTexture.descriptorSet;
@@ -320,14 +326,14 @@ void Model::DrawInstanced(RRenderData& renderData, uint32_t instanceCount)
     {
         RMesh& mesh = mModelMeshes.at(i);
         // find diffuse texture by name
-        RTextureData diffuseTex{};
+        RTextureData* diffuseTex = nullptr;
         auto diffuseTexName = mesh.textures.find(aiTextureType_DIFFUSE);
         if (diffuseTexName != mesh.textures.end())
         {
             auto diffuseTexture = mTextures.find(diffuseTexName->second);
             if (diffuseTexture != mTextures.end())
             {
-                diffuseTex = diffuseTexture->second;
+                diffuseTex = &diffuseTexture->second;
             }
         }
 
@@ -344,7 +350,7 @@ void Model::DrawInstanced(RRenderData& renderData, uint32_t instanceCount)
 
         renderData.NRI.CmdSetPipelineLayout(commandBuffer, nri::BindPoint::GRAPHICS, *renderPipelineLayout);
 
-        nri::DescriptorSet* materialDescriptorSet = diffuseTex.descriptorSet;
+        nri::DescriptorSet* materialDescriptorSet = diffuseTex->descriptorSet;
         if (materialDescriptorSet == nullptr)
         {
             materialDescriptorSet = mesh.usesPBRColors ? mWhiteTexture.descriptorSet : mPlaceholderTexture.descriptorSet;
