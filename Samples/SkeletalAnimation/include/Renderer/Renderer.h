@@ -15,7 +15,8 @@ struct SDL_Window;
 namespace RAnimation
 {
     // Settings
-    constexpr nri::VKBindingOffsets VK_BINDING_OFFSETS = {0, 128, 32, 64};
+    // Keep runtime Vulkan binding offsets aligned with ShaderMake's SPIR-V defaults.
+    constexpr nri::VKBindingOffsets VK_BINDING_OFFSETS = {100, 200, 300, 400};
     constexpr bool D3D11_ENABLE_COMMAND_BUFFER_EMULATION = false;
     constexpr bool D3D12_DISABLE_ENHANCED_BARRIERS = false;
 
@@ -73,6 +74,7 @@ namespace RAnimation
         bool createSwapchainTextures();
 
         void updateTriangleCount();
+        void focusCameraOnPoint(const glm::vec3& focusPoint);
 
         void latencySleep(uint32_t frameIndex);
 
@@ -96,5 +98,7 @@ namespace RAnimation
 
         /* for animated models */
         std::vector<glm::mat4> mModelBoneMatrices;
+
+        bool mDepthAttachmentInitialized = false;
     };
 } // namespace RAnimation

@@ -284,20 +284,7 @@ void Model::Draw(RRenderData& renderData)
             }
         }
 
-        /* switch between animated and non-animated pipeline layout */
-        nri::PipelineLayout* renderPipelineLayout = nullptr;
-        if (HasAnimations())
-        {
-            renderPipelineLayout = renderData.rdSkinningPipelineLayout;
-        }
-        else
-        {
-            renderPipelineLayout = renderData.rdPipelineLayout;
-        }
-
-        renderData.NRI.CmdSetPipelineLayout(commandBuffer, nri::BindPoint::GRAPHICS, *renderPipelineLayout);
-
-        nri::DescriptorSet* materialDescriptorSet = diffuseTex->descriptorSet;
+        nri::DescriptorSet* materialDescriptorSet = diffuseTex != nullptr ? diffuseTex->descriptorSet : nullptr;
         if (materialDescriptorSet == nullptr)
         {
             materialDescriptorSet = mesh.usesPBRColors ? mWhiteTexture.descriptorSet : mPlaceholderTexture.descriptorSet;
@@ -337,20 +324,7 @@ void Model::DrawInstanced(RRenderData& renderData, uint32_t instanceCount)
             }
         }
 
-        /* switch between animated and non-animated pipeline layout */
-        nri::PipelineLayout* renderPipelineLayout = nullptr;
-        if (HasAnimations())
-        {
-            renderPipelineLayout = renderData.rdSkinningPipelineLayout;
-        }
-        else
-        {
-            renderPipelineLayout = renderData.rdPipelineLayout;
-        }
-
-        renderData.NRI.CmdSetPipelineLayout(commandBuffer, nri::BindPoint::GRAPHICS, *renderPipelineLayout);
-
-        nri::DescriptorSet* materialDescriptorSet = diffuseTex->descriptorSet;
+        nri::DescriptorSet* materialDescriptorSet = diffuseTex != nullptr ? diffuseTex->descriptorSet : nullptr;
         if (materialDescriptorSet == nullptr)
         {
             materialDescriptorSet = mesh.usesPBRColors ? mWhiteTexture.descriptorSet : mPlaceholderTexture.descriptorSet;
@@ -360,6 +334,30 @@ void Model::DrawInstanced(RRenderData& renderData, uint32_t instanceCount)
         {
             nri::SetDescriptorSetDesc materialSet = {0, materialDescriptorSet, nri::BindPoint::GRAPHICS};
             renderData.NRI.CmdSetDescriptorSet(commandBuffer, materialSet);
+        }
+
+        if (HasAnimations())
+        {
+            uint32_t maxBoneIndex = 0;
+            for (const RVertex& vertex : mesh.vertices)
+            {
+                maxBoneIndex = std::max(maxBoneIndex, vertex.boneNumber.x);
+                maxBoneIndex = std::max(maxBoneIndex, vertex.boneNumber.y);
+                maxBoneIndex = std::max(maxBoneIndex, vertex.boneNumber.z);
+                maxBoneIndex = std::max(maxBoneIndex, vertex.boneNumber.w);
+            }
+
+            if (maxBoneIndex >= mBoneList.size())
+            {
+                fmt::print(stderr,
+                           fg(fmt::color::red),
+                           "{} error: mesh {} in model '{}' references bone index {}, but model only has {} bones\n",
+                           __FUNCTION__,
+                           i,
+                           mModelFilename,
+                           maxBoneIndex,
+                           mBoneList.size());
+            }
         }
 
         nri::VertexBufferDesc vertexBufferDesc = {};
@@ -468,6 +466,8 @@ void Model::processNode(RRenderData& renderData,
     std::string nodeName = aNode->mName.C_Str();
     fmt::print("{}: node name: '{}'\n", __FUNCTION__, nodeName);
 
+    node->SetLocalTransform(Tools::convertAiToGLM(aNode->mTransformation));
+
     unsigned int numMeshes = aNode->mNumMeshes;
     if (numMeshes > 0)
     {
@@ -479,21 +479,57 @@ void Model::processNode(RRenderData& renderData,
             Mesh mesh;
             mesh.ProcessMesh(renderData, modelMesh, scene, assetDirectory, mTextures);
 
-            mModelMeshes.emplace_back(mesh.GetMesh());
+            RMesh processedMesh = mesh.GetMesh();
 
-            /* avoid inserting duplicate bone Ids - meshes can reference the same bones */
+            /* Convert mesh-local bone IDs into model-global IDs keyed by bone name. */
             std::vector<std::shared_ptr<Bone>> flatBones = mesh.GetBoneList();
+            std::vector<uint32_t> localToGlobalBoneIds(flatBones.size(), 0);
             for (const auto& bone : flatBones)
             {
                 const auto iter = std::find_if(mBoneList.begin(),
                                                mBoneList.end(),
                                                [bone](std::shared_ptr<Bone>& otherBone)
-                                               { return bone->GetBoneId() == otherBone->GetBoneId(); });
+                                               { return bone->GetBoneName() == otherBone->GetBoneName(); });
                 if (iter == mBoneList.end())
                 {
-                    mBoneList.emplace_back(bone);
+                    const uint32_t globalBoneId = static_cast<uint32_t>(mBoneList.size());
+                    mBoneList.emplace_back(
+                            std::make_shared<Bone>(globalBoneId, bone->GetBoneName(), bone->GetOffsetMatrix()));
+                    localToGlobalBoneIds.at(bone->GetBoneId()) = globalBoneId;
+                }
+                else
+                {
+                    localToGlobalBoneIds.at(bone->GetBoneId()) = (*iter)->GetBoneId();
                 }
             }
+
+            for (RVertex& vertex : processedMesh.vertices)
+            {
+                for (uint32_t boneWeightIndex = 0; boneWeightIndex < 4; ++boneWeightIndex)
+                {
+                    if (vertex.boneWeight[boneWeightIndex] <= 0.0f)
+                    {
+                        continue;
+                    }
+
+                    const uint32_t localBoneId = vertex.boneNumber[boneWeightIndex];
+                    if (localBoneId >= localToGlobalBoneIds.size())
+                    {
+                        fmt::print(stderr,
+                                   fg(fmt::color::red),
+                                   "{} error: mesh '{}' references local bone id {}, but only {} local bones were registered\n",
+                                   __FUNCTION__,
+                                   mesh.GetMeshName(),
+                                   localBoneId,
+                                   localToGlobalBoneIds.size());
+                        continue;
+                    }
+
+                    vertex.boneNumber[boneWeightIndex] = localToGlobalBoneIds[localBoneId];
+                }
+            }
+
+            mModelMeshes.emplace_back(std::move(processedMesh));
         }
     }
 

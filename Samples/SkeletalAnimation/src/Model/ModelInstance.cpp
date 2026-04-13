@@ -136,42 +136,100 @@ void ModelInstance::UpdateModelRootMatrix()
 
 void ModelInstance::UpdateAnimation(float deltaTime)
 {
-    mInstanceSettings.mAnimPlayTimePos +=
-            deltaTime * mModel->GetAnimClips().at(mInstanceSettings.mAnimClipNr)->GetClipTicksPerSecond() *
-            mInstanceSettings.mAnimSpeedFactor;
-    mInstanceSettings.mAnimPlayTimePos =
-            std::fmod(mInstanceSettings.mAnimPlayTimePos,
-                      mModel->GetAnimClips().at(mInstanceSettings.mAnimClipNr)->GetClipDuration());
+    const auto& animClips = mModel->GetAnimClips();
+    if (animClips.empty())
+    {
+        return;
+    }
+
+    if (mInstanceSettings.mAnimClipNr >= animClips.size())
+    {
+        fmt::print(stderr,
+                   "{} warning: invalid animation clip index {} for model '{}', clamping to 0\n",
+                   __FUNCTION__,
+                   mInstanceSettings.mAnimClipNr,
+                   mModel->GetModelFileName());
+        mInstanceSettings.mAnimClipNr = 0;
+        mInstanceSettings.mAnimPlayTimePos = 0.0f;
+    }
+
+    const float clipTicksPerSecond =
+            animClips.at(mInstanceSettings.mAnimClipNr)->GetClipTicksPerSecond() > 0.0f
+                    ? animClips.at(mInstanceSettings.mAnimClipNr)->GetClipTicksPerSecond()
+                    : 25.0f;
+    const float clipDuration = animClips.at(mInstanceSettings.mAnimClipNr)->GetClipDuration();
+
+    mInstanceSettings.mAnimPlayTimePos += deltaTime * clipTicksPerSecond * mInstanceSettings.mAnimSpeedFactor;
+    if (clipDuration > 0.0f)
+    {
+        mInstanceSettings.mAnimPlayTimePos = std::fmod(mInstanceSettings.mAnimPlayTimePos, clipDuration);
+    }
+    else
+    {
+        mInstanceSettings.mAnimPlayTimePos = 0.0f;
+    }
 
     std::vector<std::shared_ptr<AnimChannel>> animChannels =
-            mModel->GetAnimClips().at(mInstanceSettings.mAnimClipNr)->GetChannels();
+            animClips.at(mInstanceSettings.mAnimClipNr)->GetChannels();
+
+    for (const auto& node : mModel->GetNodeList())
+    {
+        node->ResetToBindPose();
+    }
 
     /* animate clip via channels */
     for (const auto& channel : animChannels)
     {
         std::string nodeNameToAnimate = channel->GetTargetNodeName();
-        std::shared_ptr<Node> node = mModel->GetNodeMap().at(nodeNameToAnimate);
+        const auto nodeIter = mModel->GetNodeMap().find(nodeNameToAnimate);
+        if (nodeIter == mModel->GetNodeMap().end())
+        {
+            fmt::print(stderr, "{} warning: animation channel targets missing node '{}'\n", __FUNCTION__, nodeNameToAnimate);
+            continue;
+        }
 
-        node->SetRotation(channel->GetRotation(mInstanceSettings.mAnimPlayTimePos));
-        node->SetScaling(channel->GetScaling(mInstanceSettings.mAnimPlayTimePos));
-        node->SetTranslation(channel->GetTranslation(mInstanceSettings.mAnimPlayTimePos));
+        std::shared_ptr<Node> node = nodeIter->second;
+
+        if (channel->HasRotationKeys())
+        {
+            node->SetRotation(channel->GetRotation(mInstanceSettings.mAnimPlayTimePos));
+        }
+
+        if (channel->HasScalingKeys())
+        {
+            node->SetScaling(channel->GetScaling(mInstanceSettings.mAnimPlayTimePos));
+        }
+
+        if (channel->HasTranslationKeys())
+        {
+            node->SetTranslation(channel->GetTranslation(mInstanceSettings.mAnimPlayTimePos));
+        }
     }
 
-    /* set root node transform matrix, enabling instance movement */
-    mModel->GetRootNode()->SetRootTransformMatrix(mLocalTransformMatrix * mModel->GetRootTranformationMatrix());
+    /* apply only the per-instance transform here; the root node already stores the imported local transform */
+    mModel->GetRootNode()->SetRootTransformMatrix(mLocalTransformMatrix);
 
     /* flat node map contains nodes in parent->child order, starting with root node, update matrices down the skeleton
      * tree */
-    mBoneMatrices.clear();
     for (auto& node : mModel->GetNodeList())
     {
-        std::string nodeName = node->GetNodeName();
-
         node->UpdateTRSMatrix();
-        if (mModel->GetInverseBindMatrices().count(nodeName) > 0)
+    }
+
+    mBoneMatrices.assign(mModel->GetBoneList().size(), glm::mat4(1.0f));
+    for (const auto& bone : mModel->GetBoneList())
+    {
+        const auto nodeIter = mModel->GetNodeMap().find(bone->GetBoneName());
+        if (nodeIter == mModel->GetNodeMap().end())
         {
-            mBoneMatrices.emplace_back(mModel->GetNodeMap().at(nodeName)->GetTRSMatrix() *
-                                       mModel->GetInverseBindMatrices().at(nodeName));
+            fmt::print(stderr,
+                       "{} warning: bone '{}' has no matching node in model '{}'\n",
+                       __FUNCTION__,
+                       bone->GetBoneName(),
+                       mModel->GetModelFileName());
+            continue;
         }
+
+        mBoneMatrices.at(bone->GetBoneId()) = nodeIter->second->GetTRSMatrix() * bone->GetOffsetMatrix();
     }
 }

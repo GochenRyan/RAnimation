@@ -7,10 +7,12 @@
 当前已建立专题：
 
 - `static-vs-dynamic-linking.md`：静态库 / 动态库的选择方法、产物形态、以及它们在编译期、链接期、运行期分别起什么作用。
+- `cpp-raii-and-ownership.md`：从 `fix RAII` 案例出发，总结资源型 C++ 对象的拷贝、移动、借用、容器构造与接口所有权表达。
 
 ## 推荐阅读顺序
 
 1. `static-vs-dynamic-linking.md`
+2. `cpp-raii-and-ownership.md`
 
 ## 使用方式
 

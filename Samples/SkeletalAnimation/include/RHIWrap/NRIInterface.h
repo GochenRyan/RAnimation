@@ -48,6 +48,7 @@ struct SwapChainTexture
     nri::Texture* texture;
     nri::Descriptor* colorAttachment;
     nri::Format attachmentFormat;
+    bool hasBeenPresented = false;
 };
 
 #ifndef NRI_ABORT_ON_FAILURE

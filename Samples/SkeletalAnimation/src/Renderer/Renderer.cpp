@@ -23,6 +23,36 @@ namespace
     constexpr uint32_t MAX_WORLD_MATRICES = 4096;
     constexpr uint32_t MAX_BONE_MATRICES = MAX_WORLD_MATRICES * MAX_BONES;
 
+    bool IsFiniteMatrix(const glm::mat4& matrix)
+    {
+        for (uint32_t row = 0; row < 4; ++row)
+        {
+            for (uint32_t col = 0; col < 4; ++col)
+            {
+                if (!std::isfinite(matrix[row][col]))
+                {
+                    return false;
+                }
+            }
+        }
+
+        return true;
+    }
+
+    float GetMaxAbsMatrixElement(const glm::mat4& matrix)
+    {
+        float maxAbsValue = 0.0f;
+        for (uint32_t row = 0; row < 4; ++row)
+        {
+            for (uint32_t col = 0; col < 4; ++col)
+            {
+                maxAbsValue = std::max(maxAbsValue, std::abs(matrix[row][col]));
+            }
+        }
+
+        return maxAbsValue;
+    }
+
     uint64_t GetCameraBufferSize(const RRenderData& renderData)
     {
         const nri::DeviceDesc& deviceDesc = renderData.NRI.GetDeviceDesc(*renderData.rdDevice);
@@ -198,6 +228,11 @@ bool Renderer::Draw(float deltaTime)
                                   500.0f);
     matrices.projectionMatrix[1][1] *= -1.0f;
 
+    mUIGenerateTimer.Start();
+    mUserInterface.HideMouse(false);
+    mUserInterface.CreateFrame(mRenderData, mModelInstData);
+    mRenderData.rdUIGenerateTime = mUIGenerateTimer.Stop();
+
     mMatrixGenerateTimer.Start();
     mWorldPosMatrices.clear();
     mModelBoneMatrices.clear();
@@ -216,6 +251,47 @@ bool Renderer::Draw(float deltaTime)
             {
                 instance->UpdateAnimation(safeDeltaTime);
                 const std::vector<glm::mat4> boneMatrices = instance->GetBoneMatrices();
+
+                if (boneMatrices.size() != model->GetBoneList().size())
+                {
+                    fmt::print(stderr,
+                               fg(fmt::color::red),
+                               "{} error: animated instance for model '{}' produced {} bone matrices, expected {}\n",
+                               __FUNCTION__,
+                               model->GetModelFileName(),
+                               boneMatrices.size(),
+                               model->GetBoneList().size());
+                    return false;
+                }
+
+                for (size_t boneIndex = 0; boneIndex < boneMatrices.size(); ++boneIndex)
+                {
+                    if (!IsFiniteMatrix(boneMatrices[boneIndex]))
+                    {
+                        fmt::print(stderr,
+                                   fg(fmt::color::red),
+                                   "{} error: animated instance for model '{}' produced non-finite bone matrix at index {}\n",
+                                   __FUNCTION__,
+                                   model->GetModelFileName(),
+                                   boneIndex);
+                        return false;
+                    }
+
+                    const float maxAbsMatrixElement = GetMaxAbsMatrixElement(boneMatrices[boneIndex]);
+                    if (maxAbsMatrixElement > 1e6f)
+                    {
+                        fmt::print(stderr,
+                                   fg(fmt::color::red),
+                                   "{} error: animated instance for model '{}' produced suspiciously large bone matrix "
+                                   "at index {} (maxAbs={})\n",
+                                   __FUNCTION__,
+                                   model->GetModelFileName(),
+                                   boneIndex,
+                                   maxAbsMatrixElement);
+                        return false;
+                    }
+                }
+
                 mModelBoneMatrices.insert(mModelBoneMatrices.end(), boneMatrices.begin(), boneMatrices.end());
             }
         }
@@ -263,11 +339,6 @@ bool Renderer::Draw(float deltaTime)
     }
     mRenderData.rdUploadToUBOTime = mUploadToUBOTimer.Stop();
 
-    mUIGenerateTimer.Start();
-    mUserInterface.HideMouse(false);
-    mUserInterface.CreateFrame(mRenderData, mModelInstData);
-    mRenderData.rdUIGenerateTime = mUIGenerateTimer.Stop();
-
     mUIDrawTimer.Start();
     mUserInterface.Render(mRenderData);
     mRenderData.rdUIDrawTime = mUIDrawTimer.Stop();
@@ -278,9 +349,12 @@ bool Renderer::Draw(float deltaTime)
             (drawData != nullptr && drawData->Textures != nullptr) ? static_cast<uint32_t>(drawData->Textures->Size) : 0;
     const bool hasSceneGeometry = !mModelInstData.miModelInstances.empty();
 
-    AI_LOG("[AI] frame={} acquireIndex={} sceneGeometry={} imguiDrawLists={} imguiTextures={}\n",
+    AI_LOG("[AI] frame={} queuedFrame={} acquireIndex={} staticSet={} skinnedSet={} sceneGeometry={} imguiDrawLists={} imguiTextures={}\n",
            mFrameIndex,
+           mRenderData.queuedFrameIndex,
            queuedFrame.swapChainTextureIndex,
+           static_cast<const void*>(queuedFrame.staticDescriptorSet),
+           static_cast<const void*>(queuedFrame.skinnedDescriptorSet),
            hasSceneGeometry ? 1u : 0u,
            imguiDrawListNum,
            imguiTextureNum);
@@ -305,17 +379,20 @@ bool Renderer::Draw(float deltaTime)
 
     beginRenderingBarriers[beginRenderingBarrierCount++] = {
             mRenderData.rdSwapChainTextures[queuedFrame.swapChainTextureIndex].texture,
-            {nri::AccessBits::NONE, nri::Layout::PRESENT, nri::StageBits::NONE},
+            {nri::AccessBits::NONE,
+             mRenderData.rdSwapChainTextures[queuedFrame.swapChainTextureIndex].hasBeenPresented ? nri::Layout::PRESENT
+                                                                                                  : nri::Layout::UNDEFINED,
+             nri::StageBits::NONE},
             {nri::AccessBits::COLOR_ATTACHMENT, nri::Layout::COLOR_ATTACHMENT, nri::StageBits::COLOR_ATTACHMENT}};
 
     if (hasSceneGeometry)
     {
-        const bool isFirstRenderedFrame = (mFrameIndex == 0);
+        const bool isFirstScenePass = !mDepthAttachmentInitialized;
         beginRenderingBarriers[beginRenderingBarrierCount++] = {
                 mRenderData.rdDepthTexture,
-                {isFirstRenderedFrame ? nri::AccessBits::NONE : nri::AccessBits::DEPTH_STENCIL_ATTACHMENT,
-                 isFirstRenderedFrame ? nri::Layout::UNDEFINED : nri::Layout::DEPTH_STENCIL_ATTACHMENT,
-                 isFirstRenderedFrame ? nri::StageBits::NONE : nri::StageBits::DEPTH_STENCIL_ATTACHMENT},
+                {isFirstScenePass ? nri::AccessBits::NONE : nri::AccessBits::DEPTH_STENCIL_ATTACHMENT,
+                 isFirstScenePass ? nri::Layout::UNDEFINED : nri::Layout::DEPTH_STENCIL_ATTACHMENT,
+                 isFirstScenePass ? nri::StageBits::NONE : nri::StageBits::DEPTH_STENCIL_ATTACHMENT},
                 {nri::AccessBits::DEPTH_STENCIL_ATTACHMENT,
                  nri::Layout::DEPTH_STENCIL_ATTACHMENT,
                  nri::StageBits::DEPTH_STENCIL_ATTACHMENT}};
@@ -379,6 +456,30 @@ bool Renderer::Draw(float deltaTime)
                 pushConstants.modelStride = static_cast<int>(model->GetBoneList().size());
                 pushConstants.worldPosOffset = static_cast<int>(boneMatrixOffset);
 
+                const uint32_t requiredBoneMatrices =
+                        instanceCount * static_cast<uint32_t>(model->GetBoneList().size());
+                if (boneMatrixOffset + requiredBoneMatrices > mModelBoneMatrices.size())
+                {
+                    fmt::print(stderr,
+                               fg(fmt::color::red),
+                               "{} error: skinning upload range for model '{}' exceeds uploaded bone matrix count "
+                               "(offset={}, required={}, uploaded={})\n",
+                               __FUNCTION__,
+                               model->GetModelFileName(),
+                               boneMatrixOffset,
+                               requiredBoneMatrices,
+                               mModelBoneMatrices.size());
+                    return false;
+                }
+
+                AI_LOG("[AI] frame={} animated model='{}' instances={} stride={} uploadedBones={} offset={}\n",
+                       mFrameIndex,
+                       model->GetModelFileName(),
+                       instanceCount,
+                       pushConstants.modelStride,
+                       mModelBoneMatrices.size(),
+                       boneMatrixOffset);
+
                 mRenderData.NRI.CmdSetPipelineLayout(
                         *queuedFrame.commandBuffer, nri::BindPoint::GRAPHICS, *mRenderData.rdSkinningPipelineLayout);
                 mRenderData.NRI.CmdSetPipeline(*queuedFrame.commandBuffer, *mRenderData.rdSkinningPipeline);
@@ -418,6 +519,7 @@ bool Renderer::Draw(float deltaTime)
         }
 
         mRenderData.NRI.CmdEndRendering(*queuedFrame.commandBuffer);
+        mDepthAttachmentInitialized = true;
     }
 
     if (drawData != nullptr && drawData->CmdListsCount > 0)
@@ -497,6 +599,7 @@ bool Renderer::Draw(float deltaTime)
     NRI_ABORT_ON_FAILURE(mRenderData.NRI.QueueSubmit(*mRenderData.rdGraphicsQueue, queueSubmitDesc));
     AI_LOG("[AI] frame={} present\n", mFrameIndex);
     NRI_ABORT_ON_FAILURE(mRenderData.NRI.QueuePresent(*mRenderData.rdSwapChain, *releaseSemaphore));
+    mRenderData.rdSwapChainTextures[queuedFrame.swapChainTextureIndex].hasBeenPresented = true;
     mRenderData.NRI.EndStreamerFrame(*mRenderData.rdStreamer);
 
     ++mFrameIndex;
@@ -564,6 +667,12 @@ bool Renderer::AddModel(std::string modelFileName)
         return true;
     }
 
+    const bool shouldFocusImportedModel = mModelInstData.miModelList.empty();
+
+    /* Runtime model import uploads textures and mesh buffers directly through the graphics queue.
+     * Keep it serialized with the render loop so queue-owned upload work does not overlap frame submissions. */
+    NRI_ABORT_ON_FAILURE(mRenderData.NRI.QueueWaitIdle(mRenderData.rdGraphicsQueue));
+
     std::shared_ptr<Model> model = std::make_shared<Model>();
     if (!model->LoadModel(mRenderData, modelFileName))
     {
@@ -572,10 +681,18 @@ bool Renderer::AddModel(std::string modelFileName)
         return false;
     }
 
+    NRI_ABORT_ON_FAILURE(mRenderData.NRI.QueueWaitIdle(mRenderData.rdGraphicsQueue));
+
     mModelInstData.miModelList.emplace_back(model);
 
     /* also add a new instance here to see the model */
-    AddInstance(model);
+    std::shared_ptr<ModelInstance> instance = AddInstance(model);
+
+    if (shouldFocusImportedModel && instance != nullptr)
+    {
+        const glm::mat4 worldTransform = instance->GetWorldTransformMatrix();
+        focusCameraOnPoint(glm::vec3(worldTransform[3]));
+    }
 
     return true;
 }
@@ -583,6 +700,16 @@ bool Renderer::AddModel(std::string modelFileName)
 void Renderer::DeleteModel(std::string modelFileName)
 {
     std::string shortModelFileName = std::filesystem::path(modelFileName).filename().generic_string();
+    std::vector<std::shared_ptr<Model>> modelsToDelete;
+
+    for (const auto& model : mModelInstData.miModelList)
+    {
+        if (model != nullptr &&
+            (model->GetModelFileName() == shortModelFileName || model->GetModelFileNamePath() == modelFileName))
+        {
+            modelsToDelete.emplace_back(model);
+        }
+    }
 
     if (!mModelInstData.miModelInstances.empty())
     {
@@ -600,16 +727,6 @@ void Renderer::DeleteModel(std::string modelFileName)
         mModelInstData.miModelInstancesPerModel.erase(shortModelFileName);
     }
 
-    /* add models to pending delete list */
-    for (const auto& model : mModelInstData.miModelList)
-    {
-        if (model && (model->GetTriangleCount() > 0) &&
-            (model->GetModelFileName() == shortModelFileName || model->GetModelFileNamePath() == modelFileName))
-        {
-            mModelInstData.miPendingDeleteModels.insert(model);
-        }
-    }
-
     mModelInstData.miModelList.erase(std::remove_if(mModelInstData.miModelList.begin(),
                                                     mModelInstData.miModelList.end(),
                                                     [modelFileName, shortModelFileName](std::shared_ptr<Model> model)
@@ -618,6 +735,17 @@ void Renderer::DeleteModel(std::string modelFileName)
                                                                model->GetModelFileNamePath() == modelFileName;
                                                     }),
                                      mModelInstData.miModelList.end());
+
+    if (!modelsToDelete.empty())
+    {
+        NRI_ABORT_ON_FAILURE(mRenderData.NRI.QueueWaitIdle(mRenderData.rdGraphicsQueue));
+        for (const auto& model : modelsToDelete)
+        {
+            model->Cleanup(mRenderData);
+            mModelInstData.miPendingDeleteModels.erase(model);
+        }
+    }
+
     updateTriangleCount();
 }
 
@@ -733,8 +861,13 @@ void Renderer::Cleanup()
     SkinningPipeline::Cleanup(mRenderData, mRenderData.rdPipeline);
     SkinningPipeline::Cleanup(mRenderData, mRenderData.rdSkinningPipeline);
 
+    if (mRenderData.rdSkinningPipelineLayout != nullptr &&
+        mRenderData.rdSkinningPipelineLayout != mRenderData.rdPipelineLayout)
+    {
+        mRenderData.NRI.DestroyPipelineLayout(mRenderData.rdSkinningPipelineLayout);
+    }
+
     mRenderData.NRI.DestroyPipelineLayout(mRenderData.rdPipelineLayout);
-    mRenderData.NRI.DestroyPipelineLayout(mRenderData.rdSkinningPipelineLayout);
 
     for (SwapChainTexture& swapChainTexture : mRenderData.rdSwapChainTextures)
     {
@@ -769,6 +902,11 @@ void Renderer::Cleanup()
 
 bool Renderer::initDevice()
 {
+#if defined(_DEBUG)
+    mRenderData.rdDebugAPI = true;
+    mRenderData.rdDebugNRI = true;
+#endif
+
     // Adapters
     nri::AdapterDesc adapterDesc[2] = {};
     uint32_t adapterDescsNum = helper::GetCountOf(adapterDesc);
@@ -894,8 +1032,7 @@ bool Renderer::createPipelineLayout()
 
     NRI_ABORT_ON_FAILURE(mRenderData.NRI.CreatePipelineLayout(
             *mRenderData.rdDevice, pipelineLayoutDesc, mRenderData.rdPipelineLayout));
-    NRI_ABORT_ON_FAILURE(mRenderData.NRI.CreatePipelineLayout(
-            *mRenderData.rdDevice, pipelineLayoutDesc, mRenderData.rdSkinningPipelineLayout));
+    mRenderData.rdSkinningPipelineLayout = mRenderData.rdPipelineLayout;
 
     return true;
 }
@@ -944,6 +1081,7 @@ bool Renderer::createSSBOs()
     {
         nri::BufferDesc bufferDesc = {};
         bufferDesc.size = GetWorldBufferSizePerFrame(mRenderData) * mRenderData.GetQueuedFrameNum();
+        bufferDesc.structureStride = sizeof(glm::mat4);
         bufferDesc.usage = nri::BufferUsageBits::SHADER_RESOURCE;
 
         nri::Buffer* buffer = nullptr;
@@ -954,6 +1092,7 @@ bool Renderer::createSSBOs()
     {
         nri::BufferDesc bufferDesc = {};
         bufferDesc.size = GetBoneBufferSizePerFrame(mRenderData) * mRenderData.GetQueuedFrameNum();
+        bufferDesc.structureStride = sizeof(glm::mat4);
         bufferDesc.usage = nri::BufferUsageBits::SHADER_RESOURCE;
 
         nri::Buffer* buffer = nullptr;
@@ -1018,6 +1157,15 @@ bool Renderer::allocateAndBindMemory()
                    "{} error: failed to allocate and bind memory for textures\n",
                    __FUNCTION__);
         return false;
+    }
+
+    if (mRenderData.rdDepthTexture != nullptr && mRenderData.rdDepthAttachment == nullptr)
+    {
+        nri::Texture2DViewDesc texture2DViewDesc = {mRenderData.rdDepthTexture,
+                                                    nri::Texture2DViewType::DEPTH_STENCIL_ATTACHMENT,
+                                                    mRenderData.rdDepthFormat};
+
+        NRI_ABORT_ON_FAILURE(mRenderData.NRI.CreateTexture2DView(texture2DViewDesc, mRenderData.rdDepthAttachment));
     }
 
     mRenderData.rdMemoryAllocations = std::move(allocations);
@@ -1103,6 +1251,11 @@ bool Renderer::createDescriptorPool()
 bool Renderer::createDescriptorLayouts()
 {
     // set 0: texture + sampler
+    // NOTE:
+    // These are logical HLSL register indices, not final Vulkan binding numbers.
+    // Final Vulkan bindings are produced by NRI by adding VK_BINDING_OFFSETS:
+    //   s0 -> 100
+    //   t0 -> 200
     mRenderData.rdTextureDescriptorRanges = {
             {0, 1, nri::DescriptorType::TEXTURE, nri::StageBits::FRAGMENT_SHADER},
             {0, 1, nri::DescriptorType::SAMPLER, nri::StageBits::FRAGMENT_SHADER},
@@ -1114,6 +1267,9 @@ bool Renderer::createDescriptorLayouts()
                                             nri::DescriptorSetBits::NONE};
 
     // set 1: camera + matrix buffer
+    // Final Vulkan bindings are produced by NRI by adding VK_BINDING_OFFSETS:
+    //   b0 -> 300
+    //   t1 -> 201
     mRenderData.rdBufferDescriptorRanges = {
             {0, 1, nri::DescriptorType::CONSTANT_BUFFER, nri::StageBits::VERTEX_SHADER},
             {1, 1, nri::DescriptorType::STRUCTURED_BUFFER, nri::StageBits::VERTEX_SHADER},
@@ -1175,14 +1331,6 @@ bool Renderer::createSwapchainTextures()
         mRenderData.rdDepthTexture = depthTexture;
     }
 
-    { // Depth buffer
-        nri::Texture2DViewDesc texture2DViewDesc = {depthTexture,
-                                                    nri::Texture2DViewType::DEPTH_STENCIL_ATTACHMENT,
-                                                    mRenderData.rdDepthFormat};
-
-        NRI_ABORT_ON_FAILURE(mRenderData.NRI.CreateTexture2DView(texture2DViewDesc, mRenderData.rdDepthAttachment));
-    }
-
     // Swap chain
     for (uint32_t i = 0; i < swapChainTextureNum; i++)
     {
@@ -1219,5 +1367,19 @@ void Renderer::updateTriangleCount()
     for (const auto& inst : mModelInstData.miModelInstances)
     {
         mRenderData.rdTriangleCount += inst->GetModel()->GetTriangleCount();
+    }
+}
+
+void Renderer::focusCameraOnPoint(const glm::vec3& focusPoint)
+{
+    const glm::vec3 defaultViewOffset(2.0f, 5.0f, 7.0f);
+    mRenderData.rdCameraWorldPosition = focusPoint + defaultViewOffset;
+
+    const glm::vec3 viewDirection = glm::normalize(focusPoint - mRenderData.rdCameraWorldPosition);
+    mRenderData.rdViewElevation = glm::degrees(std::asin(glm::clamp(viewDirection.y, -1.0f, 1.0f)));
+    mRenderData.rdViewAzimuth = glm::degrees(std::atan2(viewDirection.z, viewDirection.x));
+    if (mRenderData.rdViewAzimuth < 0.0f)
+    {
+        mRenderData.rdViewAzimuth += 360.0f;
     }
 }

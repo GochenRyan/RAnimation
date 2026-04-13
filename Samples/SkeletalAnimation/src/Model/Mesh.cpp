@@ -1,3 +1,4 @@
+#include <algorithm>
 #include <cstdint>
 #include <memory>
 
@@ -114,7 +115,7 @@ bool Mesh::ProcessMesh(RRenderData& renderData,
         }
 
         aiColor4D baseColor(0.0f, 0.0f, 0.0f, 1.0f);
-        if (material->Get(AI_MATKEY_COLOR_DIFFUSE, baseColor) == aiReturn_SUCCESS && textures.empty())
+        if (material->Get(AI_MATKEY_COLOR_DIFFUSE, baseColor) == aiReturn_SUCCESS && mMesh.textures.empty())
         {
             mBaseColor = glm::vec4(baseColor.r, baseColor.g, baseColor.b, baseColor.a);
             mMesh.usesPBRColors = true;
@@ -205,20 +206,48 @@ bool Mesh::ProcessMesh(RRenderData& renderData,
                 glm::uvec4 currentIds = mMesh.vertices.at(vertexId).boneNumber;
                 glm::vec4 currentWeights = mMesh.vertices.at(vertexId).boneWeight;
 
-                /* insert weight and bone id into first free slot (weight => 0.0f) */
+                int targetSlot = -1;
                 for (unsigned int i = 0; i < 4; ++i)
                 {
                     if (currentWeights[i] == 0.0f)
                     {
-                        currentIds[i] = boneId;
-                        currentWeights[i] = vertexWeight;
-
-                        /* skip to next weight */
+                        targetSlot = static_cast<int>(i);
                         break;
                     }
                 }
+
+                if (targetSlot < 0)
+                {
+                    targetSlot = 0;
+                    for (int slot = 1; slot < 4; ++slot)
+                    {
+                        if (currentWeights[slot] < currentWeights[targetSlot])
+                        {
+                            targetSlot = slot;
+                        }
+                    }
+
+                    if (vertexWeight <= currentWeights[targetSlot])
+                    {
+                        continue;
+                    }
+                }
+
+                currentIds[targetSlot] = boneId;
+                currentWeights[targetSlot] = vertexWeight;
+
                 mMesh.vertices.at(vertexId).boneNumber = currentIds;
                 mMesh.vertices.at(vertexId).boneWeight = currentWeights;
+            }
+        }
+
+        for (RVertex& vertex : mMesh.vertices)
+        {
+            const float weightSum =
+                    vertex.boneWeight.x + vertex.boneWeight.y + vertex.boneWeight.z + vertex.boneWeight.w;
+            if (weightSum > 0.0f)
+            {
+                vertex.boneWeight /= weightSum;
             }
         }
     }

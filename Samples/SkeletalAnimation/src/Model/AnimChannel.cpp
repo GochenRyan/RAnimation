@@ -8,8 +8,8 @@ void AnimChannel::LoadChannelData(aiNodeAnim* nodeAnim)
     unsigned int numTranslations = nodeAnim->mNumPositionKeys;
     unsigned int numRotations = nodeAnim->mNumRotationKeys;
     unsigned int numScalings = nodeAnim->mNumScalingKeys;
-    unsigned int preState = nodeAnim->mPreState;
-    unsigned int postState = nodeAnim->mPostState;
+    mPreState = nodeAnim->mPreState;
+    mPostState = nodeAnim->mPostState;
 
     for (size_t i = 0; i < numTranslations; ++i)
     {
@@ -22,12 +22,13 @@ void AnimChannel::LoadChannelData(aiNodeAnim* nodeAnim)
     for (size_t i = 0; i < numRotations; ++i)
     {
         mRotationTimings.emplace_back(static_cast<float>(nodeAnim->mRotationKeys[i].mTime));
-        mRotations.emplace_back(glm::vec3(nodeAnim->mRotationKeys[i].mValue.x,
-                                          nodeAnim->mRotationKeys[i].mValue.y,
-                                          nodeAnim->mRotationKeys[i].mValue.z));
+        mRotations.emplace_back(nodeAnim->mRotationKeys[i].mValue.w,
+                                nodeAnim->mRotationKeys[i].mValue.x,
+                                nodeAnim->mRotationKeys[i].mValue.y,
+                                nodeAnim->mRotationKeys[i].mValue.z);
     }
 
-    for (size_t i = 0; i < numTranslations; ++i)
+    for (size_t i = 0; i < numScalings; ++i)
     {
         mScaleTimings.emplace_back(static_cast<float>(nodeAnim->mScalingKeys[i].mTime));
         mScalings.emplace_back(glm::vec3(nodeAnim->mScalingKeys[i].mValue.x,
@@ -35,17 +36,17 @@ void AnimChannel::LoadChannelData(aiNodeAnim* nodeAnim)
                                          nodeAnim->mScalingKeys[i].mValue.z));
     }
 
-    for (size_t i = 0; i < mTranslationTimings.size() - 1; ++i)
+    for (size_t i = 0; i + 1 < mTranslationTimings.size(); ++i)
     {
         mInverseTranslationTimeDiffs.emplace_back(1.0f / (mTranslationTimings.at(i + 1) - mTranslationTimings.at(i)));
     }
 
-    for (size_t i = 0; i < mRotationTimings.size() - 1; ++i)
+    for (size_t i = 0; i + 1 < mRotationTimings.size(); ++i)
     {
         mInverseRotationTimeDiffs.emplace_back(1.0f / (mRotationTimings.at(i + 1) - mRotationTimings.at(i)));
     }
 
-    for (size_t i = 0; i < mScaleTimings.size() - 1; ++i)
+    for (size_t i = 0; i + 1 < mScaleTimings.size(); ++i)
     {
         mInverseScaleTimeDiffs.emplace_back(1.0f / (mScaleTimings.at(i + 1) - mScaleTimings.at(i)));
     }
@@ -65,6 +66,21 @@ float AnimChannel::GetMaxTime()
     return std::max(std::max(maxRotationTime, maxTranslationTime), maxScaleTime);
 }
 
+bool AnimChannel::HasTranslationKeys() const
+{
+    return !mTranslations.empty();
+}
+
+bool AnimChannel::HasScalingKeys() const
+{
+    return !mScalings.empty();
+}
+
+bool AnimChannel::HasRotationKeys() const
+{
+    return !mRotations.empty();
+}
+
 glm::mat4 AnimChannel::GetTRSMatrix(float time)
 {
     return glm::translate(glm::mat4_cast(GetRotation(time)) * glm::scale(glm::mat4(1.0f), GetScaling(time)),
@@ -78,14 +94,19 @@ glm::vec3 AnimChannel::GetTranslation(float time)
         return glm::vec3(0.0f);
     }
 
+    if (mTranslations.size() == 1)
+    {
+        return mTranslations.front();
+    }
+
     /* handle time before and after */
     switch (mPreState)
     {
         case 0:
-            /* do not change vertex position-> aiAnimBehaviour_DEFAULT */
+            /* keep the authored transform instead of zeroing the node */
             if (time < mTranslationTimings.at(0))
             {
-                return glm::vec3(0.0f);
+                return mTranslations.at(0);
             }
             break;
         case 1:
@@ -104,7 +125,7 @@ glm::vec3 AnimChannel::GetTranslation(float time)
         case 0:
             if (time > mTranslationTimings.at(mTranslationTimings.size() - 1))
             {
-                return glm::vec3(0.0f);
+                return mTranslations.at(mTranslations.size() - 1);
             }
             break;
         case 1:
@@ -129,17 +150,22 @@ glm::vec3 AnimChannel::GetScaling(float time)
 {
     if (mScalings.empty())
     {
-        return glm::vec3(0.0f);
+        return glm::vec3(1.0f);
+    }
+
+    if (mScalings.size() == 1)
+    {
+        return mScalings.front();
     }
 
     /* handle time before and after */
     switch (mPreState)
     {
         case 0:
-            /* do not change vertex position-> aiAnimBehaviour_DEFAULT */
+            /* keep the authored scale instead of collapsing to zero */
             if (time < mScaleTimings.at(0))
             {
-                return glm::vec3(0.0f);
+                return mScalings.at(0);
             }
             break;
         case 1:
@@ -158,7 +184,7 @@ glm::vec3 AnimChannel::GetScaling(float time)
         case 0:
             if (time > mScaleTimings.at(mScaleTimings.size() - 1))
             {
-                return glm::vec3(0.0f);
+                return mScalings.at(mScalings.size() - 1);
             }
             break;
         case 1:
@@ -186,14 +212,19 @@ glm::quat AnimChannel::GetRotation(float time)
         return glm::identity<glm::quat>();
     }
 
+    if (mRotations.size() == 1)
+    {
+        return glm::normalize(mRotations.front());
+    }
+
     /* handle time before and after */
     switch (mPreState)
     {
         case 0:
-            /* do not change vertex position-> aiAnimBehaviour_DEFAULT */
+            /* keep the authored orientation instead of resetting to identity */
             if (time < mRotationTimings.at(0))
             {
-                return glm::identity<glm::quat>();
+                return glm::normalize(mRotations.at(0));
             }
             break;
         case 1:
@@ -212,7 +243,7 @@ glm::quat AnimChannel::GetRotation(float time)
         case 0:
             if (time > mRotationTimings.at(mRotationTimings.size() - 1))
             {
-                return glm::identity<glm::quat>();
+                return glm::normalize(mRotations.at(mRotations.size() - 1));
             }
             break;
         case 1:

@@ -318,6 +318,11 @@ void UserInterface::CreateFrame(RRenderData& renderData, ModelAndInstanceData& m
             if (!clips.empty())
             {
                 InstanceSettings settings = instance->GetInstanceSettings();
+                if (settings.mAnimClipNr >= clips.size())
+                {
+                    settings.mAnimClipNr = 0;
+                    settings.mAnimPlayTimePos = 0.0f;
+                }
                 const char* selectedClipName = clips[settings.mAnimClipNr]->GetClipName().c_str();
 
                 if (ImGui::BeginCombo("Clip", selectedClipName))

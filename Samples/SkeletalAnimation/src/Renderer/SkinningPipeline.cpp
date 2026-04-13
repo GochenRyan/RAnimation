@@ -65,11 +65,13 @@ bool SkinningPipeline::Init(RRenderData& renderData,
         rasterizationDesc.fillMode = nri::FillMode::SOLID;
         rasterizationDesc.cullMode = nri::CullMode::BACK;
         rasterizationDesc.frontCounterClockwise = true;
-        rasterizationDesc.shadingRate = deviceDesc.tiers.shadingRate != 0;
+        // This sample never records dynamic shading-rate commands.
+        rasterizationDesc.shadingRate = false;
 
         nri::MultisampleDesc multisampleDesc = {};
         multisampleDesc.sampleNum = 1;
-        multisampleDesc.sampleLocations = deviceDesc.tiers.sampleLocations >= 2;
+        // This sample never records dynamic sample-location commands.
+        multisampleDesc.sampleLocations = false;
 
         uint32_t swapChainTextureNum;
         nri::Texture* const* swapChainTextures = renderData.NRI.GetSwapChainTextures(*renderData.rdSwapChain,

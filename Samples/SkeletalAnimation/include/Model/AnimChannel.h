@@ -16,6 +16,9 @@ namespace RAnimation
         void LoadChannelData(aiNodeAnim* nodeAnim);
         std::string GetTargetNodeName();
         float GetMaxTime();
+        bool HasTranslationKeys() const;
+        bool HasScalingKeys() const;
+        bool HasRotationKeys() const;
 
         glm::mat4 GetTRSMatrix(float time);
 

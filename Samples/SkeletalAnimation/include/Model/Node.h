@@ -21,6 +21,8 @@ namespace RAnimation
         void SetTranslation(glm::vec3 translation);
         void SetRotation(glm::quat rotation);
         void SetScaling(glm::vec3 scaling);
+        void SetLocalTransform(glm::mat4 transform);
+        void ResetToBindPose();
 
         void SetRootTransformMatrix(glm::mat4 matrix);
 
@@ -42,6 +44,10 @@ namespace RAnimation
         glm::vec3 mTranslation = glm::vec3(0.0f);
         glm::quat mRotation = glm::identity<glm::quat>();
         glm::vec3 mScaling = glm::vec3(1.0f);
+
+        glm::vec3 mBindTranslation = glm::vec3(0.0f);
+        glm::quat mBindRotation = glm::identity<glm::quat>();
+        glm::vec3 mBindScaling = glm::vec3(1.0f);
 
         glm::mat4 mTranslationMatrix = glm::mat4(1.0f);
         glm::mat4 mRotationMatrix = glm::mat4(1.0f);
