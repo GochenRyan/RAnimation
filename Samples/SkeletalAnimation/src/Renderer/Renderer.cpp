@@ -226,7 +226,6 @@ bool Renderer::Draw(float deltaTime)
                                           static_cast<float>(mRenderData.rdOutputResolution.y),
                                   0.1f,
                                   500.0f);
-    matrices.projectionMatrix[1][1] *= -1.0f;
 
     mUIGenerateTimer.Start();
     mUserInterface.HideMouse(false);
