@@ -39,12 +39,12 @@ VSOutput main(VSInput input, NRI_DECLARE_DRAW_PARAMETERS)
     VSOutput output;
 
     float4x4 modelMat = g_WorldMatrices[NRI_INSTANCE_ID + g_PushConstants.worldPosOffset];
-    float4 worldPos = mul(float4(input.position, 1.0f), modelMat);
-    float4 viewPos = mul(worldPos, g_Camera.view);
+    float4 worldPos = mul(modelMat, float4(input.position, 1.0f));
+    float4 viewPos = mul(g_Camera.view, worldPos);
 
-    output.position = mul(viewPos, g_Camera.proj);
+    output.position = mul(g_Camera.proj, viewPos);
     output.color = input.color;
-    output.normal = mul(input.normal, (float3x3) modelMat);
+    output.normal = mul((float3x3) modelMat, input.normal);
     output.texCoord = input.texCoord;
 
     return output;

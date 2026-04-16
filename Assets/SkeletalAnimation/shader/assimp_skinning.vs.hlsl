@@ -45,11 +45,11 @@ VSOutput main(VSInput input, NRI_DECLARE_DRAW_PARAMETERS)
         input.weights.z * g_BoneMatrices[input.boneIDs.z + skinMatOffset] +
         input.weights.w * g_BoneMatrices[input.boneIDs.w + skinMatOffset];
 
-    float4 worldPos = mul(float4(input.position, 1.0f), skinMat);
-    float4 viewPos = mul(worldPos, g_Camera.view);
+    float4 worldPos = mul(skinMat, float4(input.position, 1.0f));
+    float4 viewPos = mul(g_Camera.view, worldPos);
 
-    output.position = mul(viewPos, g_Camera.proj);
-    output.normal = mul(input.normal, (float3x3) skinMat);
+    output.position = mul(g_Camera.proj, viewPos);
+    output.normal = mul((float3x3) skinMat, input.normal);
     output.texCoord = input.texCoord;
 
     return output;

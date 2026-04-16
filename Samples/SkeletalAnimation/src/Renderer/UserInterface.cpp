@@ -92,7 +92,7 @@ void UserInterface::CreateFrame(RRenderData& renderData, ModelAndInstanceData& m
 {
     ImGui_ImplSDL3_NewFrame();
     ImGui::NewFrame();
-    ImGui::DockSpaceOverViewport(0, ImGui::GetMainViewport());
+    ImGui::DockSpaceOverViewport(0, ImGui::GetMainViewport(), ImGuiDockNodeFlags_PassthruCentralNode);
 
     if (renderData.rdFrameTime > 0.0f)
     {
