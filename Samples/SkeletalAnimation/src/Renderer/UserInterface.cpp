@@ -29,7 +29,7 @@ namespace
         values[offset] = value;
         offset = (offset + 1) % maxNum;
     }
-}
+} // namespace
 
 bool UserInterface::Init(RRenderData& renderData)
 {
@@ -112,7 +112,8 @@ void UserInterface::CreateFrame(RRenderData& renderData, ModelAndInstanceData& m
         PushRollingValue(mModelUploadValues, mModelUploadOffset, mNumModelUploadValues, renderData.rdUploadToVBOTime);
         PushRollingValue(
                 mMatrixGenerationValues, mMatrixGenOffset, mNumMatrixGenerationValues, renderData.rdMatrixGenerateTime);
-        PushRollingValue(mMatrixUploadValues, mMatrixUploadOffset, mNumMatrixUploadValues, renderData.rdUploadToUBOTime);
+        PushRollingValue(
+                mMatrixUploadValues, mMatrixUploadOffset, mNumMatrixUploadValues, renderData.rdUploadToUBOTime);
         PushRollingValue(mUiGenValues, mUiGenOffset, mNumUiGenValues, renderData.rdUIGenerateTime);
         PushRollingValue(mUiDrawValues, mUiDrawOffset, mNumUiDrawValues, renderData.rdUIDrawTime);
         mUpdateTime += 1.0 / 30.0;
@@ -137,16 +138,22 @@ void UserInterface::CreateFrame(RRenderData& renderData, ModelAndInstanceData& m
     ImGui::Text("Triangles: %u", renderData.rdTriangleCount);
     ImGui::Text("Camera Position: %s", glm::to_string(renderData.rdCameraWorldPosition).c_str());
     ImGui::Text("Frame Time: %.3f ms", renderData.rdFrameTime);
-    ImGui::PlotLines("##fps", mFPSValues.data(), static_cast<int>(mFPSValues.size()), mFpsOffset, nullptr, 0.0f,
-                     std::numeric_limits<float>::max(), ImVec2(0.0f, 60.0f));
+    ImGui::PlotLines("##fps",
+                     mFPSValues.data(),
+                     static_cast<int>(mFPSValues.size()),
+                     mFpsOffset,
+                     nullptr,
+                     0.0f,
+                     std::numeric_limits<float>::max(),
+                     ImVec2(0.0f, 60.0f));
 
     if (ImGui::CollapsingHeader("Camera", ImGuiTreeNodeFlags_DefaultOpen))
     {
         ImGui::SliderInt("Field of View", &renderData.rdFieldOfView, 40, 150, "%d", sliderFlags);
         ImGui::SliderFloat("Azimuth", &renderData.rdViewAzimuth, 0.0f, 360.0f, "%.1f", sliderFlags);
         ImGui::SliderFloat("Elevation", &renderData.rdViewElevation, -89.0f, 89.0f, "%.1f", sliderFlags);
-        ImGui::SliderFloat3("Position", glm::value_ptr(renderData.rdCameraWorldPosition), -50.0f, 50.0f, "%.2f",
-                            sliderFlags);
+        ImGui::SliderFloat3(
+                "Position", glm::value_ptr(renderData.rdCameraWorldPosition), -50.0f, 50.0f, "%.2f", sliderFlags);
     }
 
     if (ImGui::CollapsingHeader("Models", ImGuiTreeNodeFlags_DefaultOpen))
@@ -157,8 +164,10 @@ void UserInterface::CreateFrame(RRenderData& renderData, ModelAndInstanceData& m
             config.path = ".";
             config.countSelectionMax = 1;
             config.flags = ImGuiFileDialogFlags_Modal;
-            ImGuiFileDialog::Instance()->OpenDialog(
-                    "ChooseModelFile", "Choose Model File", "Supported Model Files{.gltf,.glb,.obj,.fbx,.dae,.mdl,.md3,.pk3}", config);
+            ImGuiFileDialog::Instance()->OpenDialog("ChooseModelFile",
+                                                    "Choose Model File",
+                                                    "Supported Model Files{.gltf,.glb,.obj,.fbx,.dae,.mdl,.md3,.pk3}",
+                                                    config);
         }
 
         if (ImGuiFileDialog::Instance()->Display("ChooseModelFile"))
@@ -188,14 +197,13 @@ void UserInterface::CreateFrame(RRenderData& renderData, ModelAndInstanceData& m
 
         if (!modInstData.miModelList.empty())
         {
-            const char* selectedModelName =
-                    modInstData.miModelList[modInstData.miSelectedModel]->GetModelFileName().c_str();
-            if (ImGui::BeginCombo("Model", selectedModelName))
+            std::string selectedModelName = modInstData.miModelList[modInstData.miSelectedModel]->GetModelFileName();
+            if (ImGui::BeginCombo("Model", selectedModelName.data()))
             {
                 for (int i = 0; i < static_cast<int>(modInstData.miModelList.size()); ++i)
                 {
                     const bool isSelected = modInstData.miSelectedModel == i;
-                    if (ImGui::Selectable(modInstData.miModelList[i]->GetModelFileName().c_str(), isSelected))
+                    if (ImGui::Selectable(selectedModelName.data(), isSelected))
                     {
                         modInstData.miSelectedModel = i;
                     }
@@ -212,9 +220,10 @@ void UserInterface::CreateFrame(RRenderData& renderData, ModelAndInstanceData& m
             {
                 modInstData.miModelDeleteCallbackFunction(
                         modInstData.miModelList[modInstData.miSelectedModel]->GetModelFileNamePath());
-                modInstData.miSelectedModel = std::clamp(modInstData.miSelectedModel - 1,
-                                                         0,
-                                                         std::max(0, static_cast<int>(modInstData.miModelList.size()) - 1));
+                modInstData.miSelectedModel =
+                        std::clamp(modInstData.miSelectedModel - 1,
+                                   0,
+                                   std::max(0, static_cast<int>(modInstData.miModelList.size()) - 1));
                 modInstData.miSelectedInstance =
                         std::clamp(modInstData.miSelectedInstance,
                                    0,
@@ -231,8 +240,7 @@ void UserInterface::CreateFrame(RRenderData& renderData, ModelAndInstanceData& m
             if (ImGui::Button("Create Instance") && modInstData.miInstanceAddCallbackFunction)
             {
                 modInstData.miInstanceAddCallbackFunction(modInstData.miModelList[modInstData.miSelectedModel]);
-                modInstData.miSelectedInstance =
-                        std::max(0, static_cast<int>(modInstData.miModelInstances.size()) - 1);
+                modInstData.miSelectedInstance = std::max(0, static_cast<int>(modInstData.miModelInstances.size()) - 1);
             }
 
             ImGui::SameLine();
@@ -240,8 +248,7 @@ void UserInterface::CreateFrame(RRenderData& renderData, ModelAndInstanceData& m
             {
                 modInstData.miInstanceAddManyCallbackFunction(modInstData.miModelList[modInstData.miSelectedModel],
                                                               mManyInstanceCreateNum);
-                modInstData.miSelectedInstance =
-                        std::max(0, static_cast<int>(modInstData.miModelInstances.size()) - 1);
+                modInstData.miSelectedInstance = std::max(0, static_cast<int>(modInstData.miModelInstances.size()) - 1);
             }
 
             ImGui::SameLine();
@@ -268,8 +275,7 @@ void UserInterface::CreateFrame(RRenderData& renderData, ModelAndInstanceData& m
             if (ImGui::Button("Clone Instance") && modInstData.miInstanceCloneCallbackFunction)
             {
                 modInstData.miInstanceCloneCallbackFunction(instance);
-                modInstData.miSelectedInstance =
-                        std::max(0, static_cast<int>(modInstData.miModelInstances.size()) - 1);
+                modInstData.miSelectedInstance = std::max(0, static_cast<int>(modInstData.miModelInstances.size()) - 1);
             }
 
             ImGui::SameLine();
@@ -282,9 +288,10 @@ void UserInterface::CreateFrame(RRenderData& renderData, ModelAndInstanceData& m
             if (ImGui::Button("Delete Instance") && modInstData.miInstanceDeleteCallbackFunction)
             {
                 modInstData.miInstanceDeleteCallbackFunction(instance);
-                modInstData.miSelectedInstance = std::clamp(modInstData.miSelectedInstance - 1,
-                                                            0,
-                                                            std::max(0, static_cast<int>(modInstData.miModelInstances.size()) - 1));
+                modInstData.miSelectedInstance =
+                        std::clamp(modInstData.miSelectedInstance - 1,
+                                   0,
+                                   std::max(0, static_cast<int>(modInstData.miModelInstances.size()) - 1));
 
                 if (modInstData.miModelInstances.empty())
                 {
@@ -298,10 +305,10 @@ void UserInterface::CreateFrame(RRenderData& renderData, ModelAndInstanceData& m
             }
 
             ImGui::Checkbox("Swap Y/Z", &settings.mSwapYZAxis);
-            ImGui::SliderFloat3("World Position", glm::value_ptr(settings.mWorldPosition), -25.0f, 25.0f, "%.2f",
-                                sliderFlags);
-            ImGui::SliderFloat3("World Rotation", glm::value_ptr(settings.mWorldRotation), -180.0f, 180.0f, "%.1f",
-                                sliderFlags);
+            ImGui::SliderFloat3(
+                    "World Position", glm::value_ptr(settings.mWorldPosition), -25.0f, 25.0f, "%.2f", sliderFlags);
+            ImGui::SliderFloat3(
+                    "World Rotation", glm::value_ptr(settings.mWorldRotation), -180.0f, 180.0f, "%.1f", sliderFlags);
             ImGui::SliderFloat("Scale", &settings.mScale, 0.01f, 10.0f, "%.3f", sliderFlags);
 
             instance->SetInstanceSettings(settings);
