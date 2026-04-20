@@ -65,6 +65,7 @@ Application::MainLoop()
 先看路线图：
 
 - `wiki/roadmap.md`
+- `wiki/camera-system.md`
 
 然后做第一批验证题：
 
