@@ -6,7 +6,7 @@
 
 ## 要求
 
-- 说明 `createDescriptorLayouts -> createDescriptorPool -> createDescriptorSets -> createDescriptors` 的链路。
+- 说明 `createDescriptorSetLayouts -> createDescriptorPool -> createDescriptorSets -> updateDescriptors` 的链路。
 - 区分场景渲染和 ImGui 渲染在 descriptor 使用上的不同。
 - 指出至少两个“容易写错但会导致运行时问题”的点。
 

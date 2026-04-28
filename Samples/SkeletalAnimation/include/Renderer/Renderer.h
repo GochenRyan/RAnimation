@@ -67,9 +67,9 @@ namespace RAnimation
         bool createMatrixUBO();
         bool createSSBOs();
         bool allocateAndBindMemory();
-        bool createDescriptors();
+        bool updateDescriptors();
         bool createDescriptorPool();
-        bool createDescriptorLayouts();
+        bool createDescriptorSetLayouts();
         bool createDescriptorSets();
         bool createSwapchainTextures();
 
@@ -77,6 +77,10 @@ namespace RAnimation
         void focusCameraOnPoint(const glm::vec3& focusPoint);
 
         void latencySleep(uint32_t frameIndex);
+
+        void updateCameraBuffer();
+        bool updateModelBuffer(float deltaTime);
+        bool recordCommandBuffer();
 
     private:
         RRenderData mRenderData{};

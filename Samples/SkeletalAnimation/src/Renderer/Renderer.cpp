@@ -15,7 +15,7 @@
 using namespace RAnimation;
 
 #ifndef AI_LOG
-#define AI_LOG(...) fmt::print(__VA_ARGS__)
+#define AI_LOG(...)
 #endif
 
 namespace
@@ -143,12 +143,12 @@ bool Renderer::Init(unsigned int width, unsigned int height)
     allocateAndBindMemory();
 
     createQueuedFrames();
-    createDescriptorLayouts();
+    createDescriptorSetLayouts();
     createPipelineLayout();
     createPipelines();
     createDescriptorPool();
     createDescriptorSets();
-    createDescriptors();
+    updateDescriptors();
 
     if (!mUserInterface.Init(mRenderData))
     {
@@ -193,14 +193,10 @@ bool Renderer::Draw(float deltaTime)
     mRenderData.rdFrameTime = mFrameTimer.Stop();
     mFrameTimer.Start();
 
-    /* reset timers and other values */
-    mRenderData.rdMatricesSize = 0;
-    mRenderData.rdUploadToUBOTime = 0.0f;
-    mRenderData.rdUploadToVBOTime = 0.0f;
-    mRenderData.rdMatrixGenerateTime = 0.0f;
-    mRenderData.rdUIGenerateTime = 0.0f;
-
     latencySleep(mFrameIndex);
+
+    mRenderData.rdMatrixGenerateTime = 0.0f;
+    mRenderData.rdUploadToUBOTime = 0.0f;
 
     mRenderData.queuedFrameIndex = mFrameIndex % mRenderData.GetQueuedFrameNum();
     QueuedFrame& queuedFrame = mRenderData.GetCurrentQueueFrame();
@@ -211,6 +207,64 @@ bool Renderer::Draw(float deltaTime)
 
     const float safeDeltaTime = std::max(deltaTime, 0.000001f);
 
+    updateCameraBuffer();
+    if (!updateModelBuffer(safeDeltaTime))
+    {
+        return false;
+    }
+
+    if (!recordCommandBuffer())
+    {
+        return false;
+    }
+
+    mUIGenerateTimer.Start();
+    mUserInterface.HideMouse(false);
+    mUserInterface.CreateFrame(mRenderData, mModelInstData);
+    mRenderData.rdUIGenerateTime = mUIGenerateTimer.Stop();
+
+    mUIDrawTimer.Start();
+    mUserInterface.Render(mRenderData);
+    mRenderData.rdUIDrawTime = mUIDrawTimer.Stop();
+
+    nri::Fence* releaseSemaphore =
+            mRenderData.rdSwapChainTextures[queuedFrame.swapChainTextureIndex].releaseSemaphore;
+
+    nri::FenceSubmitDesc waitFence = {};
+    waitFence.fence = acquiredSemaphore;
+    waitFence.stages = nri::StageBits::ALL;
+
+    nri::FenceSubmitDesc signalFences[] = {
+            {releaseSemaphore, 0, nri::StageBits::ALL},
+            {mRenderData.rdFrameFence, 1 + mFrameIndex, nri::StageBits::ALL},
+    };
+
+    nri::CommandBuffer* commandBuffer = queuedFrame.commandBuffer;
+    nri::QueueSubmitDesc queueSubmitDesc = {};
+    queueSubmitDesc.waitFences = &waitFence;
+    queueSubmitDesc.waitFenceNum = 1;
+    queueSubmitDesc.commandBuffers = &commandBuffer;
+    queueSubmitDesc.commandBufferNum = 1;
+    queueSubmitDesc.signalFences = signalFences;
+    queueSubmitDesc.signalFenceNum = helper::GetCountOf(signalFences);
+    AI_LOG("[AI] frame={} submit\n", mFrameIndex);
+    NRI_ABORT_ON_FAILURE(mRenderData.NRI.QueueSubmit(*mRenderData.rdGraphicsQueue, queueSubmitDesc));
+    AI_LOG("[AI] frame={} present\n", mFrameIndex);
+    NRI_ABORT_ON_FAILURE(mRenderData.NRI.QueuePresent(*mRenderData.rdSwapChain, *releaseSemaphore));
+    mRenderData.rdSwapChainTextures[queuedFrame.swapChainTextureIndex].hasBeenPresented = true;
+    mRenderData.NRI.EndStreamerFrame(*mRenderData.rdStreamer);
+
+    ++mFrameIndex;
+    mRenderData.rdFrameIndex = mFrameIndex;
+
+    return true;
+}
+
+void Renderer::updateCameraBuffer()
+{
+    mMatrixGenerateTimer.Start();
+    
+    QueuedFrame& queuedFrame = mRenderData.GetCurrentQueueFrame();
     glm::vec3 forward = glm::normalize(glm::vec3(std::cos(glm::radians(mRenderData.rdViewElevation)) *
                                                          std::cos(glm::radians(mRenderData.rdViewAzimuth)),
                                                  std::sin(glm::radians(mRenderData.rdViewElevation)),
@@ -226,13 +280,21 @@ bool Renderer::Draw(float deltaTime)
                                           static_cast<float>(mRenderData.rdOutputResolution.y),
                                   0.1f,
                                   500.0f);
+    mRenderData.rdMatrixGenerateTime += mMatrixGenerateTimer.Stop();
+    
+    mUploadToUBOTimer.Start();
+    void* cameraDst = mRenderData.NRI.MapBuffer(*mRenderData.rdBuffers[VP_MATRIX_BUFFER],
+                                                queuedFrame.cameraBufferOffset,
+                                                sizeof(RUploadMatrices));
+    std::memcpy(cameraDst, &matrices, sizeof(RUploadMatrices));
+    mRenderData.NRI.UnmapBuffer(*mRenderData.rdBuffers[VP_MATRIX_BUFFER]);
+    mRenderData.rdUploadToUBOTime += mUploadToUBOTimer.Stop();
+}
 
-    mUIGenerateTimer.Start();
-    mUserInterface.HideMouse(false);
-    mUserInterface.CreateFrame(mRenderData, mModelInstData);
-    mRenderData.rdUIGenerateTime = mUIGenerateTimer.Stop();
+bool Renderer::updateModelBuffer(float deltaTime)
+{
+    QueuedFrame& queuedFrame = mRenderData.GetCurrentQueueFrame();
 
-    mMatrixGenerateTimer.Start();
     mWorldPosMatrices.clear();
     mModelBoneMatrices.clear();
 
@@ -248,7 +310,10 @@ bool Renderer::Draw(float deltaTime)
         {
             for (const auto& instance : modelType.second)
             {
-                instance->UpdateAnimation(safeDeltaTime);
+                mMatrixGenerateTimer.Start();
+                instance->UpdateAnimation(deltaTime);
+                mRenderData.rdMatrixGenerateTime += mMatrixGenerateTimer.Stop();
+
                 const std::vector<glm::mat4> boneMatrices = instance->GetBoneMatrices();
 
                 if (boneMatrices.size() != model->GetBoneList().size())
@@ -298,11 +363,13 @@ bool Renderer::Draw(float deltaTime)
         {
             for (const auto& instance : modelType.second)
             {
+                mMatrixGenerateTimer.Start();
                 mWorldPosMatrices.emplace_back(instance->GetWorldTransformMatrix());
+                mRenderData.rdMatrixGenerateTime += mMatrixGenerateTimer.Stop();
             }
         }
     }
-    mRenderData.rdMatrixGenerateTime = mMatrixGenerateTimer.Stop();
+
     mRenderData.rdMatricesSize =
             static_cast<unsigned int>((mWorldPosMatrices.size() + mModelBoneMatrices.size()) * sizeof(glm::mat4));
 
@@ -312,35 +379,34 @@ bool Renderer::Draw(float deltaTime)
         return false;
     }
 
-    mUploadToUBOTimer.Start();
-    void* cameraDst = mRenderData.NRI.MapBuffer(*mRenderData.rdBuffers[VP_MATRIX_BUFFER],
-                                                queuedFrame.cameraBufferOffset,
-                                                sizeof(RUploadMatrices));
-    std::memcpy(cameraDst, &matrices, sizeof(RUploadMatrices));
-    mRenderData.NRI.UnmapBuffer(*mRenderData.rdBuffers[VP_MATRIX_BUFFER]);
-
     if (!mWorldPosMatrices.empty())
     {
+        mUploadToUBOTimer.Start();
         void* worldDst = mRenderData.NRI.MapBuffer(*mRenderData.rdBuffers[WORLD_POS_BUFFER],
                                                    queuedFrame.modelBufferOffset,
                                                    mWorldPosMatrices.size() * sizeof(glm::mat4));
         std::memcpy(worldDst, mWorldPosMatrices.data(), mWorldPosMatrices.size() * sizeof(glm::mat4));
         mRenderData.NRI.UnmapBuffer(*mRenderData.rdBuffers[WORLD_POS_BUFFER]);
+        mRenderData.rdUploadToUBOTime += mUploadToUBOTimer.Stop();
     }
 
     if (!mModelBoneMatrices.empty())
     {
+        mUploadToUBOTimer.Start();
         void* boneDst = mRenderData.NRI.MapBuffer(*mRenderData.rdBuffers[MODEL_BONE_BUFFER],
                                                   queuedFrame.boneBufferOffset,
                                                   mModelBoneMatrices.size() * sizeof(glm::mat4));
         std::memcpy(boneDst, mModelBoneMatrices.data(), mModelBoneMatrices.size() * sizeof(glm::mat4));
         mRenderData.NRI.UnmapBuffer(*mRenderData.rdBuffers[MODEL_BONE_BUFFER]);
+        mRenderData.rdUploadToUBOTime += mUploadToUBOTimer.Stop();
     }
-    mRenderData.rdUploadToUBOTime = mUploadToUBOTimer.Stop();
 
-    mUIDrawTimer.Start();
-    mUserInterface.Render(mRenderData);
-    mRenderData.rdUIDrawTime = mUIDrawTimer.Stop();
+    return true;
+}
+
+bool Renderer::recordCommandBuffer()
+{
+    QueuedFrame& queuedFrame = mRenderData.GetCurrentQueueFrame();
 
     ImDrawData* drawData = ImGui::GetDrawData();
     const uint32_t imguiDrawListNum = drawData != nullptr ? static_cast<uint32_t>(drawData->CmdListsCount) : 0;
@@ -573,36 +639,6 @@ bool Renderer::Draw(float deltaTime)
     mRenderData.NRI.CmdBarrier(*queuedFrame.commandBuffer, endRenderingBarrierDesc);
 
     NRI_ABORT_ON_FAILURE(mRenderData.NRI.EndCommandBuffer(*queuedFrame.commandBuffer));
-
-    nri::Fence* releaseSemaphore =
-            mRenderData.rdSwapChainTextures[queuedFrame.swapChainTextureIndex].releaseSemaphore;
-
-    nri::FenceSubmitDesc waitFence = {};
-    waitFence.fence = acquiredSemaphore;
-    waitFence.stages = nri::StageBits::ALL;
-
-    nri::FenceSubmitDesc signalFences[] = {
-            {releaseSemaphore, 0, nri::StageBits::ALL},
-            {mRenderData.rdFrameFence, 1 + mFrameIndex, nri::StageBits::ALL},
-    };
-
-    nri::CommandBuffer* commandBuffer = queuedFrame.commandBuffer;
-    nri::QueueSubmitDesc queueSubmitDesc = {};
-    queueSubmitDesc.waitFences = &waitFence;
-    queueSubmitDesc.waitFenceNum = 1;
-    queueSubmitDesc.commandBuffers = &commandBuffer;
-    queueSubmitDesc.commandBufferNum = 1;
-    queueSubmitDesc.signalFences = signalFences;
-    queueSubmitDesc.signalFenceNum = helper::GetCountOf(signalFences);
-    AI_LOG("[AI] frame={} submit\n", mFrameIndex);
-    NRI_ABORT_ON_FAILURE(mRenderData.NRI.QueueSubmit(*mRenderData.rdGraphicsQueue, queueSubmitDesc));
-    AI_LOG("[AI] frame={} present\n", mFrameIndex);
-    NRI_ABORT_ON_FAILURE(mRenderData.NRI.QueuePresent(*mRenderData.rdSwapChain, *releaseSemaphore));
-    mRenderData.rdSwapChainTextures[queuedFrame.swapChainTextureIndex].hasBeenPresented = true;
-    mRenderData.NRI.EndStreamerFrame(*mRenderData.rdStreamer);
-
-    ++mFrameIndex;
-    mRenderData.rdFrameIndex = mFrameIndex;
 
     return true;
 }
@@ -954,7 +990,6 @@ bool Renderer::createStreamer()
     streamerDesc.dynamicBufferDesc = {0, 0, nri::BufferUsageBits::VERTEX_BUFFER | nri::BufferUsageBits::INDEX_BUFFER};
     streamerDesc.constantBufferMemoryLocation = nri::MemoryLocation::HOST_UPLOAD;
     streamerDesc.queuedFrameNum = mRenderData.GetQueuedFrameNum();
-    ;
     NRI_ABORT_ON_FAILURE(mRenderData.NRI.CreateStreamer(*mRenderData.rdDevice, streamerDesc, mRenderData.rdStreamer));
 
     return true;
@@ -1172,7 +1207,7 @@ bool Renderer::allocateAndBindMemory()
     return true;
 }
 
-bool Renderer::createDescriptors()
+bool Renderer::updateDescriptors()
 {
     nri::SamplerDesc samplerDesc = {};
     samplerDesc.filters = {nri::Filter::LINEAR, nri::Filter::LINEAR, nri::Filter::LINEAR, nri::FilterOp::AVERAGE};
@@ -1247,7 +1282,7 @@ bool Renderer::createDescriptorPool()
     return true;
 }
 
-bool Renderer::createDescriptorLayouts()
+bool Renderer::createDescriptorSetLayouts()
 {
     // set 0: texture + sampler
     // NOTE:
@@ -1330,7 +1365,7 @@ bool Renderer::createSwapchainTextures()
         mRenderData.rdDepthTexture = depthTexture;
     }
 
-    // Swap chain
+    // Swap chain attachments
     for (uint32_t i = 0; i < swapChainTextureNum; i++)
     {
         nri::Texture2DViewDesc textureViewDesc = {swapChainTextures[i],
