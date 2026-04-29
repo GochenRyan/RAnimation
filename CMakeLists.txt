@@ -66,6 +66,7 @@ set(SHADER_SRC_DIR "${CMAKE_SOURCE_DIR}/_Shaders")
 add_compile_definitions(SHADER_SRC_DIR="${SHADER_SRC_DIR}")
 
 add_subdirectory(Samples/SkeletalAnimation)
+add_subdirectory(Samples/SkeletalAnimCompute)
 
 function(get_all_targets result dir)
     get_property(subdirs DIRECTORY ${dir} PROPERTY SUBDIRECTORIES)
