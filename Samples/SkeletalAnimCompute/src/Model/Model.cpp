@@ -204,6 +204,46 @@ bool Model::LoadModel(RRenderData& renderData, std::string modelFilename, unsign
         uploadDescs.push_back({mesh.indices.data(), indexBuffer, {nri::AccessBits::INDEX_BUFFER, nri::StageBits::ALL}});
     }
 
+    std::vector<glm::mat4> boneOffsetMatricesList{};
+    std::vector<int32_t> boneParentIndexList{};
+
+    for (const auto& bone : mBoneList) 
+    {
+        boneOffsetMatricesList.emplace_back(bone->GetOffsetMatrix());
+
+        std::string parentNodeName = mNodeMap.at(bone->GetBoneName())->GetParentNodeName();
+        const auto boneIter = std::find_if(mBoneList.begin(), mBoneList.end(), [parentNodeName](std::shared_ptr<Bone>& bone) { return bone->GetBoneName() == parentNodeName; });
+        if (boneIter == mBoneList.end()) {
+            boneParentIndexList.emplace_back(-1); // root node gets a -1 to identify
+        } else {
+            boneParentIndexList.emplace_back(std::distance(mBoneList.begin(), boneIter));
+        }
+    }
+
+    {
+        nri::BufferDesc bufferDesc = {};
+        const nri::DeviceDesc& deviceDesc = renderData.NRI.GetDeviceDesc(*renderData.rdDevice);
+        const uint64_t stride = helper::Align<uint64_t>(sizeof(int), deviceDesc.memoryAlignment.bufferShaderResourceOffset);
+        bufferDesc.size = stride * boneParentIndexList.size() * mRenderData.GetQueuedFrameNum();
+        bufferDesc.structureStride = sizeof(RNodeTransformData);
+        bufferDesc.usage = nri::BufferUsageBits::SHADER_RESOURCE;
+        NRI_ABORT_ON_FAILURE(mRenderData.NRI.CreateBuffer(*mRenderData.rdDevice, bufferDesc, mShaderBoneParentBuffer));
+        uploadBuffers.emplace_back(mShaderBoneParentBuffer);
+        uploadDescs.push_back({boneParentIndexList.data(), mShaderBoneParentBuffer, {nri::AccessBits::SHADER_RESOURCE, nri::StageBits::ALL}});
+    }
+
+    {
+        nri::BufferDesc bufferDesc = {};
+        const nri::DeviceDesc& deviceDesc = renderData.NRI.GetDeviceDesc(*renderData.rdDevice);
+        const uint64_t stride = helper::Align<uint64_t>(sizeof(glm::mat4), deviceDesc.memoryAlignment.bufferShaderResourceOffset);
+        bufferDesc.size = stride * boneOffsetMatricesList.size() * mRenderData.GetQueuedFrameNum();
+        bufferDesc.structureStride = sizeof(RNodeTransformData);
+        bufferDesc.usage = nri::BufferUsageBits::SHADER_RESOURCE;
+        NRI_ABORT_ON_FAILURE(mRenderData.NRI.CreateBuffer(*mRenderData.rdDevice, bufferDesc, mShaderBoneMatrixOffsetBuffer));
+        uploadBuffers.emplace_back(mShaderBoneMatrixOffsetBuffer);
+        uploadDescs.push_back({boneOffsetMatricesList.data(), mShaderBoneMatrixOffsetBuffer, {nri::AccessBits::SHADER_RESOURCE, nri::StageBits::ALL}});
+    }
+
     if (!uploadBuffers.empty())
     {
         nri::ResourceGroupDesc resourceGroupDesc = {};
@@ -449,6 +489,16 @@ void Model::Cleanup(RRenderData& renderData)
     for (nri::Buffer* buffer : mIndexBuffers)
     {
         renderData.NRI.DestroyBuffer(buffer);
+    }
+
+    if (mShaderBoneParentBuffer != nullptr)
+    {
+        renderData.NRI.DestroyBuffer(mShaderBoneParentBuffer);
+    }
+
+    if (mShaderBoneMatrixOffsetBuffer != nullptr)
+    {
+        renderData.NRI.DestroyBuffer(mShaderBoneMatrixOffsetBuffer);
     }
 
     for (nri::Memory* memory : mBufferMemories)

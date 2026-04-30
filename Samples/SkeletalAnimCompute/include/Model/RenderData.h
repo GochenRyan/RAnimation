@@ -33,6 +33,13 @@ namespace RAnimation
         bool usesPBRColors = false;
     };
 
+   /* data format to be uploaded to compute shader */
+    struct RNodeTransformData {
+        glm::vec4 translation = glm::vec4(0.0f);
+        glm::vec4 scale = glm::vec4(1.0f);
+        glm::vec4 rotation = glm::vec4(0.0f, 0.0f, 0.0f, 1.0f); // this is a quaternion
+    };
+
     struct RUploadMatrices
     {
         glm::mat4 viewMatrix{};
@@ -68,7 +75,7 @@ namespace RAnimation
         nri::CommandAllocator* commandAllocator = nullptr;
         nri::CommandBuffer* commandBuffer = nullptr;
         nri::Descriptor* cameraBufferView = nullptr;
-        nri::Descriptor* modelBufferView = nullptr;
+        nri::Descriptor* boneBufferView = nullptr;
         nri::Descriptor* boneBufferView = nullptr;
         nri::DescriptorSet* staticDescriptorSet = nullptr;
         nri::DescriptorSet* skinnedDescriptorSet = nullptr;

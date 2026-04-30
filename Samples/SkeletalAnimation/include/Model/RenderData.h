@@ -72,6 +72,8 @@ namespace RAnimation
         nri::Descriptor* boneBufferView = nullptr;
         nri::DescriptorSet* staticDescriptorSet = nullptr;
         nri::DescriptorSet* skinnedDescriptorSet = nullptr;
+        nri::DescriptorSet* computeTransformDescriptorSet = nullptr;
+        nri::DescriptorSet* computeMatrixMultDescriptorSet = nullptr;
         uint64_t cameraBufferOffset = 0;
         uint64_t modelBufferOffset = 0;
         uint64_t boneBufferOffset = 0;
