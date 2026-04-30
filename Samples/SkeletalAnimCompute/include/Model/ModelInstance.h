@@ -17,6 +17,7 @@ namespace RAnimation
         std::shared_ptr<Model> GetModel();
         glm::vec3 GetWorldPosition();
         glm::mat4 GetWorldTransformMatrix();
+        glm::mat4 GetLocalTransformMatrix();
 
         void SetTranslation(glm::vec3 position);
         void SetRotation(glm::vec3 rotation);
@@ -35,6 +36,7 @@ namespace RAnimation
 
         void UpdateModelRootMatrix();
         void UpdateAnimation(float deltaTime);
+        void UpdateAnimationState(float deltaTime);
 
     private:
         std::shared_ptr<Model> mModel = nullptr;

@@ -33,6 +33,14 @@ namespace RAnimation
         bool usesPBRColors = false;
     };
 
+   /* data format to be uploaded to compute shader */
+    struct RNodeTransformData
+    {
+        glm::vec4 translation = glm::vec4(0.0f);
+        glm::vec4 scale = glm::vec4(1.0f);
+        glm::vec4 rotation = glm::vec4(0.0f, 0.0f, 0.0f, 1.0f); // this is a quaternion
+    };
+
     struct RUploadMatrices
     {
         glm::mat4 viewMatrix{};
@@ -43,6 +51,16 @@ namespace RAnimation
     {
         int modelStride;
         int worldPosOffset;
+    };
+
+    struct RComputePushConstants
+    {
+        uint32_t nodeTransformOffset = 0;
+        uint32_t boneMatrixOffset = 0;
+        uint32_t modelRootOffset = 0;
+        uint32_t numberOfNodes = 0;
+        uint32_t numberOfBones = 0;
+        uint32_t instanceCount = 0;
     };
 
     struct RTextureData
@@ -70,11 +88,28 @@ namespace RAnimation
         nri::Descriptor* cameraBufferView = nullptr;
         nri::Descriptor* modelBufferView = nullptr;
         nri::Descriptor* boneBufferView = nullptr;
+        nri::Descriptor* nodeTransformBufferView = nullptr;
+        nri::Descriptor* trsMatrixBufferView = nullptr;
+        nri::Descriptor* trsMatrixStorageView = nullptr;
+        nri::Descriptor* boneMatrixStorageView = nullptr;
+        nri::Descriptor* modelRootBufferView = nullptr;
+        nri::Descriptor* nodeParentIndexBufferView = nullptr;
+        nri::Descriptor* boneNodeIndexBufferView = nullptr;
+        nri::Descriptor* boneOffsetBufferView = nullptr;
         nri::DescriptorSet* staticDescriptorSet = nullptr;
         nri::DescriptorSet* skinnedDescriptorSet = nullptr;
+        nri::DescriptorSet* computeTransformDescriptorSet = nullptr;
+        nri::DescriptorSet* computeMatrixMultDescriptorSet0 = nullptr;
+        nri::DescriptorSet* computeMatrixMultDescriptorSet1 = nullptr;
         uint64_t cameraBufferOffset = 0;
         uint64_t modelBufferOffset = 0;
         uint64_t boneBufferOffset = 0;
+        uint64_t nodeTransformBufferOffset = 0;
+        uint64_t trsMatrixBufferOffset = 0;
+        uint64_t modelRootBufferOffset = 0;
+        uint64_t nodeParentIndexBufferOffset = 0;
+        uint64_t boneNodeIndexBufferOffset = 0;
+        uint64_t boneOffsetBufferOffset = 0;
         uint32_t swapChainTextureIndex = 0;
     };
 
@@ -137,9 +172,13 @@ namespace RAnimation
 
         nri::PipelineLayout* rdPipelineLayout = nullptr;
         nri::PipelineLayout* rdSkinningPipelineLayout = nullptr;
+        nri::PipelineLayout* rdComputeTransformPipelineLayout = nullptr;
+        nri::PipelineLayout* rdComputeMatrixMultPipelineLayout = nullptr;
 
         nri::Pipeline* rdPipeline = nullptr;
         nri::Pipeline* rdSkinningPipeline = nullptr;
+        nri::Pipeline* rdComputeTransformPipeline = nullptr;
+        nri::Pipeline* rdComputeMatrixMultPipeline = nullptr;
 
         std::vector<QueuedFrame> rdQueuedFrames;
         uint32_t queuedFrameIndex = 0;
@@ -148,8 +187,14 @@ namespace RAnimation
         std::vector<nri::DescriptorRangeDesc> rdTextureDescriptorRanges;
         std::vector<nri::DescriptorRangeDesc> rdBufferDescriptorRanges;
         std::vector<nri::DescriptorSetDesc> rdDescriptorSetDescs;
-        std::vector<nri::DescriptorSet*> rdDescriptorSets;
-        std::vector<nri::Descriptor*> rdDescriptors;
+
+        std::vector<nri::DescriptorRangeDesc> rdComputeTransformDescriptorRanges;
+        std::vector<nri::DescriptorSetDesc> rdComputeTransformDescriptorSetDescs;
+
+        // Needs Optimization：Should be encapsulated. Otherwise, the Sets and Bindings of each Shader need to be written here again, which doesn't seem easy to maintain.
+        std::vector<nri::DescriptorRangeDesc> rdComputeMatrixMultDescriptorRanges1;
+        std::vector<nri::DescriptorRangeDesc> rdComputeMatrixMultDescriptorRanges2;
+        std::vector<nri::DescriptorSetDesc> rdComputeMatrixMultDescriptorSetDescs;
 
         nri::Fence* rdFrameFence = nullptr;
 
