@@ -75,10 +75,12 @@ namespace RAnimation
         nri::CommandAllocator* commandAllocator = nullptr;
         nri::CommandBuffer* commandBuffer = nullptr;
         nri::Descriptor* cameraBufferView = nullptr;
-        nri::Descriptor* boneBufferView = nullptr;
+        nri::Descriptor* modelBufferView = nullptr;
         nri::Descriptor* boneBufferView = nullptr;
         nri::DescriptorSet* staticDescriptorSet = nullptr;
         nri::DescriptorSet* skinnedDescriptorSet = nullptr;
+        nri::DescriptorSet* computeTransformDescriptorSet = nullptr;
+        nri::DescriptorSet* computeMatrixMultDescriptorSet = nullptr;
         uint64_t cameraBufferOffset = 0;
         uint64_t modelBufferOffset = 0;
         uint64_t boneBufferOffset = 0;
@@ -144,9 +146,13 @@ namespace RAnimation
 
         nri::PipelineLayout* rdPipelineLayout = nullptr;
         nri::PipelineLayout* rdSkinningPipelineLayout = nullptr;
+        nri::PipelineLayout* rdComputeTransformPipelineLayout = nullptr;
+        nri::PipelineLayout* rdComputeMatrixMultPipelineLayout = nullptr;
 
         nri::Pipeline* rdPipeline = nullptr;
         nri::Pipeline* rdSkinningPipeline = nullptr;
+        nri::Pipeline* rdComputeTransformPipeline = nullptr;
+        nri::Pipeline* rdComputeMatrixMultPipeline = nullptr;
 
         std::vector<QueuedFrame> rdQueuedFrames;
         uint32_t queuedFrameIndex = 0;

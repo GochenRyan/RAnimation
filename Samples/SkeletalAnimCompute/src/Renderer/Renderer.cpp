@@ -915,6 +915,11 @@ void Renderer::Cleanup()
 
     mRenderData.NRI.DestroyPipelineLayout(mRenderData.rdPipelineLayout);
 
+    ComputePipeline::Cleanup(mRenderData, mRenderData.rdComputeTransformPipeline);
+    ComputePipeline::Cleanup(mRenderData, mRenderData.rdComputeMatrixMultPipeline);
+    mRenderData.NRI.DestroyPipelineLayout(mRenderData.rdComputeTransformPipelineLayout);
+    mRenderData.NRI.DestroyPipelineLayout(mRenderData.rdComputeMatrixMultPipelineLayout);
+
     for (SwapChainTexture& swapChainTexture : mRenderData.rdSwapChainTextures)
     {
         mRenderData.NRI.DestroyDescriptor(swapChainTexture.colorAttachment);
@@ -1084,8 +1089,28 @@ bool Renderer::createPipelineLayout()
 
 bool Renderer::createPipelines()
 {
-    std::string vertexShaderFile = SHADER_SRC_DIR "/SkeletalAnimation/assimp.vs";
-    std::string fragmentShaderFile = SHADER_SRC_DIR "/SkeletalAnimation/assimp.fs";
+    std::string computeShaderFile = SHADER_SRC_DIR "/SkeletalAnimationCompute/assimp_instance_transform.cs";
+    if (!ComputePipeline::Init(mRenderData,
+                                *mRenderData.rdComputeTransformPipelineLayout,
+                                mRenderData.rdComputeTransformPipeline,
+                                computeShaderFile))
+    {
+        fmt::print(stderr, "{} error: could not init compute transform shader pipeline\n", __FUNCTION__);
+        return false;
+    }
+
+    computeShaderFile = SHADER_SRC_DIR "/SkeletalAnimationCompute/assimp_instance_matrix_mult.cs";
+    if (!ComputePipeline::Init(mRenderData,
+                                *mRenderData.rdComputeMatrixMultPipelineLayout,
+                                mRenderData.rdComputeMatrixMultPipeline,
+                                computeShaderFile))
+    {
+        fmt::print(stderr, "{} error: could not init compute matrix multiplication shader pipeline\n", __FUNCTION__);
+        return false;
+    }
+
+    std::string vertexShaderFile = SHADER_SRC_DIR "/SkeletalAnimationCompute/assimp.vs";
+    std::string fragmentShaderFile = SHADER_SRC_DIR "/SkeletalAnimationCompute/assimp.fs";
     if (!SkinningPipeline::Init(mRenderData,
                                 *mRenderData.rdPipelineLayout,
                                 mRenderData.rdPipeline,
@@ -1096,8 +1121,8 @@ bool Renderer::createPipelines()
         return false;
     }
 
-    vertexShaderFile = SHADER_SRC_DIR "/SkeletalAnimation/assimp_skinning.vs";
-    fragmentShaderFile = SHADER_SRC_DIR "/SkeletalAnimation/assimp_skinning.fs";
+    vertexShaderFile = SHADER_SRC_DIR "/SkeletalAnimationCompute/assimp_skinning.vs";
+    fragmentShaderFile = SHADER_SRC_DIR "/SkeletalAnimationCompute/assimp_skinning.fs";
     if (!SkinningPipeline::Init(mRenderData,
                                 *mRenderData.rdSkinningPipelineLayout,
                                 mRenderData.rdSkinningPipeline,
@@ -1350,6 +1375,8 @@ bool Renderer::createDescriptorSetLayouts()
 
     mRenderData.rdDescriptorSetDescs = {textureSetDesc, bufferSetDesc};
 
+
+    // Needs Optimization: Adding an extra pass necessitates adding multiple `DescriptorRangeDesc` and `DescriptorSetDesc` (analogous to Vulkan's `DescriptorSetLayout`), a `PipelineLayout*`, and a `Pipeline*` to `mRenderData`; furthermore, it requires adding multiple `nri::Descriptor*` and `DescriptorSet*` to `QueuedFrame`.
     return true;
 }
 
