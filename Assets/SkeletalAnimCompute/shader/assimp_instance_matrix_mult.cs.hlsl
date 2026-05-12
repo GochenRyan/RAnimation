@@ -8,9 +8,9 @@ struct Constants
 
 NRI_ROOT_CONSTANTS(Constants, g_PushConstants, 7, 0);
 NRI_RESOURCE(StructuredBuffer<float4x4>, g_trsMat, t, 0, 0);
+NRI_RESOURCE(RWStructuredBuffer<float4x4>, g_nodeMatrices, u, 1, 0);
 NRI_RESOURCE(StructuredBuffer<int>, g_parentMatrixIndices, t, 0, 1);
 NRI_RESOURCE(StructuredBuffer<float4x4>, g_boneOffsets, t, 1, 1);
-NRI_RESOURCE(RWStructuredBuffer<float4x4>, g_nodeMatrices, u, 1, 1);
 
 [numthreads(1, 32, 1)]
 void main(uint3 dispatchThreadID : SV_DispatchThreadID)

@@ -161,8 +161,14 @@ namespace RAnimation
         std::vector<nri::DescriptorRangeDesc> rdTextureDescriptorRanges;
         std::vector<nri::DescriptorRangeDesc> rdBufferDescriptorRanges;
         std::vector<nri::DescriptorSetDesc> rdDescriptorSetDescs;
-        std::vector<nri::DescriptorSet*> rdDescriptorSets;
-        std::vector<nri::Descriptor*> rdDescriptors;
+
+        std::vector<nri::DescriptorRangeDesc> rdComputeTransformDescriptorRanges;
+        std::vector<nri::DescriptorSetDesc> rdComputeTransformDescriptorSetDescs;
+
+        // Needs Optimization：Should be encapsulated. Otherwise, the Sets and Bindings of each Shader need to be written here again, which doesn't seem easy to maintain.
+        std::vector<nri::DescriptorRangeDesc> rdComputeMatrixMultDescriptorRanges1;
+        std::vector<nri::DescriptorRangeDesc> rdComputeMatrixMultDescriptorRanges2;
+        std::vector<nri::DescriptorSetDesc> rdComputeMatrixMultDescriptorSetDescs;
 
         nri::Fence* rdFrameFence = nullptr;
 

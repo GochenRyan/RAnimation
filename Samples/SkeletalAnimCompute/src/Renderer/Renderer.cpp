@@ -15,7 +15,7 @@
 using namespace RAnimation;
 
 #ifndef AI_LOG
-#define AI_LOG(...)
+#    define AI_LOG(...)
 #endif
 
 namespace
@@ -68,7 +68,8 @@ namespace
     uint64_t GetNodeTransformDataBufferStride(const RRenderData& renderData)
     {
         const nri::DeviceDesc& deviceDesc = renderData.NRI.GetDeviceDesc(*renderData.rdDevice);
-        return helper::Align<uint64_t>(sizeof(RNodeTransformData), deviceDesc.memoryAlignment.bufferShaderResourceOffset);
+        return helper::Align<uint64_t>(sizeof(RNodeTransformData),
+                                       deviceDesc.memoryAlignment.bufferShaderResourceOffset);
     }
 
     uint64_t GetWorldBufferSizePerFrame(const RRenderData& renderData)
@@ -85,7 +86,7 @@ namespace
     {
         return GetNodeTransformDataBufferStride(renderData) * MAX_BONE_MATRICES;
     }
-}
+} // namespace
 
 Renderer::Renderer(NativeWindowHandle* window) : Renderer(window, nullptr)
 {
@@ -214,7 +215,8 @@ bool Renderer::Draw(float deltaTime)
 
     const uint32_t recycledSemaphoreIndex = mFrameIndex % mRenderData.rdSwapChainTextures.size();
     nri::Fence* acquiredSemaphore = mRenderData.rdSwapChainTextures[recycledSemaphoreIndex].acquireSemaphore;
-    NRI_ABORT_ON_FAILURE(mRenderData.NRI.AcquireNextTexture(*mRenderData.rdSwapChain, *acquiredSemaphore, queuedFrame.swapChainTextureIndex));
+    NRI_ABORT_ON_FAILURE(mRenderData.NRI.AcquireNextTexture(
+            *mRenderData.rdSwapChain, *acquiredSemaphore, queuedFrame.swapChainTextureIndex));
 
     const float safeDeltaTime = std::max(deltaTime, 0.000001f);
 
@@ -238,8 +240,7 @@ bool Renderer::Draw(float deltaTime)
     mUserInterface.Render(mRenderData);
     mRenderData.rdUIDrawTime = mUIDrawTimer.Stop();
 
-    nri::Fence* releaseSemaphore =
-            mRenderData.rdSwapChainTextures[queuedFrame.swapChainTextureIndex].releaseSemaphore;
+    nri::Fence* releaseSemaphore = mRenderData.rdSwapChainTextures[queuedFrame.swapChainTextureIndex].releaseSemaphore;
 
     nri::FenceSubmitDesc waitFence = {};
     waitFence.fence = acquiredSemaphore;
@@ -274,29 +275,28 @@ bool Renderer::Draw(float deltaTime)
 void Renderer::updateCameraBuffer()
 {
     mMatrixGenerateTimer.Start();
-    
+
     QueuedFrame& queuedFrame = mRenderData.GetCurrentQueueFrame();
-    glm::vec3 forward = glm::normalize(glm::vec3(std::cos(glm::radians(mRenderData.rdViewElevation)) *
-                                                         std::cos(glm::radians(mRenderData.rdViewAzimuth)),
-                                                 std::sin(glm::radians(mRenderData.rdViewElevation)),
-                                                 std::cos(glm::radians(mRenderData.rdViewElevation)) *
-                                                         std::sin(glm::radians(mRenderData.rdViewAzimuth))));
+    glm::vec3 forward = glm::normalize(glm::vec3(
+            std::cos(glm::radians(mRenderData.rdViewElevation)) * std::cos(glm::radians(mRenderData.rdViewAzimuth)),
+            std::sin(glm::radians(mRenderData.rdViewElevation)),
+            std::cos(glm::radians(mRenderData.rdViewElevation)) * std::sin(glm::radians(mRenderData.rdViewAzimuth))));
     glm::vec3 target = mRenderData.rdCameraWorldPosition + forward;
 
     RUploadMatrices matrices = {};
     matrices.viewMatrix = glm::lookAtRH(mRenderData.rdCameraWorldPosition, target, glm::vec3(0.0f, 1.0f, 0.0f));
-    matrices.projectionMatrix =
-            glm::perspectiveRH_ZO(glm::radians(static_cast<float>(mRenderData.rdFieldOfView)),
-                                  static_cast<float>(mRenderData.rdOutputResolution.x) /
-                                          static_cast<float>(mRenderData.rdOutputResolution.y),
-                                  0.1f,
-                                  500.0f);
+    matrices.projectionMatrix = glm::perspectiveRH_ZO(glm::radians(static_cast<float>(mRenderData.rdFieldOfView)),
+                                                      static_cast<float>(mRenderData.rdOutputResolution.x) /
+                                                              static_cast<float>(mRenderData.rdOutputResolution.y),
+                                                      0.1f,
+                                                      500.0f);
     mRenderData.rdMatrixGenerateTime += mMatrixGenerateTimer.Stop();
-    
+
     mUploadToUBOTimer.Start();
-    void* cameraDst = mRenderData.NRI.MapBuffer(*mRenderData.rdBuffers[static_cast<uint32_t>(BUFFER_INDEX::VP_MATRIX_BUFFER)],
-                                                queuedFrame.cameraBufferOffset,
-                                                sizeof(RUploadMatrices));
+    void* cameraDst =
+            mRenderData.NRI.MapBuffer(*mRenderData.rdBuffers[static_cast<uint32_t>(BUFFER_INDEX::VP_MATRIX_BUFFER)],
+                                      queuedFrame.cameraBufferOffset,
+                                      sizeof(RUploadMatrices));
     std::memcpy(cameraDst, &matrices, sizeof(RUploadMatrices));
     mRenderData.NRI.UnmapBuffer(*mRenderData.rdBuffers[static_cast<uint32_t>(BUFFER_INDEX::VP_MATRIX_BUFFER)]);
     mRenderData.rdUploadToUBOTime += mUploadToUBOTimer.Stop();
@@ -345,7 +345,8 @@ bool Renderer::updateModelBuffer(float deltaTime)
                     {
                         fmt::print(stderr,
                                    fg(fmt::color::red),
-                                   "{} error: animated instance for model '{}' produced non-finite bone matrix at index {}\n",
+                                   "{} error: animated instance for model '{}' produced non-finite bone matrix at "
+                                   "index {}\n",
                                    __FUNCTION__,
                                    model->GetModelFileName(),
                                    boneIndex);
@@ -421,11 +422,13 @@ bool Renderer::recordCommandBuffer()
 
     ImDrawData* drawData = ImGui::GetDrawData();
     const uint32_t imguiDrawListNum = drawData != nullptr ? static_cast<uint32_t>(drawData->CmdListsCount) : 0;
-    const uint32_t imguiTextureNum =
-            (drawData != nullptr && drawData->Textures != nullptr) ? static_cast<uint32_t>(drawData->Textures->Size) : 0;
+    const uint32_t imguiTextureNum = (drawData != nullptr && drawData->Textures != nullptr)
+                                             ? static_cast<uint32_t>(drawData->Textures->Size)
+                                             : 0;
     const bool hasSceneGeometry = !mModelInstData.miModelInstances.empty();
 
-    AI_LOG("[AI] frame={} queuedFrame={} acquireIndex={} staticSet={} skinnedSet={} sceneGeometry={} imguiDrawLists={} imguiTextures={}\n",
+    AI_LOG("[AI] frame={} queuedFrame={} acquireIndex={} staticSet={} skinnedSet={} sceneGeometry={} imguiDrawLists={} "
+           "imguiTextures={}\n",
            mFrameIndex,
            mRenderData.queuedFrameIndex,
            queuedFrame.swapChainTextureIndex,
@@ -443,11 +446,10 @@ bool Renderer::recordCommandBuffer()
         copyImguiDataDesc.drawLists = drawData->CmdLists.Data;
         copyImguiDataDesc.drawListNum = static_cast<uint32_t>(drawData->CmdLists.Size);
         copyImguiDataDesc.textures = drawData->Textures != nullptr ? drawData->Textures->Data : nullptr;
-        copyImguiDataDesc.textureNum = drawData->Textures != nullptr ? static_cast<uint32_t>(drawData->Textures->Size) : 0;
-        mRenderData.NRI.CmdCopyImguiData(*queuedFrame.commandBuffer,
-                                         *mRenderData.rdStreamer,
-                                         *mRenderData.rdImgui,
-                                         copyImguiDataDesc);
+        copyImguiDataDesc.textureNum = drawData->Textures != nullptr ? static_cast<uint32_t>(drawData->Textures->Size)
+                                                                     : 0;
+        mRenderData.NRI.CmdCopyImguiData(
+                *queuedFrame.commandBuffer, *mRenderData.rdStreamer, *mRenderData.rdImgui, copyImguiDataDesc);
     }
 
     nri::TextureBarrierDesc beginRenderingBarriers[2] = {};
@@ -456,8 +458,9 @@ bool Renderer::recordCommandBuffer()
     beginRenderingBarriers[beginRenderingBarrierCount++] = {
             mRenderData.rdSwapChainTextures[queuedFrame.swapChainTextureIndex].texture,
             {nri::AccessBits::NONE,
-             mRenderData.rdSwapChainTextures[queuedFrame.swapChainTextureIndex].hasBeenPresented ? nri::Layout::PRESENT
-                                                                                                  : nri::Layout::UNDEFINED,
+             mRenderData.rdSwapChainTextures[queuedFrame.swapChainTextureIndex].hasBeenPresented
+                     ? nri::Layout::PRESENT
+                     : nri::Layout::UNDEFINED,
              nri::StageBits::NONE},
             {nri::AccessBits::COLOR_ATTACHMENT, nri::Layout::COLOR_ATTACHMENT, nri::StageBits::COLOR_ATTACHMENT}};
 
@@ -532,8 +535,8 @@ bool Renderer::recordCommandBuffer()
                 pushConstants.modelStride = static_cast<int>(model->GetBoneList().size());
                 pushConstants.worldPosOffset = static_cast<int>(boneMatrixOffset);
 
-                const uint32_t requiredBoneMatrices =
-                        instanceCount * static_cast<uint32_t>(model->GetBoneList().size());
+                const uint32_t requiredBoneMatrices = instanceCount *
+                                                      static_cast<uint32_t>(model->GetBoneList().size());
                 if (boneMatrixOffset + requiredBoneMatrices > mModelBoneMatrices.size())
                 {
                     fmt::print(stderr,
@@ -556,17 +559,15 @@ bool Renderer::recordCommandBuffer()
                        mModelBoneMatrices.size(),
                        boneMatrixOffset);
 
-                mRenderData.NRI.CmdSetPipelineLayout(
-                        *queuedFrame.commandBuffer, nri::BindPoint::GRAPHICS, *mRenderData.rdSkinningPipelineLayout);
+                mRenderData.NRI.CmdSetPipelineLayout(*queuedFrame.commandBuffer,
+                                                     nri::BindPoint::GRAPHICS,
+                                                     *mRenderData.rdSkinningPipelineLayout);
                 mRenderData.NRI.CmdSetPipeline(*queuedFrame.commandBuffer, *mRenderData.rdSkinningPipeline);
-                mRenderData.NRI.CmdSetRootConstants(*queuedFrame.commandBuffer,
-                                                    {0,
-                                                     &pushConstants,
-                                                     sizeof(pushConstants),
-                                                     0,
-                                                     nri::BindPoint::GRAPHICS});
-                mRenderData.NRI.CmdSetDescriptorSet(
-                        *queuedFrame.commandBuffer, {1, queuedFrame.skinnedDescriptorSet, nri::BindPoint::GRAPHICS});
+                mRenderData.NRI.CmdSetRootConstants(
+                        *queuedFrame.commandBuffer,
+                        {0, &pushConstants, sizeof(pushConstants), 0, nri::BindPoint::GRAPHICS});
+                mRenderData.NRI.CmdSetDescriptorSet(*queuedFrame.commandBuffer,
+                                                    {1, queuedFrame.skinnedDescriptorSet, nri::BindPoint::GRAPHICS});
                 model->DrawInstanced(mRenderData, instanceCount);
 
                 boneMatrixOffset += instanceCount * static_cast<uint32_t>(model->GetBoneList().size());
@@ -577,17 +578,15 @@ bool Renderer::recordCommandBuffer()
                 pushConstants.modelStride = 0;
                 pushConstants.worldPosOffset = static_cast<int>(worldPosOffset);
 
-                mRenderData.NRI.CmdSetPipelineLayout(
-                        *queuedFrame.commandBuffer, nri::BindPoint::GRAPHICS, *mRenderData.rdPipelineLayout);
+                mRenderData.NRI.CmdSetPipelineLayout(*queuedFrame.commandBuffer,
+                                                     nri::BindPoint::GRAPHICS,
+                                                     *mRenderData.rdPipelineLayout);
                 mRenderData.NRI.CmdSetPipeline(*queuedFrame.commandBuffer, *mRenderData.rdPipeline);
-                mRenderData.NRI.CmdSetRootConstants(*queuedFrame.commandBuffer,
-                                                    {0,
-                                                     &pushConstants,
-                                                     sizeof(pushConstants),
-                                                     0,
-                                                     nri::BindPoint::GRAPHICS});
-                mRenderData.NRI.CmdSetDescriptorSet(
-                        *queuedFrame.commandBuffer, {1, queuedFrame.staticDescriptorSet, nri::BindPoint::GRAPHICS});
+                mRenderData.NRI.CmdSetRootConstants(
+                        *queuedFrame.commandBuffer,
+                        {0, &pushConstants, sizeof(pushConstants), 0, nri::BindPoint::GRAPHICS});
+                mRenderData.NRI.CmdSetDescriptorSet(*queuedFrame.commandBuffer,
+                                                    {1, queuedFrame.staticDescriptorSet, nri::BindPoint::GRAPHICS});
                 model->DrawInstanced(mRenderData, instanceCount);
 
                 worldPosOffset += instanceCount;
@@ -1091,9 +1090,9 @@ bool Renderer::createPipelines()
 {
     std::string computeShaderFile = SHADER_SRC_DIR "/SkeletalAnimationCompute/assimp_instance_transform.cs";
     if (!ComputePipeline::Init(mRenderData,
-                                *mRenderData.rdComputeTransformPipelineLayout,
-                                mRenderData.rdComputeTransformPipeline,
-                                computeShaderFile))
+                               *mRenderData.rdComputeTransformPipelineLayout,
+                               mRenderData.rdComputeTransformPipeline,
+                               computeShaderFile))
     {
         fmt::print(stderr, "{} error: could not init compute transform shader pipeline\n", __FUNCTION__);
         return false;
@@ -1101,9 +1100,9 @@ bool Renderer::createPipelines()
 
     computeShaderFile = SHADER_SRC_DIR "/SkeletalAnimationCompute/assimp_instance_matrix_mult.cs";
     if (!ComputePipeline::Init(mRenderData,
-                                *mRenderData.rdComputeMatrixMultPipelineLayout,
-                                mRenderData.rdComputeMatrixMultPipeline,
-                                computeShaderFile))
+                               *mRenderData.rdComputeMatrixMultPipelineLayout,
+                               mRenderData.rdComputeMatrixMultPipeline,
+                               computeShaderFile))
     {
         fmt::print(stderr, "{} error: could not init compute matrix multiplication shader pipeline\n", __FUNCTION__);
         return false;
@@ -1148,7 +1147,7 @@ bool Renderer::createMatrixUBO()
 
 bool Renderer::createSSBOs()
 {
-    {  // NODE_TRANSFORM_BUFFER
+    { // NODE_TRANSFORM_BUFFER
         nri::BufferDesc bufferDesc = {};
         bufferDesc.size = GetNodeTransformBufferSizePerFrame(mRenderData) * mRenderData.GetQueuedFrameNum();
         bufferDesc.structureStride = sizeof(RNodeTransformData);
@@ -1159,7 +1158,7 @@ bool Renderer::createSSBOs()
         mRenderData.rdBuffers.push_back(buffer);
     }
 
-    {  // TRS_MATRIX_BUFFER
+    { // TRS_MATRIX_BUFFER
         nri::BufferDesc bufferDesc = {};
         bufferDesc.size = GetBoneBufferSizePerFrame(mRenderData) * mRenderData.GetQueuedFrameNum();
         bufferDesc.structureStride = sizeof(glm::mat4);
@@ -1170,7 +1169,7 @@ bool Renderer::createSSBOs()
         mRenderData.rdBuffers.push_back(buffer);
     }
 
-    {  // MODEL_ROOT_MATRIX_BUFFER
+    { // MODEL_ROOT_MATRIX_BUFFER
         nri::BufferDesc bufferDesc = {};
         bufferDesc.size = GetWorldBufferSizePerFrame(mRenderData) * mRenderData.GetQueuedFrameNum();
         bufferDesc.structureStride = sizeof(glm::mat4);
@@ -1181,7 +1180,7 @@ bool Renderer::createSSBOs()
         mRenderData.rdBuffers.push_back(buffer);
     }
 
-    {  // BONE_MATRIX_BUFFER
+    { // BONE_MATRIX_BUFFER
         nri::BufferDesc bufferDesc = {};
         bufferDesc.size = GetBoneBufferSizePerFrame(mRenderData) * mRenderData.GetQueuedFrameNum();
         bufferDesc.structureStride = sizeof(glm::mat4);
@@ -1227,11 +1226,12 @@ bool Renderer::allocateAndBindMemory()
         return true;
     };
 
-    nri::Buffer* uploadBuffers[] = {mRenderData.rdBuffers[static_cast<uint32_t>(BUFFER_INDEX::VP_MATRIX_BUFFER)],
-                                    mRenderData.rdBuffers[static_cast<uint32_t>(BUFFER_INDEX::BONE_MATRIX_BUFFER)],
-                                    mRenderData.rdBuffers[static_cast<uint32_t>(BUFFER_INDEX::TRS_MATRIX_BUFFER)],
-                                    mRenderData.rdBuffers[static_cast<uint32_t>(BUFFER_INDEX::MODEL_ROOT_MATRIX_BUFFER)],
-                                    mRenderData.rdBuffers[static_cast<uint32_t>(BUFFER_INDEX::NODE_TRANSFORM_BUFFER)]};
+    nri::Buffer* uploadBuffers[] = {
+            mRenderData.rdBuffers[static_cast<uint32_t>(BUFFER_INDEX::VP_MATRIX_BUFFER)],
+            mRenderData.rdBuffers[static_cast<uint32_t>(BUFFER_INDEX::BONE_MATRIX_BUFFER)],
+            mRenderData.rdBuffers[static_cast<uint32_t>(BUFFER_INDEX::TRS_MATRIX_BUFFER)],
+            mRenderData.rdBuffers[static_cast<uint32_t>(BUFFER_INDEX::MODEL_ROOT_MATRIX_BUFFER)],
+            mRenderData.rdBuffers[static_cast<uint32_t>(BUFFER_INDEX::NODE_TRANSFORM_BUFFER)]};
 
     if (!allocGroup(nri::MemoryLocation::HOST_UPLOAD, uploadBuffers, std::size(uploadBuffers), nullptr, 0))
     {
@@ -1276,7 +1276,8 @@ bool Renderer::updateDescriptors()
     samplerDesc.mipMin = 0.0f;
     samplerDesc.mipMax = 16.0f;
     samplerDesc.compareOp = nri::CompareOp::NONE;
-    NRI_ABORT_ON_FAILURE(mRenderData.NRI.CreateSampler(*mRenderData.rdDevice, samplerDesc, mRenderData.anisotropicSampler));
+    NRI_ABORT_ON_FAILURE(
+            mRenderData.NRI.CreateSampler(*mRenderData.rdDevice, samplerDesc, mRenderData.anisotropicSampler));
 
     const uint64_t cameraBufferSize = GetCameraBufferSize(mRenderData);
     const uint64_t worldBufferSize = GetWorldBufferSizePerFrame(mRenderData);
@@ -1356,9 +1357,9 @@ bool Renderer::createDescriptorSetLayouts()
     };
 
     nri::DescriptorSetDesc textureSetDesc = {0, // set = 0
-                                            mRenderData.rdTextureDescriptorRanges.data(),
-                                            static_cast<uint32_t>(mRenderData.rdTextureDescriptorRanges.size()),
-                                            nri::DescriptorSetBits::NONE};
+                                             mRenderData.rdTextureDescriptorRanges.data(),
+                                             static_cast<uint32_t>(mRenderData.rdTextureDescriptorRanges.size()),
+                                             nri::DescriptorSetBits::NONE};
 
     // set 1: camera + matrix buffer
     // Final Vulkan bindings are produced by NRI by adding VK_BINDING_OFFSETS:
@@ -1370,36 +1371,80 @@ bool Renderer::createDescriptorSetLayouts()
     };
 
     nri::DescriptorSetDesc bufferSetDesc = {1, // set = 1
-                                           mRenderData.rdBufferDescriptorRanges.data(),
-                                           static_cast<uint32_t>(mRenderData.rdBufferDescriptorRanges.size())};
+                                            mRenderData.rdBufferDescriptorRanges.data(),
+                                            static_cast<uint32_t>(mRenderData.rdBufferDescriptorRanges.size())};
 
     mRenderData.rdDescriptorSetDescs = {textureSetDesc, bufferSetDesc};
 
 
-    // Needs Optimization: Adding an extra pass necessitates adding multiple `DescriptorRangeDesc` and `DescriptorSetDesc` (analogous to Vulkan's `DescriptorSetLayout`), a `PipelineLayout*`, and a `Pipeline*` to `mRenderData`; furthermore, it requires adding multiple `nri::Descriptor*` and `DescriptorSet*` to `QueuedFrame`.
+    // Needs Optimization: Adding an extra pass necessitates adding multiple `DescriptorRangeDesc` and
+    // `DescriptorSetDesc` (analogous to Vulkan's `DescriptorSetLayout`), a `PipelineLayout*`, and a `Pipeline*` to
+    // `mRenderData`; furthermore, it requires adding multiple `nri::Descriptor*` and `DescriptorSet*` to `QueuedFrame`.
+
+    mRenderData.rdComputeTransformDescriptorRanges = {
+            {0, 1, nri::DescriptorType::STRUCTURED_BUFFER, nri::StageBits::COMPUTE_SHADER},
+            {1, 1, nri::DescriptorType::STORAGE_BUFFER, nri::StageBits::COMPUTE_SHADER},
+    };
+
+    nri::DescriptorSetDesc computeTransformSetDesc = {0, // set = 0
+                                                      mRenderData.rdComputeTransformDescriptorRanges.data(),
+                                                      static_cast<uint32_t>(
+                                                              mRenderData.rdComputeTransformDescriptorRanges.size())};
+    mRenderData.rdComputeTransformDescriptorSetDescs = {computeTransformSetDesc};
+
+    mRenderData.rdComputeMatrixMultDescriptorRanges1 = {
+            {0, 1, nri::DescriptorType::STRUCTURED_BUFFER, nri::StageBits::COMPUTE_SHADER},
+            {1, 1, nri::DescriptorType::STORAGE_BUFFER, nri::StageBits::COMPUTE_SHADER},
+    };
+
+    nri::DescriptorSetDesc computeMatrixMultSetDesc = {
+            0, // set = 0
+            mRenderData.rdComputeMatrixMultDescriptorRanges1.data(),
+            static_cast<uint32_t>(mRenderData.rdComputeMatrixMultDescriptorRanges1.size())};
+
+    mRenderData.rdComputeMatrixMultDescriptorRanges2 = {
+            {0, 1, nri::DescriptorType::STRUCTURED_BUFFER, nri::StageBits::COMPUTE_SHADER},
+            {1, 1, nri::DescriptorType::STRUCTURED_BUFFER, nri::StageBits::COMPUTE_SHADER},
+    };
+    nri::DescriptorSetDesc computeMatrixMultSetDesc2 = {
+            1, // set = 1
+            mRenderData.rdComputeMatrixMultDescriptorRanges2.data(),
+            static_cast<uint32_t>(mRenderData.rdComputeMatrixMultDescriptorRanges2.size())};
+    mRenderData.rdComputeMatrixMultDescriptorSetDescs = {computeMatrixMultSetDesc, computeMatrixMultSetDesc2};
     return true;
 }
 
 bool Renderer::createDescriptorSets()
 {
-    mRenderData.rdDescriptorSets.resize(mRenderData.GetQueuedFrameNum() * 2);
     for (uint32_t i = 0; i < mRenderData.GetQueuedFrameNum(); ++i)
     {
         QueuedFrame& queuedFrame = mRenderData.rdQueuedFrames[i];
 
-        NRI_ABORT_ON_FAILURE(mRenderData.NRI.AllocateDescriptorSets(
-                *mRenderData.rdDescriptorPool, *mRenderData.rdPipelineLayout, 1, &queuedFrame.staticDescriptorSet, 1, 0));
+        NRI_ABORT_ON_FAILURE(mRenderData.NRI.AllocateDescriptorSets(*mRenderData.rdDescriptorPool,
+                                                                    *mRenderData.rdPipelineLayout,
+                                                                    1,
+                                                                    &queuedFrame.staticDescriptorSet,
+                                                                    1,
+                                                                    0));
         NRI_ABORT_ON_FAILURE(mRenderData.NRI.AllocateDescriptorSets(*mRenderData.rdDescriptorPool,
                                                                     *mRenderData.rdSkinningPipelineLayout,
                                                                     1,
                                                                     &queuedFrame.skinnedDescriptorSet,
                                                                     1,
                                                                     0));
-
-        mRenderData.rdDescriptorSets[i * 2] = queuedFrame.staticDescriptorSet;
-        mRenderData.rdDescriptorSets[i * 2 + 1] = queuedFrame.skinnedDescriptorSet;
+        NRI_ABORT_ON_FAILURE(mRenderData.NRI.AllocateDescriptorSets(*mRenderData.rdDescriptorPool,
+                                                                    *mRenderData.rdComputeTransformPipelineLayout,
+                                                                    1,
+                                                                    &queuedFrame.computeTransformDescriptorSet,
+                                                                    1,
+                                                                    0));
+        NRI_ABORT_ON_FAILURE(mRenderData.NRI.AllocateDescriptorSets(*mRenderData.rdDescriptorPool,
+                                                                    *mRenderData.rdComputeMatrixMultPipelineLayout,
+                                                                    1,
+                                                                    &queuedFrame.computeMatrixMultDescriptorSet,
+                                                                    1,
+                                                                    0));
     }
-
     return true;
 }
 
