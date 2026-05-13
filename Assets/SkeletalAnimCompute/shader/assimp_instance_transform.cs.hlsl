@@ -2,8 +2,12 @@
 
 struct Constants
 {
-    uint modelOffset;
+    uint nodeTransformOffset;
+    uint boneMatrixOffset;
+    uint modelRootOffset;
+    uint numberOfNodes;
     uint numberOfBones;
+    uint instanceCount;
 };
 
 /* data format to be uploaded to compute shader */
@@ -13,7 +17,7 @@ struct NodeTransformData {
   float4 rotation; // this is is a quaternion
 };
 
-NRI_ROOT_CONSTANTS(Constants, g_PushConstants, 0, 1);
+NRI_ROOT_CONSTANTS(Constants, g_PushConstants, 0, 2);
 NRI_RESOURCE(StructuredBuffer<NodeTransformData>, g_NodeTransformData, t, 0, 0);
 NRI_RESOURCE(RWStructuredBuffer<float4x4>, g_trsMat, u, 1, 0);
 
@@ -56,11 +60,12 @@ float4x4 getRotationMatrix(uint index)
     float qwy = q.w * q.y;
     float qwz = q.w * q.z;
 
-    // This is the row-by-row HLSL form equivalent to the GLSL mat4 constructor.
+    // Match glm::mat4_cast semantic rows. GLM writes columns, so the signs differ
+    // from a direct column listing when expressed as HLSL rows.
     return float4x4(
-        1.0f - 2.0f * (qyy + qzz), 2.0f * (qxy + qwz),        2.0f * (qxz - qwy),        0.0f,
-        2.0f * (qxy - qwz),        1.0f - 2.0f * (qxx + qzz), 2.0f * (qyz + qwx),        0.0f,
-        2.0f * (qxz + qwy),        2.0f * (qyz - qwx),        1.0f - 2.0f * (qxx + qyy), 0.0f,
+        1.0f - 2.0f * (qyy + qzz), 2.0f * (qxy - qwz),        2.0f * (qxz + qwy),        0.0f,
+        2.0f * (qxy + qwz),        1.0f - 2.0f * (qxx + qzz), 2.0f * (qyz - qwx),        0.0f,
+        2.0f * (qxz - qwy),        2.0f * (qyz + qwx),        1.0f - 2.0f * (qxx + qyy), 0.0f,
         0.0f,                      0.0f,                      0.0f,                      1.0f
     );
 }
@@ -71,11 +76,16 @@ void main(uint3 dispatchThreadID : SV_DispatchThreadID)
     uint node = dispatchThreadID.x;
     uint instance = dispatchThreadID.y;
 
-    uint index = node + g_PushConstants.numberOfBones * instance + g_PushConstants.modelOffset;
+    if (node >= g_PushConstants.numberOfNodes || instance >= g_PushConstants.instanceCount)
+    {
+        return;
+    }
 
-    float4x4 translationMat = GetTranslationMatrix(index);
-    float4x4 rotationMat = GetRotationMatrix(index);
-    float4x4 scaleMat = GetScaleMatrix(index);
+    uint index = node + g_PushConstants.numberOfNodes * instance + g_PushConstants.nodeTransformOffset;
 
-    g_TrsMat[index] = mul(mul(translationMat, rotationMat), scaleMat);
+    float4x4 translationMat = getTranslationMatrix(index);
+    float4x4 rotationMat = getRotationMatrix(index);
+    float4x4 scaleMat = getScaleMatrix(index);
+
+    g_trsMat[index] = mul(mul(translationMat, rotationMat), scaleMat);
 }

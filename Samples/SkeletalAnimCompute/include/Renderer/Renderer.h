@@ -23,10 +23,14 @@ namespace RAnimation
     enum class BUFFER_INDEX : uint32_t
     {
         VP_MATRIX_BUFFER = 0,
-        BONE_MATRIX_BUFFER,
+        WORLD_POS_BUFFER,
+        NODE_TRANSFORM_BUFFER,
         TRS_MATRIX_BUFFER,
         MODEL_ROOT_MATRIX_BUFFER,
-        NODE_TRANSFORM_BUFFER,
+        NODE_PARENT_INDEX_BUFFER,
+        BONE_NODE_INDEX_BUFFER,
+        BONE_OFFSET_MATRIX_BUFFER,
+        BONE_MATRIX_BUFFER,
     };
     constexpr uint32_t MAX_BONES = 100;
 
@@ -87,6 +91,16 @@ namespace RAnimation
         bool recordCommandBuffer();
 
     private:
+        struct AnimatedDispatch
+        {
+            uint32_t nodeTransformOffset = 0;
+            uint32_t boneMatrixOffset = 0;
+            uint32_t modelRootOffset = 0;
+            uint32_t numberOfNodes = 0;
+            uint32_t numberOfBones = 0;
+            uint32_t instanceCount = 0;
+        };
+
         RRenderData mRenderData{};
         ModelAndInstanceData mModelInstData{};
 
@@ -105,7 +119,12 @@ namespace RAnimation
         std::vector<glm::mat4> mWorldPosMatrices;
 
         /* for animated models */
-        std::vector<glm::mat4> mModelBoneMatrices;
+        std::vector<RNodeTransformData> mNodeTransformData;
+        std::vector<int32_t> mNodeParentIndices;
+        std::vector<uint32_t> mBoneNodeIndices;
+        std::vector<glm::mat4> mBoneOffsetMatrices;
+        std::vector<glm::mat4> mModelRootMatrices;
+        std::vector<AnimatedDispatch> mAnimatedDispatches;
 
         bool mDepthAttachmentInitialized = false;
     };

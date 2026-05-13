@@ -126,6 +126,15 @@ glm::mat4 Node::GetTRSMatrix()
     return mLocalTRSMatrix;
 }
 
+RNodeTransformData Node::GetNodeTransformData() const
+{
+    RNodeTransformData transformData = {};
+    transformData.translation = glm::vec4(mTranslation, 0.0f);
+    transformData.scale = glm::vec4(mScaling, 0.0f);
+    transformData.rotation = glm::vec4(mRotation.x, mRotation.y, mRotation.z, mRotation.w);
+    return transformData;
+}
+
 std::string Node::GetNodeName()
 {
     return mNodeName;

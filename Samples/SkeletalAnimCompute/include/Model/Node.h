@@ -6,6 +6,8 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/quaternion.hpp>
 
+#include <Model/RenderData.h>
+
 namespace RAnimation
 {
     class Node : public std::enable_shared_from_this<Node>
@@ -28,6 +30,7 @@ namespace RAnimation
 
         void UpdateTRSMatrix();
         glm::mat4 GetTRSMatrix();
+        RNodeTransformData GetNodeTransformData() const;
 
         std::string GetNodeName();
         std::shared_ptr<Node> GetParentNode();
