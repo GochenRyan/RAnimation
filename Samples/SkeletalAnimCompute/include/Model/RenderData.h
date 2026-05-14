@@ -167,6 +167,7 @@ namespace RAnimation
         nri::Format rdDepthFormat = nri::Format::UNKNOWN;
         nri::Texture* rdDepthTexture = nullptr;
         nri::Descriptor* rdDepthAttachment = nullptr;
+        nri::Memory* rdDepthMemory = nullptr;
 
         nri::Descriptor* anisotropicSampler = nullptr;
 

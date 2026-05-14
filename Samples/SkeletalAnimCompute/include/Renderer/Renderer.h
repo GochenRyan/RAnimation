@@ -80,6 +80,9 @@ namespace RAnimation
         bool createDescriptorSetLayouts();
         bool createDescriptorSets();
         bool createSwapchainTextures();
+        bool createDepthAttachmentResources();
+        bool recreateSwapchain();
+        void destroySwapchainResources();
 
         void updateTriangleCount();
         void focusCameraOnPoint(const glm::vec3& focusPoint);
@@ -127,5 +130,6 @@ namespace RAnimation
         std::vector<AnimatedDispatch> mAnimatedDispatches;
 
         bool mDepthAttachmentInitialized = false;
+        bool mSwapchainRecreateRequested = false;
     };
 } // namespace RAnimation

@@ -170,10 +170,10 @@ bool Renderer::Init(unsigned int width, unsigned int height)
 
     createMatrixUBO();
     createSSBOs();
+    allocateAndBindMemory();
+
     createSwapchain();
     createSwapchainTextures();
-
-    allocateAndBindMemory();
 
     createQueuedFrames();
     createDescriptorSetLayouts();
@@ -218,13 +218,27 @@ void Renderer::SetSize(unsigned int width, unsigned int height)
         return;
     }
 
+    if (mRenderData.rdOutputResolution.x == width && mRenderData.rdOutputResolution.y == height)
+    {
+        return;
+    }
+
     mRenderData.rdOutputResolution = {width, height};
+    if (mRenderData.rdSwapChain != nullptr)
+    {
+        mSwapchainRecreateRequested = true;
+    }
 }
 
 bool Renderer::Draw(float deltaTime)
 {
     mRenderData.rdFrameTime = mFrameTimer.Stop();
     mFrameTimer.Start();
+
+    if (mSwapchainRecreateRequested && !recreateSwapchain())
+    {
+        return false;
+    }
 
     latencySleep(mFrameIndex);
 
@@ -236,8 +250,14 @@ bool Renderer::Draw(float deltaTime)
 
     const uint32_t recycledSemaphoreIndex = mFrameIndex % mRenderData.rdSwapChainTextures.size();
     nri::Fence* acquiredSemaphore = mRenderData.rdSwapChainTextures[recycledSemaphoreIndex].acquireSemaphore;
-    NRI_ABORT_ON_FAILURE(mRenderData.NRI.AcquireNextTexture(
-            *mRenderData.rdSwapChain, *acquiredSemaphore, queuedFrame.swapChainTextureIndex));
+    const nri::Result acquireResult = mRenderData.NRI.AcquireNextTexture(
+            *mRenderData.rdSwapChain, *acquiredSemaphore, queuedFrame.swapChainTextureIndex);
+    if (acquireResult == nri::Result::OUT_OF_DATE)
+    {
+        mSwapchainRecreateRequested = true;
+        return true;
+    }
+    NRI_ABORT_ON_FAILURE(acquireResult);
 
     const float safeDeltaTime = std::max(deltaTime, 0.000001f);
 
@@ -283,8 +303,16 @@ bool Renderer::Draw(float deltaTime)
     AI_LOG("[AI] frame={} submit\n", mFrameIndex);
     NRI_ABORT_ON_FAILURE(mRenderData.NRI.QueueSubmit(*mRenderData.rdGraphicsQueue, queueSubmitDesc));
     AI_LOG("[AI] frame={} present\n", mFrameIndex);
-    NRI_ABORT_ON_FAILURE(mRenderData.NRI.QueuePresent(*mRenderData.rdSwapChain, *releaseSemaphore));
-    mRenderData.rdSwapChainTextures[queuedFrame.swapChainTextureIndex].hasBeenPresented = true;
+    const nri::Result presentResult = mRenderData.NRI.QueuePresent(*mRenderData.rdSwapChain, *releaseSemaphore);
+    if (presentResult == nri::Result::OUT_OF_DATE)
+    {
+        mSwapchainRecreateRequested = true;
+    }
+    else
+    {
+        NRI_ABORT_ON_FAILURE(presentResult);
+        mRenderData.rdSwapChainTextures[queuedFrame.swapChainTextureIndex].hasBeenPresented = true;
+    }
     mRenderData.NRI.EndStreamerFrame(*mRenderData.rdStreamer);
 
     ++mFrameIndex;
@@ -1134,14 +1162,8 @@ void Renderer::Cleanup()
     mRenderData.NRI.DestroyPipelineLayout(mRenderData.rdComputeTransformPipelineLayout);
     mRenderData.NRI.DestroyPipelineLayout(mRenderData.rdComputeMatrixMultPipelineLayout);
 
-    for (SwapChainTexture& swapChainTexture : mRenderData.rdSwapChainTextures)
-    {
-        mRenderData.NRI.DestroyDescriptor(swapChainTexture.colorAttachment);
-        mRenderData.NRI.DestroyFence(swapChainTexture.acquireSemaphore);
-        mRenderData.NRI.DestroyFence(swapChainTexture.releaseSemaphore);
-    }
+    destroySwapchainResources();
 
-    mRenderData.NRI.DestroyDescriptor(mRenderData.rdDepthAttachment);
     mRenderData.NRI.DestroyDescriptor(mRenderData.anisotropicSampler);
     mRenderData.NRI.DestroyDescriptorPool(mRenderData.rdDescriptorPool);
 
@@ -1150,8 +1172,6 @@ void Renderer::Cleanup()
         mRenderData.NRI.DestroyBuffer(buffer);
     }
 
-    mRenderData.NRI.DestroyTexture(mRenderData.rdDepthTexture);
-
     for (nri::Memory* memory : mRenderData.rdMemoryAllocations)
     {
         mRenderData.NRI.FreeMemory(memory);
@@ -1159,7 +1179,6 @@ void Renderer::Cleanup()
 
     mRenderData.NRI.DestroyStreamer(mRenderData.rdStreamer);
     mRenderData.NRI.DestroyFence(mRenderData.rdFrameFence);
-    mRenderData.NRI.DestroySwapChain(mRenderData.rdSwapChain);
     nri::nriDestroyDevice(mRenderData.rdDevice);
 
     mRenderData = {};
@@ -1553,26 +1572,6 @@ bool Renderer::allocateAndBindMemory()
         return false;
     }
 
-    nri::Texture* deviceTextures[] = {mRenderData.rdDepthTexture};
-
-    if (!allocGroup(nri::MemoryLocation::DEVICE, nullptr, 0, deviceTextures, std::size(deviceTextures)))
-    {
-        fmt::print(stderr,
-                   fg(fmt::color::red),
-                   "{} error: failed to allocate and bind memory for textures\n",
-                   __FUNCTION__);
-        return false;
-    }
-
-    if (mRenderData.rdDepthTexture != nullptr && mRenderData.rdDepthAttachment == nullptr)
-    {
-        nri::Texture2DViewDesc texture2DViewDesc = {mRenderData.rdDepthTexture,
-                                                    nri::Texture2DViewType::DEPTH_STENCIL_ATTACHMENT,
-                                                    mRenderData.rdDepthFormat};
-
-        NRI_ABORT_ON_FAILURE(mRenderData.NRI.CreateTexture2DView(texture2DViewDesc, mRenderData.rdDepthAttachment));
-    }
-
     mRenderData.rdMemoryAllocations = std::move(allocations);
 
     return true;
@@ -1874,25 +1873,14 @@ bool Renderer::createSwapchainTextures()
     nri::Texture* const* swapChainTextures = mRenderData.NRI.GetSwapChainTextures(*mRenderData.rdSwapChain,
                                                                                   swapChainTextureNum);
     nri::Format swapChainFormat = mRenderData.NRI.GetTextureDesc(*swapChainTextures[0]).format;
-    mRenderData.rdDepthFormat = nri::GetSupportedDepthFormat(mRenderData.NRI, *mRenderData.rdDevice, 24, true);
 
-    // Depth attachment
-    nri::Texture* depthTexture = nullptr;
+    if (!createDepthAttachmentResources())
     {
-        nri::TextureDesc textureDesc = {};
-        textureDesc.type = nri::TextureType::TEXTURE_2D;
-        textureDesc.usage = nri::TextureUsageBits::DEPTH_STENCIL_ATTACHMENT;
-        textureDesc.format = mRenderData.rdDepthFormat;
-        textureDesc.width = static_cast<uint16_t>(mRenderData.rdOutputResolution.x);
-        textureDesc.height = static_cast<uint16_t>(mRenderData.rdOutputResolution.y);
-        textureDesc.mipNum = 1;
-
-        NRI_ABORT_ON_FAILURE(mRenderData.NRI.CreateTexture(*mRenderData.rdDevice, textureDesc, depthTexture));
-        mRenderData.rdTextures.push_back(depthTexture);
-        mRenderData.rdDepthTexture = depthTexture;
+        return false;
     }
 
     // Swap chain attachments
+    mRenderData.rdSwapChainTextures.clear();
     for (uint32_t i = 0; i < swapChainTextureNum; i++)
     {
         nri::Texture2DViewDesc textureViewDesc = {swapChainTextures[i],
@@ -1920,6 +1908,112 @@ bool Renderer::createSwapchainTextures()
         swapChainTexture.attachmentFormat = swapChainFormat;
     }
     return true;
+}
+
+bool Renderer::createDepthAttachmentResources()
+{
+    mRenderData.rdDepthFormat = nri::GetSupportedDepthFormat(mRenderData.NRI, *mRenderData.rdDevice, 24, true);
+
+    nri::TextureDesc textureDesc = {};
+    textureDesc.type = nri::TextureType::TEXTURE_2D;
+    textureDesc.usage = nri::TextureUsageBits::DEPTH_STENCIL_ATTACHMENT;
+    textureDesc.format = mRenderData.rdDepthFormat;
+    textureDesc.width = static_cast<uint16_t>(mRenderData.rdOutputResolution.x);
+    textureDesc.height = static_cast<uint16_t>(mRenderData.rdOutputResolution.y);
+    textureDesc.mipNum = 1;
+
+    NRI_ABORT_ON_FAILURE(mRenderData.NRI.CreateTexture(*mRenderData.rdDevice, textureDesc, mRenderData.rdDepthTexture));
+
+    nri::ResourceGroupDesc resourceGroupDesc = {};
+    resourceGroupDesc.memoryLocation = nri::MemoryLocation::DEVICE;
+    resourceGroupDesc.textureNum = 1;
+    resourceGroupDesc.textures = &mRenderData.rdDepthTexture;
+
+    NRI_ABORT_ON_FAILURE(mRenderData.NRI.AllocateAndBindMemory(*mRenderData.rdDevice,
+                                                               resourceGroupDesc,
+                                                               &mRenderData.rdDepthMemory));
+
+    nri::Texture2DViewDesc texture2DViewDesc = {mRenderData.rdDepthTexture,
+                                                nri::Texture2DViewType::DEPTH_STENCIL_ATTACHMENT,
+                                                mRenderData.rdDepthFormat};
+
+    NRI_ABORT_ON_FAILURE(mRenderData.NRI.CreateTexture2DView(texture2DViewDesc, mRenderData.rdDepthAttachment));
+
+    return true;
+}
+
+bool Renderer::recreateSwapchain()
+{
+    if (mRenderData.rdOutputResolution.x == 0 || mRenderData.rdOutputResolution.y == 0)
+    {
+        return true;
+    }
+
+    NRI_ABORT_ON_FAILURE(mRenderData.NRI.QueueWaitIdle(mRenderData.rdGraphicsQueue));
+
+    destroySwapchainResources();
+
+    if (!createSwapchain() || !createSwapchainTextures())
+    {
+        return false;
+    }
+
+    for (QueuedFrame& queuedFrame : mRenderData.rdQueuedFrames)
+    {
+        queuedFrame.swapChainTextureIndex = 0;
+    }
+
+    mDepthAttachmentInitialized = false;
+    mSwapchainRecreateRequested = false;
+
+    return true;
+}
+
+void Renderer::destroySwapchainResources()
+{
+    for (SwapChainTexture& swapChainTexture : mRenderData.rdSwapChainTextures)
+    {
+        if (swapChainTexture.colorAttachment != nullptr)
+        {
+            mRenderData.NRI.DestroyDescriptor(swapChainTexture.colorAttachment);
+        }
+        if (swapChainTexture.acquireSemaphore != nullptr)
+        {
+            mRenderData.NRI.DestroyFence(swapChainTexture.acquireSemaphore);
+        }
+        if (swapChainTexture.releaseSemaphore != nullptr)
+        {
+            mRenderData.NRI.DestroyFence(swapChainTexture.releaseSemaphore);
+        }
+    }
+    mRenderData.rdSwapChainTextures.clear();
+
+    if (mRenderData.rdDepthAttachment != nullptr)
+    {
+        mRenderData.NRI.DestroyDescriptor(mRenderData.rdDepthAttachment);
+        mRenderData.rdDepthAttachment = nullptr;
+    }
+
+    if (mRenderData.rdDepthTexture != nullptr)
+    {
+        mRenderData.NRI.DestroyTexture(mRenderData.rdDepthTexture);
+        mRenderData.rdDepthTexture = nullptr;
+    }
+
+    if (mRenderData.rdDepthMemory != nullptr)
+    {
+        mRenderData.NRI.FreeMemory(mRenderData.rdDepthMemory);
+        mRenderData.rdDepthMemory = nullptr;
+    }
+
+    if (mRenderData.rdSwapChain != nullptr)
+    {
+        mRenderData.NRI.DestroySwapChain(mRenderData.rdSwapChain);
+        mRenderData.rdSwapChain = nullptr;
+    }
+
+    mRenderData.rdDepthFormat = nri::Format::UNKNOWN;
+    mDepthAttachmentInitialized = false;
 }
 
 void Renderer::updateTriangleCount()
