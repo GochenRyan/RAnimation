@@ -177,7 +177,7 @@ struct RComputePushConstants
 - `modelRootOffset`：当前模型这批实例的 model root matrix 起点。
 - `numberOfNodes`：一个实例包含多少 node，作为 node stride。
 - `numberOfBones`：一个实例包含多少 bone，作为 bone stride。
-- `instanceCount`：这一批实例数，用于 shader 越界保护或未来 padding 策略。
+- `instanceCount`：这一批真实实例数，用于 shader 越界保护。
 
 `numberOfNodes` 和 `numberOfBones` 分开，是因为 node tree 和 bone list 不是同一个概念。bone 是被 mesh 权重引用的 node；node tree 里可能有 root、armature、helper、坐标修正节点或非直接受权重影响的中间节点。若只按 bone list 计算父链，某些模型会漏掉中间父节点变换。
 
@@ -193,20 +193,25 @@ struct RComputePushConstants
 for each model group:
   if animated:
     build node name -> node index map
+    precompute local parent indices once
+    precompute local bone node indices once
+    precompute local bone offset matrices once
     create AnimatedDispatch
     for each instance:
       instance->UpdateAnimationState(deltaTime)
       append instance local root matrix
       append every node's RNodeTransformData
-      append every node's parent index
-      append every bone's node index
-      append every bone's offset matrix
+      append every node's parent index using precomputed local parent index
+      append every bone's node index using precomputed local bone node index
+      append every bone's offset matrix using precomputed local bone offset
     append AnimatedDispatch
   else:
     append instance world matrix
 
 upload packed CPU vectors to queued frame buffer slices
 ```
+
+当前实现保留了 CPU 侧批次级预计算，这是一次重要优化。旧写法会在每个 instance 内重复做 parent name 查找、bone name 查找、临时 bone index/offset vector 构造；现在这些只按 model batch 计算一次，每个 instance 只做连续写入。
 
 `UpdateAnimationState()` 是从旧 `UpdateAnimation()` 中拆出来的轻量路径：
 
@@ -501,15 +506,21 @@ nodeIndex = node + numberOfNodes * instance + nodeTransformOffset
 - y 维负责 instance。
 - 每个 group 在 y 维有 32 个线程。
 
-CPU dispatch 时通常要把实例数向上取整到 32：
+CPU dispatch 时按真实实例数向上取整得到 group 数：
 
 ```text
 dispatchY = ceil(instanceCount / 32)
 ```
 
-如果实例数不是 32 的倍数，最后一个 group 会产生多余线程。`instanceCount` 用于让 shader 判断这些线程是否有效。
+因为 compute shader 使用 `[numthreads(1, 32, 1)]`，当实例数不是 32 的倍数时，最后一个 group 会产生额外线程。例如 2001 个实例会 dispatch 63 个 y group，总线程覆盖 2016 个 y index，其中最后 15 个 instance index 是无效的。
 
-未来如果改为 padding 策略，也可以让 CPU 把每批实例补齐到 32 的倍数，并为 padded instance 写 dummy data。那样 shader 可以去掉 `instance >= instanceCount` 分支，但 CPU 打包逻辑和 buffer 占用会增加。
+因此当前 shader 保留 bounds branch：
+
+```hlsl
+if (node >= numberOfNodes || instance >= instanceCount) return;
+```
+
+`instanceCount` 表示真实实例数。graphics draw 也使用同一个真实实例数，不会绘制额外 dummy instance。
 
 ## 12. 相对 SkeletalAnimation 的文件级改动
 
@@ -717,14 +728,15 @@ set 1:
 
 ## 17. 后续优化路线
 
-### 17.1 去掉 shader 越界分支
+### 17.1 Padding 去掉 shader 越界分支
 
-可选方案：
+这是一个可选优化，不是当前采用的默认方案。
 
 - CPU 把每批 instance 数补齐到 32 的倍数。
 - padded instance 写 identity TRS、identity root、identity offset、安全 parent/bone-node index。
-- compute dispatch 使用 padded count。
+- compute dispatch 使用 padded count，Y 维为 `paddedInstanceCount / 32`。
 - graphics draw 仍使用真实 instance count。
+- graphics draw 的 `boneMatrixOffset` 按 padded bone matrix 数推进，保证下一批 model 读取到正确起点。
 
 这样可以去掉：
 
@@ -732,7 +744,16 @@ set 1:
 if (node >= numberOfNodes || instance >= instanceCount) return;
 ```
 
-但 CPU 打包更复杂，buffer 占用略增。
+实验结果显示，在 2001 个 `Woman.gltf` 实例的场景里，主要性能收益来自 CPU 侧批次级预计算，而不是 padding/去 shader 分支。原因是 2001 补齐到 2016 只增加 15 个 dummy instance，最后一个 y group 的越界线程占比很小；去掉 shader branch 的理论收益有限。
+
+padding 的代价：
+
+- CPU 打包逻辑更复杂。
+- buffer 占用增加。
+- 小批次会浪费更多，例如 1 个实例也要补齐到 32 个 compute slot。
+- graphics draw 仍然只能绘制真实实例数，但 `boneMatrixOffset` 必须按 padded bone matrix 数推进，维护成本更高。
+
+因此当前版本选择保留 shader 越界分支，并优先保留 CPU 侧 parent/bone 映射预计算。
 
 ### 17.2 静态数据常驻 GPU
 

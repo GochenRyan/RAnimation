@@ -349,7 +349,7 @@ bool Renderer::updateModelBuffer(float deltaTime)
             const auto& bones = model->GetBoneList();
             const uint32_t nodeCount = static_cast<uint32_t>(nodes.size());
             const uint32_t boneCount = static_cast<uint32_t>(bones.size());
-            const uint32_t instanceCount = static_cast<uint32_t>(modelType.second.size());
+            const uint32_t realInstanceCount = static_cast<uint32_t>(modelType.second.size());
 
             if (nodeCount == 0)
             {
@@ -368,15 +368,62 @@ bool Renderer::updateModelBuffer(float deltaTime)
                 nodeIndices[nodes[nodeIndex]->GetNodeName()] = nodeIndex;
             }
 
+            std::vector<int32_t> localParentIndices(nodeCount, -1);
+            for (uint32_t nodeIndex = 0; nodeIndex < nodeCount; ++nodeIndex)
+            {
+                const auto parentNode = nodes[nodeIndex]->GetParentNode();
+                if (parentNode == nullptr)
+                {
+                    continue;
+                }
+
+                const auto parentIter = nodeIndices.find(parentNode->GetNodeName());
+                localParentIndices[nodeIndex] =
+                        parentIter != nodeIndices.end() ? static_cast<int32_t>(parentIter->second) : -1;
+            }
+
+            std::vector<uint32_t> localBoneNodeIndices(boneCount, 0);
+            std::vector<glm::mat4> localBoneOffsets(boneCount, glm::mat4(1.0f));
+            for (const auto& bone : bones)
+            {
+                const uint32_t boneId = bone->GetBoneId();
+                if (boneId >= boneCount)
+                {
+                    fmt::print(stderr,
+                               fg(fmt::color::red),
+                               "{} error: model '{}' has bone id {} outside bone count {}\n",
+                               __FUNCTION__,
+                               model->GetModelFileName(),
+                               boneId,
+                               boneCount);
+                    return false;
+                }
+
+                const auto nodeIter = nodeIndices.find(bone->GetBoneName());
+                if (nodeIter == nodeIndices.end())
+                {
+                    fmt::print(stderr,
+                               fg(fmt::color::red),
+                               "{} error: bone '{}' has no matching node in model '{}'\n",
+                               __FUNCTION__,
+                               bone->GetBoneName(),
+                               model->GetModelFileName());
+                    return false;
+                }
+
+                localBoneNodeIndices[boneId] = nodeIter->second;
+                localBoneOffsets[boneId] = bone->GetOffsetMatrix();
+            }
+
             AnimatedDispatch dispatch = {};
             dispatch.nodeTransformOffset = static_cast<uint32_t>(mNodeTransformData.size());
             dispatch.boneMatrixOffset = static_cast<uint32_t>(mBoneOffsetMatrices.size());
             dispatch.modelRootOffset = static_cast<uint32_t>(mModelRootMatrices.size());
             dispatch.numberOfNodes = nodeCount;
             dispatch.numberOfBones = boneCount;
-            dispatch.instanceCount = instanceCount;
+            dispatch.instanceCount = realInstanceCount;
 
-            for (uint32_t instanceIndex = 0; instanceIndex < instanceCount; ++instanceIndex)
+            for (uint32_t instanceIndex = 0; instanceIndex < realInstanceCount; ++instanceIndex)
             {
                 const auto& instance = modelType.second[instanceIndex];
 
@@ -389,61 +436,20 @@ bool Renderer::updateModelBuffer(float deltaTime)
                 const uint32_t nodeBase = dispatch.nodeTransformOffset + instanceIndex * nodeCount;
                 for (uint32_t nodeIndex = 0; nodeIndex < nodeCount; ++nodeIndex)
                 {
-                    const auto& node = nodes[nodeIndex];
-                    mNodeTransformData.emplace_back(node->GetNodeTransformData());
+                    mNodeTransformData.emplace_back(nodes[nodeIndex]->GetNodeTransformData());
 
-                    const auto parentNode = node->GetParentNode();
-                    if (parentNode == nullptr)
-                    {
-                        mNodeParentIndices.emplace_back(-1);
-                        continue;
-                    }
-
-                    const auto parentIter = nodeIndices.find(parentNode->GetNodeName());
-                    mNodeParentIndices.emplace_back(parentIter != nodeIndices.end()
-                                                            ? static_cast<int32_t>(nodeBase + parentIter->second)
+                    const int32_t localParentIndex = localParentIndices[nodeIndex];
+                    mNodeParentIndices.emplace_back(localParentIndex >= 0
+                                                            ? static_cast<int32_t>(
+                                                                      nodeBase + static_cast<uint32_t>(localParentIndex))
                                                             : -1);
                 }
 
-                std::vector<uint32_t> instanceBoneNodeIndices(boneCount, 0);
-                std::vector<glm::mat4> instanceBoneOffsets(boneCount, glm::mat4(1.0f));
-                for (const auto& bone : bones)
+                for (uint32_t boneIndex = 0; boneIndex < boneCount; ++boneIndex)
                 {
-                    const uint32_t boneId = bone->GetBoneId();
-                    if (boneId >= boneCount)
-                    {
-                        fmt::print(stderr,
-                                   fg(fmt::color::red),
-                                   "{} error: model '{}' has bone id {} outside bone count {}\n",
-                                   __FUNCTION__,
-                                   model->GetModelFileName(),
-                                   boneId,
-                                   boneCount);
-                        return false;
-                    }
-
-                    const auto nodeIter = nodeIndices.find(bone->GetBoneName());
-                    if (nodeIter == nodeIndices.end())
-                    {
-                        fmt::print(stderr,
-                                   fg(fmt::color::red),
-                                   "{} error: bone '{}' has no matching node in model '{}'\n",
-                                   __FUNCTION__,
-                                   bone->GetBoneName(),
-                                   model->GetModelFileName());
-                        return false;
-                    }
-
-                    instanceBoneNodeIndices[boneId] = nodeBase + nodeIter->second;
-                    instanceBoneOffsets[boneId] = bone->GetOffsetMatrix();
+                    mBoneNodeIndices.emplace_back(nodeBase + localBoneNodeIndices[boneIndex]);
+                    mBoneOffsetMatrices.emplace_back(localBoneOffsets[boneIndex]);
                 }
-
-                mBoneNodeIndices.insert(mBoneNodeIndices.end(),
-                                        instanceBoneNodeIndices.begin(),
-                                        instanceBoneNodeIndices.end());
-                mBoneOffsetMatrices.insert(mBoneOffsetMatrices.end(),
-                                           instanceBoneOffsets.begin(),
-                                           instanceBoneOffsets.end());
             }
 
             mAnimatedDispatches.emplace_back(dispatch);
@@ -731,12 +737,13 @@ bool Renderer::recordCommandBuffer()
 
             if (model->HasAnimations() && !model->GetBoneList().empty())
             {
+                const uint32_t boneCount = static_cast<uint32_t>(model->GetBoneList().size());
+
                 RPushConstants pushConstants = {};
-                pushConstants.modelStride = static_cast<int>(model->GetBoneList().size());
+                pushConstants.modelStride = static_cast<int>(boneCount);
                 pushConstants.worldPosOffset = static_cast<int>(boneMatrixOffset);
 
-                const uint32_t requiredBoneMatrices = instanceCount *
-                                                      static_cast<uint32_t>(model->GetBoneList().size());
+                const uint32_t requiredBoneMatrices = instanceCount * boneCount;
                 if (boneMatrixOffset + requiredBoneMatrices > mBoneOffsetMatrices.size())
                 {
                     fmt::print(stderr,
@@ -770,7 +777,7 @@ bool Renderer::recordCommandBuffer()
                                                     {1, queuedFrame.skinnedDescriptorSet, nri::BindPoint::GRAPHICS});
                 model->DrawInstanced(mRenderData, instanceCount);
 
-                boneMatrixOffset += instanceCount * static_cast<uint32_t>(model->GetBoneList().size());
+                boneMatrixOffset += requiredBoneMatrices;
             }
             else
             {
