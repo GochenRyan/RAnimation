@@ -45,6 +45,11 @@ glm::mat4 ModelInstance::GetWorldTransformMatrix()
     return mInstanceRootMatrix;
 }
 
+glm::mat4 ModelInstance::GetLocalTransformMatrix()
+{
+    return mLocalTransformMatrix;
+}
+
 void ModelInstance::SetTranslation(glm::vec3 position)
 {
     mInstanceSettings.mWorldPosition = position;
@@ -136,6 +141,38 @@ void ModelInstance::UpdateModelRootMatrix()
 
 void ModelInstance::UpdateAnimation(float deltaTime)
 {
+    UpdateAnimationState(deltaTime);
+
+    /* apply only the per-instance transform here; the root node already stores the imported local transform */
+    mModel->GetRootNode()->SetRootTransformMatrix(mLocalTransformMatrix);
+
+    /* flat node map contains nodes in parent->child order, starting with root node, update matrices down the skeleton
+     * tree */
+    for (auto& node : mModel->GetNodeList())
+    {
+        node->UpdateTRSMatrix();
+    }
+
+    mBoneMatrices.assign(mModel->GetBoneList().size(), glm::mat4(1.0f));
+    for (const auto& bone : mModel->GetBoneList())
+    {
+        const auto nodeIter = mModel->GetNodeMap().find(bone->GetBoneName());
+        if (nodeIter == mModel->GetNodeMap().end())
+        {
+            fmt::print(stderr,
+                       "{} warning: bone '{}' has no matching node in model '{}'\n",
+                       __FUNCTION__,
+                       bone->GetBoneName(),
+                       mModel->GetModelFileName());
+            continue;
+        }
+
+        mBoneMatrices.at(bone->GetBoneId()) = nodeIter->second->GetTRSMatrix() * bone->GetOffsetMatrix();
+    }
+}
+
+void ModelInstance::UpdateAnimationState(float deltaTime)
+{
     const auto& animClips = mModel->GetAnimClips();
     if (animClips.empty())
     {
@@ -204,32 +241,5 @@ void ModelInstance::UpdateAnimation(float deltaTime)
         {
             node->SetTranslation(channel->GetTranslation(mInstanceSettings.mAnimPlayTimePos));
         }
-    }
-
-    /* apply only the per-instance transform here; the root node already stores the imported local transform */
-    mModel->GetRootNode()->SetRootTransformMatrix(mLocalTransformMatrix);
-
-    /* flat node map contains nodes in parent->child order, starting with root node, update matrices down the skeleton
-     * tree */
-    for (auto& node : mModel->GetNodeList())
-    {
-        node->UpdateTRSMatrix();
-    }
-
-    mBoneMatrices.assign(mModel->GetBoneList().size(), glm::mat4(1.0f));
-    for (const auto& bone : mModel->GetBoneList())
-    {
-        const auto nodeIter = mModel->GetNodeMap().find(bone->GetBoneName());
-        if (nodeIter == mModel->GetNodeMap().end())
-        {
-            fmt::print(stderr,
-                       "{} warning: bone '{}' has no matching node in model '{}'\n",
-                       __FUNCTION__,
-                       bone->GetBoneName(),
-                       mModel->GetModelFileName());
-            continue;
-        }
-
-        mBoneMatrices.at(bone->GetBoneId()) = nodeIter->second->GetTRSMatrix() * bone->GetOffsetMatrix();
     }
 }

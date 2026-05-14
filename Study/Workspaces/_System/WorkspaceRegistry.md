@@ -47,6 +47,20 @@
 - 默认读写范围：
   - `S:\Github\RAnimation\Study\Workspaces\SkeletalAnimation`
 
+### `SkeletalAnimCompute`
+
+- 角色：sample 级工作区。
+- 对应源码：
+  - `S:\Github\RAnimation\Samples\SkeletalAnimCompute`
+  - `S:\Github\RAnimation\Assets\SkeletalAnimCompute`
+- 负责内容：
+  - `SkeletalAnimCompute` 专属 Wiki
+  - compute skinning 管线分析
+  - GPU/CPU skinning matrix 对拍
+  - ComputePipeline、descriptor、barrier、shader 调试复盘
+- 默认读写范围：
+  - `S:\Github\RAnimation\Study\Workspaces\SkeletalAnimCompute`
+
 ## 路由规则
 
 ### 当用户提到具体 sample 名时
@@ -73,10 +87,10 @@
 
 ## 当前仓库的现实约束
 
-- 当前 `Samples` 目录下只有一个 sample：`SkeletalAnimation`
-- 因此凡是“所有 Samples”的请求，当前执行时仍然要显式注明：
-  - 本次范围实际只包含 `SkeletalAnimation`
-  - 结论写在 `_Comprehensive` 中，但证据当前来自这个 sample
+- 当前已建立学习工作区的 sample 包含：
+  - `SkeletalAnimation`
+  - `SkeletalAnimCompute`
+- 凡是“所有 Samples”的请求，仍需要以实际 `Samples` 目录为准，不应只依据已建立 workspace 的列表。
 
 ## 将来新增 Sample 的规则
 
