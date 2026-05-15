@@ -8,6 +8,7 @@
 #include <glm/glm.hpp>
 #include <ml.h>
 
+#include <Renderer/RenderResourceBudget.h>
 #include <RHIWrap/NRIInterface.h>
 #include <RHIWrap/Utils.h>
 
@@ -119,6 +120,8 @@ namespace RAnimation
 
         unsigned int rdTriangleCount = 0;
         unsigned int rdMatricesSize = 0;
+        RenderResourceBudget rdResourceBudget{};
+        RenderResourceBudgetUsage rdResourceBudgetUsage{};
 
         int rdFieldOfView = 60;
 

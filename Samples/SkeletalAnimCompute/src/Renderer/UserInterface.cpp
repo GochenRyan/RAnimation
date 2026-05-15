@@ -1,4 +1,5 @@
 #include <algorithm>
+#include <cstdio>
 #include <filesystem>
 #include <limits>
 
@@ -19,6 +20,59 @@ using namespace RAnimation;
 
 namespace
 {
+    const char* GetRenderResourceTierName(RenderResourceTier tier)
+    {
+        switch (tier)
+        {
+            case RenderResourceTier::Unsupported:
+                return "Unsupported";
+            case RenderResourceTier::Low:
+                return "Low";
+            case RenderResourceTier::Medium:
+                return "Medium";
+            case RenderResourceTier::High:
+                return "High";
+            default:
+                return "Unknown";
+        }
+    }
+
+    std::string FormatBytes(uint64_t bytes)
+    {
+        const char* unit = "B";
+        double value = static_cast<double>(bytes);
+        if (value >= 1024.0 * 1024.0)
+        {
+            value /= 1024.0 * 1024.0;
+            unit = "MB";
+        }
+        else if (value >= 1024.0)
+        {
+            value /= 1024.0;
+            unit = "KB";
+        }
+
+        char buffer[64] = {};
+        std::snprintf(buffer, sizeof(buffer), "%.2f %s", value, unit);
+        return buffer;
+    }
+
+    float GetUsageRatio(uint64_t used, uint64_t limit)
+    {
+        if (limit == 0)
+        {
+            return 0.0f;
+        }
+
+        return std::clamp(static_cast<float>(static_cast<double>(used) / static_cast<double>(limit)), 0.0f, 1.0f);
+    }
+
+    void DrawBudgetRow(const char* label, uint64_t used, uint64_t limit)
+    {
+        ImGui::Text("%-20s %8llu / %-8llu", label, static_cast<unsigned long long>(used), static_cast<unsigned long long>(limit));
+        ImGui::ProgressBar(GetUsageRatio(used, limit), ImVec2(-1.0f, 0.0f));
+    }
+
     void PushRollingValue(std::vector<float>& values, int& offset, int maxNum, float value)
     {
         if (values.empty())
@@ -173,6 +227,23 @@ void UserInterface::CreateFrame(RRenderData& renderData, ModelAndInstanceData& m
 
         std::string imgWindowPos = std::to_string(static_cast<int>(ImGui::GetWindowPos().x)) + "/" + std::to_string(static_cast<int>(ImGui::GetWindowPos().y));
         ImGui::Text("ImGui Window Position:  %10s", imgWindowPos.c_str());
+    }
+
+    if (ImGui::CollapsingHeader("Budget", ImGuiTreeNodeFlags_DefaultOpen))
+    {
+        const RenderResourceBudget& budget = renderData.rdResourceBudget;
+        const RenderResourceBudgetUsage& usage = renderData.rdResourceBudgetUsage;
+
+        ImGui::Text("Tier:                  %10s", GetRenderResourceTierName(budget.tier));
+        ImGui::Text("Animation Budget:      %10s", FormatBytes(budget.animationMemoryBudget).c_str());
+        ImGui::Text("Estimated Max Total:   %10s", FormatBytes(budget.estimatedAnimationBufferBytesTotal).c_str());
+        ImGui::Text("Current Upload:        %10s", FormatBytes(usage.uploadBytes).c_str());
+        ImGui::Separator();
+
+        DrawBudgetRow("Static World", usage.staticWorldMatrices, budget.maxWorldMatrices);
+        DrawBudgetRow("Animated Instances", usage.animatedInstances, budget.maxWorldMatrices);
+        DrawBudgetRow("Bone Matrices", usage.boneMatrices, budget.GetMaxBoneMatrices());
+        DrawBudgetRow("Node Transforms", usage.nodeTransforms, budget.GetMaxNodeTransforms());
     }
 
     if (ImGui::CollapsingHeader("Camera", ImGuiTreeNodeFlags_DefaultOpen))

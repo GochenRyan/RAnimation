@@ -2,6 +2,7 @@
 #include <cmath>
 #include <cstring>
 #include <filesystem>
+#include <limits>
 #include <unordered_map>
 
 #include <fmt/base.h>
@@ -22,13 +23,145 @@ using namespace RAnimation;
 
 namespace
 {
-    constexpr uint32_t MAX_WORLD_MATRICES = 4096;
-    constexpr uint32_t MAX_BONE_MATRICES = MAX_WORLD_MATRICES * MAX_BONES;
-    constexpr uint32_t MAX_NODE_TRANSFORMS = MAX_BONE_MATRICES;
-
     uint32_t BufferIndex(BUFFER_INDEX index)
     {
         return static_cast<uint32_t>(index);
+    }
+
+    bool HasUsage(nri::BufferUsageBits usage, nri::BufferUsageBits bit)
+    {
+        return (static_cast<uint32_t>(usage) & static_cast<uint32_t>(bit)) != 0;
+    }
+
+    bool CheckedMultiply(uint64_t lhs, uint64_t rhs, uint64_t& result)
+    {
+        if (lhs != 0 && rhs > std::numeric_limits<uint64_t>::max() / lhs)
+        {
+            return false;
+        }
+
+        result = lhs * rhs;
+        return true;
+    }
+
+    BufferDesc GetCameraBufferDesc()
+    {
+        return {"CameraBuffer",
+                sizeof(RUploadMatrices),
+                1,
+                0,
+                nri::BufferUsageBits::CONSTANT_BUFFER,
+                true};
+    }
+
+    BufferDesc GetWorldMatrixBufferDesc(const RenderResourceBudget& budget)
+    {
+        return {"WorldMatrixBuffer",
+                sizeof(glm::mat4),
+                budget.maxWorldMatrices,
+                sizeof(glm::mat4),
+                nri::BufferUsageBits::SHADER_RESOURCE,
+                true};
+    }
+
+    BufferDesc GetBoneMatrixBufferDesc(const RenderResourceBudget& budget)
+    {
+        return {"BoneMatrixBuffer",
+                sizeof(glm::mat4),
+                budget.GetMaxBoneMatrices(),
+                sizeof(glm::mat4),
+                nri::BufferUsageBits::SHADER_RESOURCE | nri::BufferUsageBits::SHADER_RESOURCE_STORAGE,
+                true};
+    }
+
+    BufferDesc GetNodeTransformBufferDesc(const RenderResourceBudget& budget)
+    {
+        return {"NodeTransformBuffer",
+                sizeof(RNodeTransformData),
+                budget.GetMaxNodeTransforms(),
+                sizeof(RNodeTransformData),
+                nri::BufferUsageBits::SHADER_RESOURCE,
+                true};
+    }
+
+    BufferDesc GetTRSMatrixBufferDesc(const RenderResourceBudget& budget)
+    {
+        return {"TRSMatrixBuffer",
+                sizeof(glm::mat4),
+                budget.GetMaxNodeTransforms(),
+                sizeof(glm::mat4),
+                nri::BufferUsageBits::SHADER_RESOURCE | nri::BufferUsageBits::SHADER_RESOURCE_STORAGE,
+                true};
+    }
+
+    BufferDesc GetModelRootMatrixBufferDesc(const RenderResourceBudget& budget)
+    {
+        return {"ModelRootMatrixBuffer",
+                sizeof(glm::mat4),
+                budget.maxWorldMatrices,
+                sizeof(glm::mat4),
+                nri::BufferUsageBits::SHADER_RESOURCE,
+                true};
+    }
+
+    BufferDesc GetNodeParentIndexBufferDesc(const RenderResourceBudget& budget)
+    {
+        return {"NodeParentIndexBuffer",
+                sizeof(int32_t),
+                budget.GetMaxNodeTransforms(),
+                sizeof(int32_t),
+                nri::BufferUsageBits::SHADER_RESOURCE,
+                true};
+    }
+
+    BufferDesc GetBoneNodeIndexBufferDesc(const RenderResourceBudget& budget)
+    {
+        return {"BoneNodeIndexBuffer",
+                sizeof(uint32_t),
+                budget.GetMaxBoneMatrices(),
+                sizeof(uint32_t),
+                nri::BufferUsageBits::SHADER_RESOURCE,
+                true};
+    }
+
+    BufferDesc GetBoneOffsetMatrixBufferDesc(const RenderResourceBudget& budget)
+    {
+        return {"BoneOffsetMatrixBuffer",
+                sizeof(glm::mat4),
+                budget.GetMaxBoneMatrices(),
+                sizeof(glm::mat4),
+                nri::BufferUsageBits::SHADER_RESOURCE,
+                true};
+    }
+
+    const char* GetRenderResourceTierName(RenderResourceTier tier)
+    {
+        switch (tier)
+        {
+            case RenderResourceTier::Unsupported:
+                return "Unsupported";
+            case RenderResourceTier::Low:
+                return "Low";
+            case RenderResourceTier::Medium:
+                return "Medium";
+            case RenderResourceTier::High:
+                return "High";
+            default:
+                return "Unknown";
+        }
+    }
+
+    const char* GetRenderResourceRejectReasonName(RenderResourceRejectReason reason)
+    {
+        switch (reason)
+        {
+            case RenderResourceRejectReason::None:
+                return "None";
+            case RenderResourceRejectReason::BelowMinimumAnimatedInstances:
+                return "BelowMinimumAnimatedInstances";
+            default:
+                return "Unknown";
+        }
     }
 
     bool IsFiniteMatrix(const glm::mat4& matrix)
@@ -61,46 +194,126 @@ namespace
         return maxAbsValue;
     }
 
-    uint64_t GetCameraBufferSize(const RRenderData& renderData)
+    uint64_t GetBufferAlignment(const RRenderData& renderData, const BufferDesc& bufferDesc)
     {
         const nri::DeviceDesc& deviceDesc = renderData.NRI.GetDeviceDesc(*renderData.rdDevice);
-        return helper::Align<uint64_t>(sizeof(RUploadMatrices), deviceDesc.memoryAlignment.constantBufferOffset);
+        if (HasUsage(bufferDesc.usage, nri::BufferUsageBits::CONSTANT_BUFFER))
+        {
+            return deviceDesc.memoryAlignment.constantBufferOffset;
+        }
+
+        return deviceDesc.memoryAlignment.bufferShaderResourceOffset;
     }
 
-    uint64_t GetAlignedStructuredBufferSize(const RRenderData& renderData, uint64_t elementSize, uint64_t elementNum)
+    uint64_t GetBufferSizePerFrame(const RRenderData& renderData, const BufferDesc& bufferDesc)
     {
+        return helper::Align<uint64_t>(bufferDesc.GetUnalignedSize(), GetBufferAlignment(renderData, bufferDesc));
+    }
+
+    uint64_t GetBufferAllocationSize(const RRenderData& renderData, const BufferDesc& bufferDesc)
+    {
+        const uint64_t frameNum = bufferDesc.perQueuedFrame ? renderData.GetQueuedFrameNum() : 1;
+        return GetBufferSizePerFrame(renderData, bufferDesc) * frameNum;
+    }
+
+    bool ValidateBufferDesc(const RRenderData& renderData, const BufferDesc& bufferDesc)
+    {
+        if (bufferDesc.elementSize == 0 || bufferDesc.elementCount == 0)
+        {
+            fmt::print(stderr,
+                       fg(fmt::color::red),
+                       "{} error: buffer '{}' has invalid element size/count ({}, {})\n",
+                       __FUNCTION__,
+                       bufferDesc.name,
+                       bufferDesc.elementSize,
+                       bufferDesc.elementCount);
+            return false;
+        }
+
+        uint64_t unalignedSize = 0;
+        if (!CheckedMultiply(bufferDesc.elementSize, bufferDesc.elementCount, unalignedSize))
+        {
+            fmt::print(stderr,
+                       fg(fmt::color::red),
+                       "{} error: buffer '{}' size overflows uint64_t\n",
+                       __FUNCTION__,
+                       bufferDesc.name);
+            return false;
+        }
+
         const nri::DeviceDesc& deviceDesc = renderData.NRI.GetDeviceDesc(*renderData.rdDevice);
-        return helper::Align<uint64_t>(elementSize * elementNum, deviceDesc.memoryAlignment.bufferShaderResourceOffset);
+        const uint64_t sizePerFrame = GetBufferSizePerFrame(renderData, bufferDesc);
+        const uint64_t frameNum = bufferDesc.perQueuedFrame ? renderData.GetQueuedFrameNum() : 1;
+        uint64_t totalSize = 0;
+        if (!CheckedMultiply(sizePerFrame, frameNum, totalSize))
+        {
+            fmt::print(stderr,
+                       fg(fmt::color::red),
+                       "{} error: buffer '{}' total size overflows uint64_t\n",
+                       __FUNCTION__,
+                       bufferDesc.name);
+            return false;
+        }
+
+        if (deviceDesc.memory.bufferMaxSize > 0 && totalSize > deviceDesc.memory.bufferMaxSize)
+        {
+            fmt::print(stderr,
+                       fg(fmt::color::red),
+                       "{} error: buffer '{}' allocation size {} exceeds device bufferMaxSize {}\n",
+                       __FUNCTION__,
+                       bufferDesc.name,
+                       totalSize,
+                       deviceDesc.memory.bufferMaxSize);
+            return false;
+        }
+
+        if (HasUsage(bufferDesc.usage, nri::BufferUsageBits::CONSTANT_BUFFER) &&
+            deviceDesc.memory.constantBufferMaxRange > 0 &&
+            sizePerFrame > deviceDesc.memory.constantBufferMaxRange)
+        {
+            fmt::print(stderr,
+                       fg(fmt::color::red),
+                       "{} error: buffer '{}' per-frame size {} exceeds constantBufferMaxRange {}\n",
+                       __FUNCTION__,
+                       bufferDesc.name,
+                       sizePerFrame,
+                       deviceDesc.memory.constantBufferMaxRange);
+            return false;
+        }
+
+        if (HasUsage(bufferDesc.usage, nri::BufferUsageBits::SHADER_RESOURCE_STORAGE) &&
+            deviceDesc.memory.storageBufferMaxRange > 0 &&
+            sizePerFrame > deviceDesc.memory.storageBufferMaxRange)
+        {
+            fmt::print(stderr,
+                       fg(fmt::color::red),
+                       "{} error: buffer '{}' per-frame size {} exceeds storageBufferMaxRange {}\n",
+                       __FUNCTION__,
+                       bufferDesc.name,
+                       sizePerFrame,
+                       deviceDesc.memory.storageBufferMaxRange);
+            return false;
+        }
+
+        return true;
     }
 
-    uint64_t GetWorldBufferSizePerFrame(const RRenderData& renderData)
+    bool CreateRenderBuffer(RRenderData& renderData, const BufferDesc& bufferDesc)
     {
-        return GetAlignedStructuredBufferSize(renderData, sizeof(glm::mat4), MAX_WORLD_MATRICES);
-    }
+        if (!ValidateBufferDesc(renderData, bufferDesc))
+        {
+            return false;
+        }
 
-    uint64_t GetBoneBufferSizePerFrame(const RRenderData& renderData)
-    {
-        return GetAlignedStructuredBufferSize(renderData, sizeof(glm::mat4), MAX_BONE_MATRICES);
-    }
+        nri::BufferDesc nriBufferDesc = {};
+        nriBufferDesc.size = GetBufferAllocationSize(renderData, bufferDesc);
+        nriBufferDesc.structureStride = bufferDesc.structureStride;
+        nriBufferDesc.usage = bufferDesc.usage;
 
-    uint64_t GetNodeTransformBufferSizePerFrame(const RRenderData& renderData)
-    {
-        return GetAlignedStructuredBufferSize(renderData, sizeof(RNodeTransformData), MAX_NODE_TRANSFORMS);
-    }
-
-    uint64_t GetNodeMatrixBufferSizePerFrame(const RRenderData& renderData)
-    {
-        return GetAlignedStructuredBufferSize(renderData, sizeof(glm::mat4), MAX_NODE_TRANSFORMS);
-    }
-
-    uint64_t GetNodeIndexBufferSizePerFrame(const RRenderData& renderData)
-    {
-        return GetAlignedStructuredBufferSize(renderData, sizeof(int32_t), MAX_NODE_TRANSFORMS);
-    }
-
-    uint64_t GetBoneIndexBufferSizePerFrame(const RRenderData& renderData)
-    {
-        return GetAlignedStructuredBufferSize(renderData, sizeof(uint32_t), MAX_BONE_MATRICES);
+        nri::Buffer* buffer = nullptr;
+        NRI_ABORT_ON_FAILURE(renderData.NRI.CreateBuffer(*renderData.rdDevice, nriBufferDesc, buffer));
+        renderData.rdBuffers.push_back(buffer);
+        return true;
     }
 
     uint32_t GetGroupCount(uint32_t itemCount, uint32_t threadGroupSize)
@@ -162,26 +375,26 @@ bool Renderer::Init(unsigned int width, unsigned int height)
     /* required for perspective */
     mRenderData.rdOutputResolution = {width, height};
 
-    initDevice();
-    initNRI();
-    createStreamer();
-    getQueue();
-    createSyncObjects();
+    if (!initDevice() || !initNRI() || !createStreamer() || !getQueue() || !createSyncObjects())
+    {
+        return false;
+    }
 
-    createMatrixUBO();
-    createSSBOs();
-    allocateAndBindMemory();
+    if (!createMatrixUBO() || !createSSBOs() || !allocateAndBindMemory())
+    {
+        return false;
+    }
 
-    createSwapchain();
-    createSwapchainTextures();
+    if (!createSwapchain() || !createSwapchainTextures())
+    {
+        return false;
+    }
 
-    createQueuedFrames();
-    createDescriptorSetLayouts();
-    createPipelineLayout();
-    createPipelines();
-    createDescriptorPool();
-    createDescriptorSets();
-    updateDescriptors();
+    if (!createQueuedFrames() || !createDescriptorSetLayouts() || !createPipelineLayout() || !createPipelines() ||
+        !createDescriptorPool() || !createDescriptorSets() || !updateDescriptors())
+    {
+        return false;
+    }
 
     if (!mUserInterface.Init(mRenderData))
     {
@@ -497,12 +710,43 @@ bool Renderer::updateModelBuffer(float deltaTime)
             static_cast<unsigned int>(mWorldPosMatrices.size() * sizeof(glm::mat4) +
                                       mBoneOffsetMatrices.size() * sizeof(glm::mat4) +
                                       mNodeTransformData.size() * sizeof(RNodeTransformData));
+    mRenderData.rdResourceBudgetUsage.staticWorldMatrices = mWorldPosMatrices.size();
+    mRenderData.rdResourceBudgetUsage.animatedInstances = mModelRootMatrices.size();
+    mRenderData.rdResourceBudgetUsage.boneMatrices = std::max(mBoneOffsetMatrices.size(), mBoneNodeIndices.size());
+    mRenderData.rdResourceBudgetUsage.nodeTransforms = std::max(mNodeTransformData.size(), mNodeParentIndices.size());
+    mRenderData.rdResourceBudgetUsage.uploadBytes =
+            mWorldPosMatrices.size() * sizeof(glm::mat4) +
+            mNodeTransformData.size() * sizeof(RNodeTransformData) +
+            mNodeParentIndices.size() * sizeof(int32_t) +
+            mBoneNodeIndices.size() * sizeof(uint32_t) +
+            mBoneOffsetMatrices.size() * sizeof(glm::mat4) +
+            mModelRootMatrices.size() * sizeof(glm::mat4);
 
-    if (mWorldPosMatrices.size() > MAX_WORLD_MATRICES || mBoneOffsetMatrices.size() > MAX_BONE_MATRICES ||
-        mBoneNodeIndices.size() > MAX_BONE_MATRICES || mNodeTransformData.size() > MAX_NODE_TRANSFORMS ||
-        mNodeParentIndices.size() > MAX_NODE_TRANSFORMS || mModelRootMatrices.size() > MAX_WORLD_MATRICES)
+    const uint64_t maxWorldMatrices = mResourceBudget.maxWorldMatrices;
+    const uint64_t maxBoneMatrices = mResourceBudget.GetMaxBoneMatrices();
+    const uint64_t maxNodeTransforms = mResourceBudget.GetMaxNodeTransforms();
+    if (mWorldPosMatrices.size() > maxWorldMatrices || mBoneOffsetMatrices.size() > maxBoneMatrices ||
+        mBoneNodeIndices.size() > maxBoneMatrices || mNodeTransformData.size() > maxNodeTransforms ||
+        mNodeParentIndices.size() > maxNodeTransforms || mModelRootMatrices.size() > maxWorldMatrices)
     {
-        fmt::print(stderr, fg(fmt::color::red), "{} error: matrix upload capacity exceeded\n", __FUNCTION__);
+        fmt::print(stderr,
+                   fg(fmt::color::red),
+                   "{} error: matrix upload capacity exceeded "
+                   "(world={}/{}, boneOffsets={}/{}, boneNodeIndices={}/{}, nodeTransforms={}/{}, "
+                   "nodeParents={}/{}, modelRoots={}/{})\n",
+                   __FUNCTION__,
+                   mWorldPosMatrices.size(),
+                   maxWorldMatrices,
+                   mBoneOffsetMatrices.size(),
+                   maxBoneMatrices,
+                   mBoneNodeIndices.size(),
+                   maxBoneMatrices,
+                   mNodeTransformData.size(),
+                   maxNodeTransforms,
+                   mNodeParentIndices.size(),
+                   maxNodeTransforms,
+                   mModelRootMatrices.size(),
+                   maxWorldMatrices);
         return false;
     }
 
@@ -1225,8 +1469,50 @@ bool Renderer::initNRI()
     NRI_ABORT_ON_FAILURE(nri::nriGetInterface(
             *mRenderData.rdDevice, NRI_INTERFACE(nri::StreamerInterface), (nri::StreamerInterface*) &mRenderData.NRI));
     NRI_ABORT_ON_FAILURE(nri::nriGetInterface(*mRenderData.rdDevice,
-                                              NRI_INTERFACE(nri::SwapChainInterface),
-                                              (nri::SwapChainInterface*) &mRenderData.NRI));
+                                               NRI_INTERFACE(nri::SwapChainInterface),
+                                               (nri::SwapChainInterface*) &mRenderData.NRI));
+
+    const nri::DeviceDesc& deviceDesc = mRenderData.NRI.GetDeviceDesc(*mRenderData.rdDevice);
+    mResourceBudget = RenderResourceBudget::CreateForDevice(deviceDesc, mRenderData.GetQueuedFrameNum());
+    mRenderData.rdResourceBudget = mResourceBudget;
+    if (!mResourceBudget.IsSupported())
+    {
+        fmt::print(stderr,
+                   fg(fmt::color::red),
+                   "{} error: resource budget unsupported reason={} computedAnimatedInstances={} "
+                   "memoryLimitedAnimatedInstances={} deviceLimitedAnimatedInstances={} "
+                   "animationMemoryBudget={} adapter='{}' architecture={} videoMemory={} sharedMemory={}\n",
+                   __FUNCTION__,
+                   GetRenderResourceRejectReasonName(mResourceBudget.rejectReason),
+                   mResourceBudget.maxWorldMatrices,
+                   mResourceBudget.memoryLimitedWorldMatrices,
+                   mResourceBudget.deviceLimitedWorldMatrices,
+                   mResourceBudget.animationMemoryBudget,
+                   deviceDesc.adapterDesc.name,
+                   static_cast<uint32_t>(deviceDesc.adapterDesc.architecture),
+                   deviceDesc.adapterDesc.videoMemorySize,
+                   deviceDesc.adapterDesc.sharedSystemMemorySize);
+        return false;
+    }
+
+    fmt::print("{}: resource budget tier={} maxAnimatedInstances={} maxBoneMatrices={} maxNodeTransforms={} "
+               "animationMemoryBudget={} estimatedAnimationBytesPerFrame={} estimatedAnimationBytesTotal={} "
+               "memoryLimitedAnimatedInstances={} deviceLimitedAnimatedInstances={} "
+               "adapter='{}' architecture={} videoMemory={} sharedMemory={}\n",
+               __FUNCTION__,
+               GetRenderResourceTierName(mResourceBudget.tier),
+               mResourceBudget.maxWorldMatrices,
+               mResourceBudget.GetMaxBoneMatrices(),
+               mResourceBudget.GetMaxNodeTransforms(),
+               mResourceBudget.animationMemoryBudget,
+               mResourceBudget.estimatedAnimationBufferBytesPerFrame,
+               mResourceBudget.estimatedAnimationBufferBytesTotal,
+               mResourceBudget.memoryLimitedWorldMatrices,
+               mResourceBudget.deviceLimitedWorldMatrices,
+               deviceDesc.adapterDesc.name,
+               static_cast<uint32_t>(deviceDesc.adapterDesc.architecture),
+               deviceDesc.adapterDesc.videoMemorySize,
+               deviceDesc.adapterDesc.sharedSystemMemorySize);
 
     return true;
 }
@@ -1279,13 +1565,16 @@ bool Renderer::createQueuedFrames()
 {
     // Queued frames
     mRenderData.rdQueuedFrames.resize(mRenderData.GetQueuedFrameNum());
-    const uint64_t cameraBufferSize = GetCameraBufferSize(mRenderData);
-    const uint64_t worldBufferSize = GetWorldBufferSizePerFrame(mRenderData);
-    const uint64_t boneBufferSize = GetBoneBufferSizePerFrame(mRenderData);
-    const uint64_t nodeTransformBufferSize = GetNodeTransformBufferSizePerFrame(mRenderData);
-    const uint64_t nodeMatrixBufferSize = GetNodeMatrixBufferSizePerFrame(mRenderData);
-    const uint64_t nodeIndexBufferSize = GetNodeIndexBufferSizePerFrame(mRenderData);
-    const uint64_t boneIndexBufferSize = GetBoneIndexBufferSizePerFrame(mRenderData);
+    const uint64_t cameraBufferSize = GetBufferSizePerFrame(mRenderData, GetCameraBufferDesc());
+    const uint64_t worldBufferSize = GetBufferSizePerFrame(mRenderData, GetWorldMatrixBufferDesc(mResourceBudget));
+    const uint64_t boneBufferSize = GetBufferSizePerFrame(mRenderData, GetBoneMatrixBufferDesc(mResourceBudget));
+    const uint64_t nodeTransformBufferSize =
+            GetBufferSizePerFrame(mRenderData, GetNodeTransformBufferDesc(mResourceBudget));
+    const uint64_t nodeMatrixBufferSize = GetBufferSizePerFrame(mRenderData, GetTRSMatrixBufferDesc(mResourceBudget));
+    const uint64_t nodeIndexBufferSize =
+            GetBufferSizePerFrame(mRenderData, GetNodeParentIndexBufferDesc(mResourceBudget));
+    const uint64_t boneIndexBufferSize =
+            GetBufferSizePerFrame(mRenderData, GetBoneNodeIndexBufferDesc(mResourceBudget));
 
     for (uint32_t i = 0; i < mRenderData.GetQueuedFrameNum(); ++i)
     {
@@ -1407,103 +1696,28 @@ bool Renderer::createPipelines()
 
 bool Renderer::createMatrixUBO()
 {
-    nri::BufferDesc bufferDesc = {};
-    bufferDesc.size = GetCameraBufferSize(mRenderData) * mRenderData.GetQueuedFrameNum();
-    bufferDesc.usage = nri::BufferUsageBits::CONSTANT_BUFFER;
-    nri::Buffer* buffer;
-    NRI_ABORT_ON_FAILURE(mRenderData.NRI.CreateBuffer(*mRenderData.rdDevice, bufferDesc, buffer));
-    mRenderData.rdBuffers.push_back(buffer);
-    return true;
+    return CreateRenderBuffer(mRenderData, GetCameraBufferDesc());
 }
 
 bool Renderer::createSSBOs()
 {
-    { // WORLD_POS_BUFFER
-        nri::BufferDesc bufferDesc = {};
-        bufferDesc.size = GetWorldBufferSizePerFrame(mRenderData) * mRenderData.GetQueuedFrameNum();
-        bufferDesc.structureStride = sizeof(glm::mat4);
-        bufferDesc.usage = nri::BufferUsageBits::SHADER_RESOURCE;
+    const BufferDesc bufferDescs[] = {
+            GetWorldMatrixBufferDesc(mResourceBudget),
+            GetNodeTransformBufferDesc(mResourceBudget),
+            GetTRSMatrixBufferDesc(mResourceBudget),
+            GetModelRootMatrixBufferDesc(mResourceBudget),
+            GetNodeParentIndexBufferDesc(mResourceBudget),
+            GetBoneNodeIndexBufferDesc(mResourceBudget),
+            GetBoneOffsetMatrixBufferDesc(mResourceBudget),
+            GetBoneMatrixBufferDesc(mResourceBudget),
+    };
 
-        nri::Buffer* buffer = nullptr;
-        NRI_ABORT_ON_FAILURE(mRenderData.NRI.CreateBuffer(*mRenderData.rdDevice, bufferDesc, buffer));
-        mRenderData.rdBuffers.push_back(buffer);
-    }
-
-    { // NODE_TRANSFORM_BUFFER
-        nri::BufferDesc bufferDesc = {};
-        bufferDesc.size = GetNodeTransformBufferSizePerFrame(mRenderData) * mRenderData.GetQueuedFrameNum();
-        bufferDesc.structureStride = sizeof(RNodeTransformData);
-        bufferDesc.usage = nri::BufferUsageBits::SHADER_RESOURCE;
-
-        nri::Buffer* buffer = nullptr;
-        NRI_ABORT_ON_FAILURE(mRenderData.NRI.CreateBuffer(*mRenderData.rdDevice, bufferDesc, buffer));
-        mRenderData.rdBuffers.push_back(buffer);
-    }
-
-    { // TRS_MATRIX_BUFFER
-        nri::BufferDesc bufferDesc = {};
-        bufferDesc.size = GetNodeMatrixBufferSizePerFrame(mRenderData) * mRenderData.GetQueuedFrameNum();
-        bufferDesc.structureStride = sizeof(glm::mat4);
-        bufferDesc.usage = nri::BufferUsageBits::SHADER_RESOURCE | nri::BufferUsageBits::SHADER_RESOURCE_STORAGE;
-
-        nri::Buffer* buffer = nullptr;
-        NRI_ABORT_ON_FAILURE(mRenderData.NRI.CreateBuffer(*mRenderData.rdDevice, bufferDesc, buffer));
-        mRenderData.rdBuffers.push_back(buffer);
-    }
-
-    { // MODEL_ROOT_MATRIX_BUFFER
-        nri::BufferDesc bufferDesc = {};
-        bufferDesc.size = GetWorldBufferSizePerFrame(mRenderData) * mRenderData.GetQueuedFrameNum();
-        bufferDesc.structureStride = sizeof(glm::mat4);
-        bufferDesc.usage = nri::BufferUsageBits::SHADER_RESOURCE;
-
-        nri::Buffer* buffer = nullptr;
-        NRI_ABORT_ON_FAILURE(mRenderData.NRI.CreateBuffer(*mRenderData.rdDevice, bufferDesc, buffer));
-        mRenderData.rdBuffers.push_back(buffer);
-    }
-
-    { // NODE_PARENT_INDEX_BUFFER
-        nri::BufferDesc bufferDesc = {};
-        bufferDesc.size = GetNodeIndexBufferSizePerFrame(mRenderData) * mRenderData.GetQueuedFrameNum();
-        bufferDesc.structureStride = sizeof(int32_t);
-        bufferDesc.usage = nri::BufferUsageBits::SHADER_RESOURCE;
-
-        nri::Buffer* buffer = nullptr;
-        NRI_ABORT_ON_FAILURE(mRenderData.NRI.CreateBuffer(*mRenderData.rdDevice, bufferDesc, buffer));
-        mRenderData.rdBuffers.push_back(buffer);
-    }
-
-    { // BONE_NODE_INDEX_BUFFER
-        nri::BufferDesc bufferDesc = {};
-        bufferDesc.size = GetBoneIndexBufferSizePerFrame(mRenderData) * mRenderData.GetQueuedFrameNum();
-        bufferDesc.structureStride = sizeof(uint32_t);
-        bufferDesc.usage = nri::BufferUsageBits::SHADER_RESOURCE;
-
-        nri::Buffer* buffer = nullptr;
-        NRI_ABORT_ON_FAILURE(mRenderData.NRI.CreateBuffer(*mRenderData.rdDevice, bufferDesc, buffer));
-        mRenderData.rdBuffers.push_back(buffer);
-    }
-
-    { // BONE_OFFSET_MATRIX_BUFFER
-        nri::BufferDesc bufferDesc = {};
-        bufferDesc.size = GetBoneBufferSizePerFrame(mRenderData) * mRenderData.GetQueuedFrameNum();
-        bufferDesc.structureStride = sizeof(glm::mat4);
-        bufferDesc.usage = nri::BufferUsageBits::SHADER_RESOURCE;
-
-        nri::Buffer* buffer = nullptr;
-        NRI_ABORT_ON_FAILURE(mRenderData.NRI.CreateBuffer(*mRenderData.rdDevice, bufferDesc, buffer));
-        mRenderData.rdBuffers.push_back(buffer);
-    }
-
-    { // BONE_MATRIX_BUFFER
-        nri::BufferDesc bufferDesc = {};
-        bufferDesc.size = GetBoneBufferSizePerFrame(mRenderData) * mRenderData.GetQueuedFrameNum();
-        bufferDesc.structureStride = sizeof(glm::mat4);
-        bufferDesc.usage = nri::BufferUsageBits::SHADER_RESOURCE | nri::BufferUsageBits::SHADER_RESOURCE_STORAGE;
-
-        nri::Buffer* buffer = nullptr;
-        NRI_ABORT_ON_FAILURE(mRenderData.NRI.CreateBuffer(*mRenderData.rdDevice, bufferDesc, buffer));
-        mRenderData.rdBuffers.push_back(buffer);
+    for (const BufferDesc& bufferDesc : bufferDescs)
+    {
+        if (!CreateRenderBuffer(mRenderData, bufferDesc))
+        {
+            return false;
+        }
     }
 
     return true;
@@ -1589,13 +1803,16 @@ bool Renderer::updateDescriptors()
     NRI_ABORT_ON_FAILURE(
             mRenderData.NRI.CreateSampler(*mRenderData.rdDevice, samplerDesc, mRenderData.anisotropicSampler));
 
-    const uint64_t cameraBufferSize = GetCameraBufferSize(mRenderData);
-    const uint64_t worldBufferSize = GetWorldBufferSizePerFrame(mRenderData);
-    const uint64_t boneBufferSize = GetBoneBufferSizePerFrame(mRenderData);
-    const uint64_t nodeTransformBufferSize = GetNodeTransformBufferSizePerFrame(mRenderData);
-    const uint64_t nodeMatrixBufferSize = GetNodeMatrixBufferSizePerFrame(mRenderData);
-    const uint64_t nodeIndexBufferSize = GetNodeIndexBufferSizePerFrame(mRenderData);
-    const uint64_t boneIndexBufferSize = GetBoneIndexBufferSizePerFrame(mRenderData);
+    const uint64_t cameraBufferSize = GetBufferSizePerFrame(mRenderData, GetCameraBufferDesc());
+    const uint64_t worldBufferSize = GetBufferSizePerFrame(mRenderData, GetWorldMatrixBufferDesc(mResourceBudget));
+    const uint64_t boneBufferSize = GetBufferSizePerFrame(mRenderData, GetBoneMatrixBufferDesc(mResourceBudget));
+    const uint64_t nodeTransformBufferSize =
+            GetBufferSizePerFrame(mRenderData, GetNodeTransformBufferDesc(mResourceBudget));
+    const uint64_t nodeMatrixBufferSize = GetBufferSizePerFrame(mRenderData, GetTRSMatrixBufferDesc(mResourceBudget));
+    const uint64_t nodeIndexBufferSize =
+            GetBufferSizePerFrame(mRenderData, GetNodeParentIndexBufferDesc(mResourceBudget));
+    const uint64_t boneIndexBufferSize =
+            GetBufferSizePerFrame(mRenderData, GetBoneNodeIndexBufferDesc(mResourceBudget));
 
     for (QueuedFrame& queuedFrame : mRenderData.rdQueuedFrames)
     {

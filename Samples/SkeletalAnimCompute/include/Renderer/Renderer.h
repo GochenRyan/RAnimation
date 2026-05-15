@@ -6,6 +6,7 @@
 #include <Model/ModelAndInstanceData.h>
 #include <Model/ModelInstance.h>
 #include <Platform/NativeWindowHandle.h>
+#include <Renderer/RenderResourceBudget.h>
 #include <Renderer/UserInterface.h>
 #include <Tools/Timer.h>
 #include <Tools/Camera.h>
@@ -32,8 +33,6 @@ namespace RAnimation
         BONE_OFFSET_MATRIX_BUFFER,
         BONE_MATRIX_BUFFER,
     };
-    constexpr uint32_t MAX_BONES = 100;
-
     constexpr uint32_t TEXTURES_PER_MATERIAL = 1;
 
     class Renderer final
@@ -105,6 +104,7 @@ namespace RAnimation
         };
 
         RRenderData mRenderData{};
+        RenderResourceBudget mResourceBudget{};
         ModelAndInstanceData mModelInstData{};
 
         Timer mFrameTimer{};
