@@ -228,6 +228,7 @@ namespace RAnimation
         uint64_t elementCount = 0;
         uint32_t structureStride = 0;
         nri::BufferUsageBits usage = nri::BufferUsageBits::NONE;
+        nri::MemoryLocation memoryLocation = nri::MemoryLocation::HOST_UPLOAD;
         bool perQueuedFrame = true;
 
         uint64_t GetUnalignedSize() const { return elementSize * elementCount; }

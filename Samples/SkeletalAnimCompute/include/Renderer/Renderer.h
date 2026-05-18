@@ -21,18 +21,6 @@ namespace RAnimation
     constexpr bool D3D11_ENABLE_COMMAND_BUFFER_EMULATION = false;
     constexpr bool D3D12_DISABLE_ENHANCED_BARRIERS = false;
 
-    enum class BUFFER_INDEX : uint32_t
-    {
-        VP_MATRIX_BUFFER = 0,
-        WORLD_POS_BUFFER,
-        NODE_TRANSFORM_BUFFER,
-        TRS_MATRIX_BUFFER,
-        MODEL_ROOT_MATRIX_BUFFER,
-        NODE_PARENT_INDEX_BUFFER,
-        BONE_NODE_INDEX_BUFFER,
-        BONE_OFFSET_MATRIX_BUFFER,
-        BONE_MATRIX_BUFFER,
-    };
     constexpr uint32_t TEXTURES_PER_MATERIAL = 1;
 
     class Renderer final

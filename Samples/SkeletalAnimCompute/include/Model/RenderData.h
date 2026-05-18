@@ -9,6 +9,7 @@
 #include <ml.h>
 
 #include <Renderer/RenderResourceBudget.h>
+#include <Renderer/RenderResourceRegistry.h>
 #include <RHIWrap/NRIInterface.h>
 #include <RHIWrap/Utils.h>
 
@@ -86,31 +87,11 @@ namespace RAnimation
     {
         nri::CommandAllocator* commandAllocator = nullptr;
         nri::CommandBuffer* commandBuffer = nullptr;
-        nri::Descriptor* cameraBufferView = nullptr;
-        nri::Descriptor* modelBufferView = nullptr;
-        nri::Descriptor* boneBufferView = nullptr;
-        nri::Descriptor* nodeTransformBufferView = nullptr;
-        nri::Descriptor* trsMatrixBufferView = nullptr;
-        nri::Descriptor* trsMatrixStorageView = nullptr;
-        nri::Descriptor* boneMatrixStorageView = nullptr;
-        nri::Descriptor* modelRootBufferView = nullptr;
-        nri::Descriptor* nodeParentIndexBufferView = nullptr;
-        nri::Descriptor* boneNodeIndexBufferView = nullptr;
-        nri::Descriptor* boneOffsetBufferView = nullptr;
         nri::DescriptorSet* staticDescriptorSet = nullptr;
         nri::DescriptorSet* skinnedDescriptorSet = nullptr;
         nri::DescriptorSet* computeTransformDescriptorSet = nullptr;
         nri::DescriptorSet* computeMatrixMultDescriptorSet0 = nullptr;
         nri::DescriptorSet* computeMatrixMultDescriptorSet1 = nullptr;
-        uint64_t cameraBufferOffset = 0;
-        uint64_t modelBufferOffset = 0;
-        uint64_t boneBufferOffset = 0;
-        uint64_t nodeTransformBufferOffset = 0;
-        uint64_t trsMatrixBufferOffset = 0;
-        uint64_t modelRootBufferOffset = 0;
-        uint64_t nodeParentIndexBufferOffset = 0;
-        uint64_t boneNodeIndexBufferOffset = 0;
-        uint64_t boneOffsetBufferOffset = 0;
         uint32_t swapChainTextureIndex = 0;
     };
 
@@ -208,7 +189,30 @@ namespace RAnimation
 
         std::vector<nri::Memory*> rdMemoryAllocations;
 
-        std::vector<nri::Buffer*> rdBuffers;
+        RenderResourceRegistry rdResourceRegistry{};
+
+        BufferHandle rdCameraBuffer{};
+        BufferHandle rdWorldMatrixBuffer{};
+        BufferHandle rdNodeTransformBuffer{};
+        BufferHandle rdTRSMatrixBuffer{};
+        BufferHandle rdModelRootMatrixBuffer{};
+        BufferHandle rdNodeParentIndexBuffer{};
+        BufferHandle rdBoneNodeIndexBuffer{};
+        BufferHandle rdBoneOffsetMatrixBuffer{};
+        BufferHandle rdBoneMatrixBuffer{};
+
+        BufferViewHandle rdCameraBufferView{};
+        BufferViewHandle rdWorldMatrixBufferView{};
+        BufferViewHandle rdBoneMatrixBufferView{};
+        BufferViewHandle rdBoneMatrixStorageView{};
+        BufferViewHandle rdNodeTransformBufferView{};
+        BufferViewHandle rdTRSMatrixBufferView{};
+        BufferViewHandle rdTRSMatrixStorageView{};
+        BufferViewHandle rdModelRootMatrixBufferView{};
+        BufferViewHandle rdNodeParentIndexBufferView{};
+        BufferViewHandle rdBoneNodeIndexBufferView{};
+        BufferViewHandle rdBoneOffsetMatrixBufferView{};
+
         uint64_t rdFrameIndex = 0;
 
         uint8_t GetQueuedFrameNum() const { return rdVsync ? 2 : 3; }

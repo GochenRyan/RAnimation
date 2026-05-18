@@ -41,6 +41,7 @@
 *.dwo
 
 build/
+_BuildLogs/
 
 _Bin/
 _Shaders/
@@ -48,4 +49,6 @@ _Shaders/
 *.spv
 
 .vscode/
+
+.claude/
 CLAUDE.md
