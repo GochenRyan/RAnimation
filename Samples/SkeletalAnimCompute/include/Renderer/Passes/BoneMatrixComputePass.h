@@ -8,7 +8,8 @@ namespace RAnimation
 {
     // Compute pass: multiplies parent-chained TRS + bone offset to produce final bone matrices.
     // Uses two descriptor sets (set 0: TRS SR + Bone storage; set 1: parent index / bone offset / model root / bone node index).
-    // Inserts the TRS UAV->SR barrier before its dispatches, and the BoneMatrix UAV->VS-SR barrier after.
+    // PassRegistry auto-generates the TRS UAV->SR barrier (from DeclareAccess), and the
+    // BoneMatrix UAV->VS-SR barrier is triggered by SkinnedMeshDrawPass's DeclareAccess.
     class BoneMatrixComputePass : public IRenderPass
     {
     public:
@@ -18,6 +19,7 @@ namespace RAnimation
         bool CreatePipeline(RenderContext& context) override;
         DescriptorPoolRequirements GetDescriptorPoolRequirements(uint32_t queuedFrameNum) const override;
         bool CreateDescriptors(FrameContext& context) override;
+        void DeclareAccess(const RRenderData& renderData, RegistryAccessBuilder& builder) const override;
         void Record(CommandContext& context) override;
         void Cleanup(RRenderData& renderData) override;
 

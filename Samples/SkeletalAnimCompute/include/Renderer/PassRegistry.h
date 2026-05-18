@@ -1,6 +1,7 @@
 #pragma once
 
 #include <memory>
+#include <unordered_map>
 #include <utility>
 #include <vector>
 
@@ -8,7 +9,8 @@
 
 namespace RAnimation
 {
-    // Owns all IRenderPass instances. Drives their lifecycle and per-phase Record().
+    // Owns all IRenderPass instances. Drives their lifecycle, per-phase Record(),
+    // and auto-generates buffer barriers from each pass's DeclareAccess() declarations.
     class PassRegistry
     {
     public:
@@ -27,11 +29,25 @@ namespace RAnimation
         bool CreateDescriptors(FrameContext& context);
 
         // Run all passes whose GetPhase() matches `phase`, in registration order.
+        // Before each pass's Record(), emits any barriers required to transition
+        // declared buffers from their last-known access state to the pass's declared state.
         void RecordPhase(CommandContext& context, RenderPassPhase phase);
 
         void Cleanup(RRenderData& renderData);
 
     private:
+        struct LastAccessState
+        {
+            nri::AccessBits access = nri::AccessBits::NONE;
+            nri::StageBits stage = nri::StageBits::NONE;
+            bool initialized = false;
+        };
+
+        void EmitBarriersForPass(CommandContext& context, IRenderPass& pass);
+
         std::vector<std::unique_ptr<IRenderPass>> mPasses;
+        // Keyed by BufferHandle.index. Tracks the access state each buffer is in at the
+        // most recent point of pass execution. Persists across frames (the GPU state does).
+        std::unordered_map<uint32_t, LastAccessState> mLastAccess;
     };
 } // namespace RAnimation

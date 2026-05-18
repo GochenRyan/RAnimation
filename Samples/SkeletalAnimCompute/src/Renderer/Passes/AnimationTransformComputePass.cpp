@@ -106,6 +106,15 @@ namespace RAnimation
         return true;
     }
 
+    void AnimationTransformComputePass::DeclareAccess(const RRenderData& renderData,
+                                                      RegistryAccessBuilder& builder) const
+    {
+        // Writes TRS matrices in compute storage.
+        builder.Use(renderData.rdTRSMatrixBuffer,
+                    nri::AccessBits::SHADER_RESOURCE_STORAGE,
+                    nri::StageBits::COMPUTE_SHADER);
+    }
+
     void AnimationTransformComputePass::Record(CommandContext& context)
     {
         if (context.sceneFrame == nullptr || context.sceneFrame->animatedDispatches == nullptr ||
@@ -113,22 +122,6 @@ namespace RAnimation
         {
             return;
         }
-
-        nri::Buffer* trsBuffer = context.registry.GetBuffer(context.renderData.rdTRSMatrixBuffer);
-        nri::Buffer* boneBuffer = context.registry.GetBuffer(context.renderData.rdBoneMatrixBuffer);
-
-        nri::BufferBarrierDesc beginComputeBarriers[] = {
-                {trsBuffer,
-                 {nri::AccessBits::SHADER_RESOURCE, nri::StageBits::ALL},
-                 {nri::AccessBits::SHADER_RESOURCE_STORAGE, nri::StageBits::COMPUTE_SHADER}},
-                {boneBuffer,
-                 {nri::AccessBits::SHADER_RESOURCE, nri::StageBits::ALL},
-                 {nri::AccessBits::SHADER_RESOURCE_STORAGE, nri::StageBits::COMPUTE_SHADER}},
-        };
-        nri::BarrierDesc beginComputeBarrierDesc = {};
-        beginComputeBarrierDesc.buffers = beginComputeBarriers;
-        beginComputeBarrierDesc.bufferNum = helper::GetCountOf(beginComputeBarriers);
-        context.NRI.CmdBarrier(context.commandBuffer, beginComputeBarrierDesc);
 
         context.NRI.CmdSetPipelineLayout(context.commandBuffer, nri::BindPoint::COMPUTE, *mPipelineLayout);
         context.NRI.CmdSetPipeline(context.commandBuffer, *mPipeline);

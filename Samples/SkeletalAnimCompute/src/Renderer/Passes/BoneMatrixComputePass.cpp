@@ -138,6 +138,18 @@ namespace RAnimation
         return true;
     }
 
+    void BoneMatrixComputePass::DeclareAccess(const RRenderData& renderData,
+                                              RegistryAccessBuilder& builder) const
+    {
+        // Reads TRS as SR, writes BoneMatrix as SRS.
+        builder.Use(renderData.rdTRSMatrixBuffer,
+                    nri::AccessBits::SHADER_RESOURCE,
+                    nri::StageBits::COMPUTE_SHADER);
+        builder.Use(renderData.rdBoneMatrixBuffer,
+                    nri::AccessBits::SHADER_RESOURCE_STORAGE,
+                    nri::StageBits::COMPUTE_SHADER);
+    }
+
     void BoneMatrixComputePass::Record(CommandContext& context)
     {
         if (context.sceneFrame == nullptr || context.sceneFrame->animatedDispatches == nullptr ||
@@ -145,19 +157,6 @@ namespace RAnimation
         {
             return;
         }
-
-        nri::Buffer* trsBuffer = context.registry.GetBuffer(context.renderData.rdTRSMatrixBuffer);
-        nri::Buffer* boneBuffer = context.registry.GetBuffer(context.renderData.rdBoneMatrixBuffer);
-
-        // TRS: UAV (last pass) -> SR (this pass)
-        nri::BufferBarrierDesc trsBarrier = {trsBuffer,
-                                             {nri::AccessBits::SHADER_RESOURCE_STORAGE,
-                                              nri::StageBits::COMPUTE_SHADER},
-                                             {nri::AccessBits::SHADER_RESOURCE, nri::StageBits::COMPUTE_SHADER}};
-        nri::BarrierDesc trsBarrierDesc = {};
-        trsBarrierDesc.buffers = &trsBarrier;
-        trsBarrierDesc.bufferNum = 1;
-        context.NRI.CmdBarrier(context.commandBuffer, trsBarrierDesc);
 
         context.NRI.CmdSetPipelineLayout(context.commandBuffer, nri::BindPoint::COMPUTE, *mPipelineLayout);
         context.NRI.CmdSetPipeline(context.commandBuffer, *mPipeline);
@@ -181,16 +180,6 @@ namespace RAnimation
             context.NRI.CmdDispatch(context.commandBuffer,
                                     {dispatch.numberOfBones, GroupCount(dispatch.instanceCount, kThreadGroupSize), 1});
         }
-
-        // BoneMatrix: UAV (this pass) -> SR (vertex shader, next graphics pass)
-        nri::BufferBarrierDesc boneBarrier = {boneBuffer,
-                                              {nri::AccessBits::SHADER_RESOURCE_STORAGE,
-                                               nri::StageBits::COMPUTE_SHADER},
-                                              {nri::AccessBits::SHADER_RESOURCE, nri::StageBits::VERTEX_SHADER}};
-        nri::BarrierDesc boneBarrierDesc = {};
-        boneBarrierDesc.buffers = &boneBarrier;
-        boneBarrierDesc.bufferNum = 1;
-        context.NRI.CmdBarrier(context.commandBuffer, boneBarrierDesc);
     }
 
     void BoneMatrixComputePass::Cleanup(RRenderData& renderData)

@@ -163,6 +163,15 @@ namespace RAnimation
         return true;
     }
 
+    void SkinnedMeshDrawPass::DeclareAccess(const RRenderData& renderData,
+                                            RegistryAccessBuilder& builder) const
+    {
+        // Reads bone matrices as SR in vertex shader (skinning).
+        builder.Use(renderData.rdBoneMatrixBuffer,
+                    nri::AccessBits::SHADER_RESOURCE,
+                    nri::StageBits::VERTEX_SHADER);
+    }
+
     void SkinnedMeshDrawPass::Record(CommandContext& context)
     {
         if (context.sceneFrame == nullptr || context.sceneFrame->modelInstData == nullptr)

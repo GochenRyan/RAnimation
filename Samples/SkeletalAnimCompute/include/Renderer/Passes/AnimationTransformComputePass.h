@@ -8,7 +8,7 @@ namespace RAnimation
 {
     // Compute pass: applies per-node TRS to produce TRS matrices.
     // Reads NodeTransformBuffer (SR), writes TRSMatrixBuffer (SRS).
-    // Also inserts the begin-of-compute barrier covering TRS and BoneMatrix buffers.
+    // PassRegistry auto-generates the begin-of-compute barrier from DeclareAccess().
     class AnimationTransformComputePass : public IRenderPass
     {
     public:
@@ -18,6 +18,7 @@ namespace RAnimation
         bool CreatePipeline(RenderContext& context) override;
         DescriptorPoolRequirements GetDescriptorPoolRequirements(uint32_t queuedFrameNum) const override;
         bool CreateDescriptors(FrameContext& context) override;
+        void DeclareAccess(const RRenderData& renderData, RegistryAccessBuilder& builder) const override;
         void Record(CommandContext& context) override;
         void Cleanup(RRenderData& renderData) override;
 

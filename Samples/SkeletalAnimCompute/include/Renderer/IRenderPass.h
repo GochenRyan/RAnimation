@@ -1,15 +1,17 @@
 #pragma once
 
 #include <cstdint>
+#include <vector>
 
 #include <NRI.h>
+
+#include <Renderer/RenderResourceRegistry.h>
 
 struct NRIInterface;
 
 namespace RAnimation
 {
     struct RRenderData;
-    class RenderResourceRegistry;
     struct RenderResourceBudget;
     struct SceneFrameData;
 
@@ -56,6 +58,39 @@ namespace RAnimation
         const SceneFrameData* sceneFrame = nullptr;
     };
 
+    // -- Resource access declaration (Phase C: auto-barrier generation) --
+
+    struct ResourceAccess
+    {
+        BufferHandle handle;
+        nri::AccessBits access = nri::AccessBits::NONE;
+        nri::StageBits stage = nri::StageBits::NONE;
+    };
+
+    // Passes call builder.Use(handle, access, stage) inside DeclareAccess to declare what state
+    // each buffer must be in at the start of their Record() call. The PassRegistry compares the
+    // declared state against the last-known state and inserts barriers automatically.
+    //
+    // Only declare for DEVICE buffers that need explicit synchronization. HOST_UPLOAD buffers
+    // (camera/world/etc.) get implicit host-visible coherence and don't need barriers.
+    class RegistryAccessBuilder
+    {
+    public:
+        void Use(BufferHandle handle, nri::AccessBits access, nri::StageBits stage)
+        {
+            if (!handle.IsValid())
+            {
+                return;
+            }
+            mAccesses.push_back({handle, access, stage});
+        }
+
+        const std::vector<ResourceAccess>& Accesses() const { return mAccesses; }
+
+    private:
+        std::vector<ResourceAccess> mAccesses;
+    };
+
     // -- Descriptor pool sizing requirements --
     struct DescriptorPoolRequirements
     {
@@ -94,6 +129,15 @@ namespace RAnimation
         {
             (void)registry;
             return true;
+        }
+
+        // Optional: declare buffer accesses for auto-barrier generation. Default no-op.
+        // Called once per Record() invocation by the PassRegistry. The renderData reference
+        // provides access to RRenderData::rdXxxBuffer handles registered during Init().
+        virtual void DeclareAccess(const RRenderData& renderData, RegistryAccessBuilder& builder) const
+        {
+            (void)renderData;
+            (void)builder;
         }
 
         virtual bool CreatePipeline(RenderContext& context) = 0;

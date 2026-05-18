@@ -1,5 +1,7 @@
 #include <Renderer/PassRegistry.h>
 
+#include <Renderer/RenderResourceRegistry.h>
+
 namespace RAnimation
 {
     bool PassRegistry::DeclareResources(RenderResourceRegistry& registry)
@@ -52,11 +54,59 @@ namespace RAnimation
     {
         for (auto& pass : mPasses)
         {
-            if (pass->GetPhase() == phase)
+            if (pass->GetPhase() != phase)
             {
-                pass->Record(context);
+                continue;
             }
+            EmitBarriersForPass(context, *pass);
+            pass->Record(context);
         }
+    }
+
+    void PassRegistry::EmitBarriersForPass(CommandContext& context, IRenderPass& pass)
+    {
+        RegistryAccessBuilder builder;
+        pass.DeclareAccess(context.renderData, builder);
+        const std::vector<ResourceAccess>& declared = builder.Accesses();
+        if (declared.empty())
+        {
+            return;
+        }
+
+        std::vector<nri::BufferBarrierDesc> bufferBarriers;
+        bufferBarriers.reserve(declared.size());
+
+        for (const ResourceAccess& access : declared)
+        {
+            LastAccessState& last = mLastAccess[access.handle.index];
+
+            // Skip when the buffer is already in the requested state.
+            if (last.initialized && last.access == access.access && last.stage == access.stage)
+            {
+                continue;
+            }
+
+            nri::Buffer* buffer = context.registry.GetBuffer(access.handle);
+            nri::BufferBarrierDesc barrier = {};
+            barrier.buffer = buffer;
+            barrier.before = {last.access, last.stage};
+            barrier.after = {access.access, access.stage};
+            bufferBarriers.push_back(barrier);
+
+            last.access = access.access;
+            last.stage = access.stage;
+            last.initialized = true;
+        }
+
+        if (bufferBarriers.empty())
+        {
+            return;
+        }
+
+        nri::BarrierDesc barrierDesc = {};
+        barrierDesc.buffers = bufferBarriers.data();
+        barrierDesc.bufferNum = static_cast<uint32_t>(bufferBarriers.size());
+        context.NRI.CmdBarrier(context.commandBuffer, barrierDesc);
     }
 
     void PassRegistry::Cleanup(RRenderData& renderData)
@@ -66,5 +116,6 @@ namespace RAnimation
             pass->Cleanup(renderData);
         }
         mPasses.clear();
+        mLastAccess.clear();
     }
 } // namespace RAnimation
