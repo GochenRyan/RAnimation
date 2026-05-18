@@ -8,6 +8,7 @@
 #include <glm/glm.hpp>
 #include <ml.h>
 
+#include <Renderer/PassRegistry.h>
 #include <Renderer/RenderResourceBudget.h>
 #include <Renderer/RenderResourceRegistry.h>
 #include <RHIWrap/NRIInterface.h>
@@ -49,22 +50,6 @@ namespace RAnimation
         glm::mat4 projectionMatrix{};
     };
 
-    struct RPushConstants
-    {
-        int modelStride;
-        int worldPosOffset;
-    };
-
-    struct RComputePushConstants
-    {
-        uint32_t nodeTransformOffset = 0;
-        uint32_t boneMatrixOffset = 0;
-        uint32_t modelRootOffset = 0;
-        uint32_t numberOfNodes = 0;
-        uint32_t numberOfBones = 0;
-        uint32_t instanceCount = 0;
-    };
-
     struct RTextureData
     {
         nri::Texture* nriTexture = nullptr;
@@ -87,11 +72,6 @@ namespace RAnimation
     {
         nri::CommandAllocator* commandAllocator = nullptr;
         nri::CommandBuffer* commandBuffer = nullptr;
-        nri::DescriptorSet* staticDescriptorSet = nullptr;
-        nri::DescriptorSet* skinnedDescriptorSet = nullptr;
-        nri::DescriptorSet* computeTransformDescriptorSet = nullptr;
-        nri::DescriptorSet* computeMatrixMultDescriptorSet0 = nullptr;
-        nri::DescriptorSet* computeMatrixMultDescriptorSet1 = nullptr;
         uint32_t swapChainTextureIndex = 0;
     };
 
@@ -155,31 +135,14 @@ namespace RAnimation
 
         nri::Descriptor* anisotropicSampler = nullptr;
 
-        nri::PipelineLayout* rdPipelineLayout = nullptr;
-        nri::PipelineLayout* rdSkinningPipelineLayout = nullptr;
-        nri::PipelineLayout* rdComputeTransformPipelineLayout = nullptr;
-        nri::PipelineLayout* rdComputeMatrixMultPipelineLayout = nullptr;
-
-        nri::Pipeline* rdPipeline = nullptr;
-        nri::Pipeline* rdSkinningPipeline = nullptr;
-        nri::Pipeline* rdComputeTransformPipeline = nullptr;
-        nri::Pipeline* rdComputeMatrixMultPipeline = nullptr;
+        // Shared by StaticMeshDrawPass / SkinnedMeshDrawPass / NRITexture material descriptor allocation.
+        // Owned by StaticMeshDrawPass (created in CreatePipeline, destroyed in Cleanup).
+        nri::PipelineLayout* rdMaterialPipelineLayout = nullptr;
 
         std::vector<QueuedFrame> rdQueuedFrames;
         uint32_t queuedFrameIndex = 0;
 
         nri::DescriptorPool* rdDescriptorPool = nullptr;
-        std::vector<nri::DescriptorRangeDesc> rdTextureDescriptorRanges;
-        std::vector<nri::DescriptorRangeDesc> rdBufferDescriptorRanges;
-        std::vector<nri::DescriptorSetDesc> rdDescriptorSetDescs;
-
-        std::vector<nri::DescriptorRangeDesc> rdComputeTransformDescriptorRanges;
-        std::vector<nri::DescriptorSetDesc> rdComputeTransformDescriptorSetDescs;
-
-        // Needs Optimization：Should be encapsulated. Otherwise, the Sets and Bindings of each Shader need to be written here again, which doesn't seem easy to maintain.
-        std::vector<nri::DescriptorRangeDesc> rdComputeMatrixMultDescriptorRanges1;
-        std::vector<nri::DescriptorRangeDesc> rdComputeMatrixMultDescriptorRanges2;
-        std::vector<nri::DescriptorSetDesc> rdComputeMatrixMultDescriptorSetDescs;
 
         nri::Fence* rdFrameFence = nullptr;
 
@@ -190,6 +153,7 @@ namespace RAnimation
         std::vector<nri::Memory*> rdMemoryAllocations;
 
         RenderResourceRegistry rdResourceRegistry{};
+        PassRegistry rdPassRegistry{};
 
         BufferHandle rdCameraBuffer{};
         BufferHandle rdWorldMatrixBuffer{};

@@ -7,6 +7,7 @@
 #include <Model/ModelInstance.h>
 #include <Platform/NativeWindowHandle.h>
 #include <Renderer/RenderResourceBudget.h>
+#include <Renderer/SceneFrameData.h>
 #include <Renderer/UserInterface.h>
 #include <Tools/Timer.h>
 #include <Tools/Camera.h>
@@ -57,15 +58,13 @@ namespace RAnimation
         bool createSyncObjects();
         bool createSwapchain();
         bool createQueuedFrames();
-        bool createPipelineLayout();
-        bool createPipelines();
+        bool registerPasses();
         bool createMatrixUBO();
         bool createSSBOs();
         bool allocateAndBindMemory();
-        bool updateDescriptors();
+        bool createSampler();
         bool createDescriptorPool();
-        bool createDescriptorSetLayouts();
-        bool createDescriptorSets();
+        bool createPassPipelinesAndDescriptors();
         bool createSwapchainTextures();
         bool createDepthAttachmentResources();
         bool recreateSwapchain();
@@ -81,16 +80,6 @@ namespace RAnimation
         bool recordCommandBuffer();
 
     private:
-        struct AnimatedDispatch
-        {
-            uint32_t nodeTransformOffset = 0;
-            uint32_t boneMatrixOffset = 0;
-            uint32_t modelRootOffset = 0;
-            uint32_t numberOfNodes = 0;
-            uint32_t numberOfBones = 0;
-            uint32_t instanceCount = 0;
-        };
-
         RRenderData mRenderData{};
         RenderResourceBudget mResourceBudget{};
         ModelAndInstanceData mModelInstData{};

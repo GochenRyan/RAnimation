@@ -61,11 +61,11 @@ bool NRITexture::UploadToGPU(RRenderData& renderData, RTextureData& texData)
                                                 texData.texture.GetFormat()};
     NRI_ABORT_ON_FAILURE(renderData.NRI.CreateTexture2DView(texture2DViewDesc, texData.descriptor));
 
-    if (renderData.rdDescriptorPool != nullptr && renderData.rdPipelineLayout != nullptr &&
+    if (renderData.rdDescriptorPool != nullptr && renderData.rdMaterialPipelineLayout != nullptr &&
         renderData.anisotropicSampler != nullptr)
     {
         NRI_ABORT_ON_FAILURE(renderData.NRI.AllocateDescriptorSets(
-                *renderData.rdDescriptorPool, *renderData.rdPipelineLayout, 0, &texData.descriptorSet, 1, 0));
+                *renderData.rdDescriptorPool, *renderData.rdMaterialPipelineLayout, 0, &texData.descriptorSet, 1, 0));
 
         nri::Descriptor* textureDescriptor = texData.descriptor;
         nri::UpdateDescriptorRangeDesc updateRanges[] = {
