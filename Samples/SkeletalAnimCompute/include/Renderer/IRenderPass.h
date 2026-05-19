@@ -51,6 +51,12 @@ namespace RAnimation
         RenderResourceRegistry& registry;
         nri::DescriptorPool& descriptorPool;
         uint32_t queuedFrameNum = 1;
+        // Set during Upload phase to allow Upload() to read/write per-frame scene state.
+        // Null during CreateDescriptors. The current queued frame index is at renderData.queuedFrameIndex.
+        SceneFrameData* sceneFrame = nullptr;
+        // Per-frame delta time (in seconds) supplied by the host application.
+        // Only meaningful during Upload (== 0 during CreateDescriptors).
+        float deltaTime = 0.0f;
     };
 
     struct CommandContext
@@ -153,6 +159,14 @@ namespace RAnimation
         virtual DescriptorPoolRequirements GetDescriptorPoolRequirements(uint32_t queuedFrameNum) const = 0;
 
         virtual bool CreateDescriptors(FrameContext& context) = 0;
+
+        // Per-frame host-side data marshaling: pass iterates scene state, computes CPU-side data,
+        // and uploads (Map/Unmap) into its owned buffers. Called by PassRegistry::UploadFrame()
+        // each frame before RecordPhase. Default no-op for passes that don't upload (e.g. ImguiPass).
+        virtual void Upload(FrameContext& context)
+        {
+            (void)context;
+        }
 
         virtual void Record(CommandContext& context) = 0;
 

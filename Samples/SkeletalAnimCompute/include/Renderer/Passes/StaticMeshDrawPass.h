@@ -2,7 +2,10 @@
 
 #include <vector>
 
+#include <glm/glm.hpp>
+
 #include <Renderer/IRenderPass.h>
+#include <Tools/Timer.h>
 
 namespace RAnimation
 {
@@ -19,6 +22,7 @@ namespace RAnimation
         bool CreatePipeline(RenderContext& context) override;
         DescriptorPoolRequirements GetDescriptorPoolRequirements(uint32_t queuedFrameNum) const override;
         bool CreateDescriptors(FrameContext& context) override;
+        void Upload(FrameContext& context) override;
         void Record(CommandContext& context) override;
         void Cleanup(RRenderData& renderData) override;
 
@@ -32,5 +36,11 @@ namespace RAnimation
         BufferHandle mWorldMatrixBuffer{};
         BufferViewHandle mCameraView{};
         BufferViewHandle mWorldMatrixView{};
+
+        // Per-frame CPU-side scratch for non-animated instance world matrices.
+        std::vector<glm::mat4> mWorldPosMatrices;
+
+        Timer mMatrixGenerateTimer{};
+        Timer mUploadToUBOTimer{};
     };
 } // namespace RAnimation

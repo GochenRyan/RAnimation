@@ -21,15 +21,6 @@ namespace RAnimation
             return (itemCount + threadGroupSize - 1) / threadGroupSize;
         }
 
-        struct PushConstants
-        {
-            uint32_t nodeTransformOffset = 0;
-            uint32_t boneMatrixOffset = 0;
-            uint32_t modelRootOffset = 0;
-            uint32_t numberOfNodes = 0;
-            uint32_t numberOfBones = 0;
-            uint32_t instanceCount = 0;
-        };
     } // namespace
 
     bool BoneMatrixComputePass::DeclareResources(ResourceContext& context)
@@ -105,7 +96,7 @@ namespace RAnimation
         nri::RootConstantDesc rootConstantDesc = {};
         rootConstantDesc.registerIndex = 0;
         rootConstantDesc.shaderStages = nri::StageBits::COMPUTE_SHADER;
-        rootConstantDesc.size = sizeof(PushConstants);
+        rootConstantDesc.size = sizeof(AnimatedDispatch);
 
         nri::PipelineLayoutDesc layoutDesc = {};
         layoutDesc.rootConstantNum = 1;
@@ -213,16 +204,8 @@ namespace RAnimation
 
         for (const AnimatedDispatch& dispatch : *context.sceneFrame->animatedDispatches)
         {
-            PushConstants pushConstants = {};
-            pushConstants.nodeTransformOffset = dispatch.nodeTransformOffset;
-            pushConstants.boneMatrixOffset = dispatch.boneMatrixOffset;
-            pushConstants.modelRootOffset = dispatch.modelRootOffset;
-            pushConstants.numberOfNodes = dispatch.numberOfNodes;
-            pushConstants.numberOfBones = dispatch.numberOfBones;
-            pushConstants.instanceCount = dispatch.instanceCount;
-
             context.NRI.CmdSetRootConstants(context.commandBuffer,
-                                            {0, &pushConstants, sizeof(pushConstants), 0, nri::BindPoint::COMPUTE});
+                                            {0, &dispatch, sizeof(dispatch), 0, nri::BindPoint::COMPUTE});
             context.NRI.CmdDispatch(context.commandBuffer,
                                     {dispatch.numberOfBones, GroupCount(dispatch.instanceCount, kThreadGroupSize), 1});
         }

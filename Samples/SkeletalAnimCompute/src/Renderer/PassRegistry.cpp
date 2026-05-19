@@ -50,6 +50,14 @@ namespace RAnimation
         return true;
     }
 
+    void PassRegistry::UploadFrame(FrameContext& context)
+    {
+        for (auto& pass : mPasses)
+        {
+            pass->Upload(context);
+        }
+    }
+
     void PassRegistry::RecordPhase(CommandContext& context, RenderPassPhase phase)
     {
         for (auto& pass : mPasses)

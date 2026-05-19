@@ -61,7 +61,6 @@ namespace RAnimation
         bool createQueuedFrames();
         bool registerPasses();
         bool allocateAndBindMemory();
-        bool cacheUploadBufferHandles();
         bool createSampler();
         bool createDescriptorPool();
         bool createPassPipelinesAndDescriptors();
@@ -75,8 +74,6 @@ namespace RAnimation
 
         void latencySleep(uint32_t frameIndex);
 
-        void updateCameraBuffer();
-        bool updateModelBuffer(float deltaTime);
         bool recordCommandBuffer();
 
     private:
@@ -85,8 +82,6 @@ namespace RAnimation
         ModelAndInstanceData mModelInstData{};
 
         Timer mFrameTimer{};
-        Timer mMatrixGenerateTimer{};
-        Timer mUploadToUBOTimer{};
         Timer mUIGenerateTimer{};
         Timer mUIDrawTimer{};
 
@@ -95,28 +90,12 @@ namespace RAnimation
         UserInterface mUserInterface{};
         Camera mCamera;
 
-        /* for non-animated models */
-        std::vector<glm::mat4> mWorldPosMatrices;
-
-        /* for animated models */
-        std::vector<RNodeTransformData> mNodeTransformData;
-        std::vector<int32_t> mNodeParentIndices;
-        std::vector<uint32_t> mBoneNodeIndices;
-        std::vector<glm::mat4> mBoneOffsetMatrices;
-        std::vector<glm::mat4> mModelRootMatrices;
-        std::vector<AnimatedDispatch> mAnimatedDispatches;
+        // Per-frame scene state. Filled by Renderer::Draw (modelInstData/hasSceneGeometry) and
+        // by AnimationTransformComputePass::Upload (animatedDispatches/uploadedBoneOffsetMatrixCount).
+        // Consumed by passes during Record() via CommandContext::sceneFrame.
+        SceneFrameData mSceneFrame{};
 
         bool mDepthAttachmentInitialized = false;
         bool mSwapchainRecreateRequested = false;
-
-        // Cached BufferHandle lookups for host-upload paths. Populated by cacheUploadBufferHandles()
-        // after PassRegistry::DeclareResources has registered the named buffers.
-        BufferHandle mCameraBufferHandle{};
-        BufferHandle mWorldMatrixBufferHandle{};
-        BufferHandle mNodeTransformBufferHandle{};
-        BufferHandle mNodeParentIndexBufferHandle{};
-        BufferHandle mBoneNodeIndexBufferHandle{};
-        BufferHandle mBoneOffsetMatrixBufferHandle{};
-        BufferHandle mModelRootMatrixBufferHandle{};
     };
 } // namespace RAnimation

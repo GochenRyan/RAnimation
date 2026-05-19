@@ -28,6 +28,10 @@ namespace RAnimation
         DescriptorPoolRequirements GetDescriptorPoolRequirements(uint32_t queuedFrameNum) const;
         bool CreateDescriptors(FrameContext& context);
 
+        // Per-frame host-side data marshaling. Calls each pass's Upload() in registration order
+        // before any RecordPhase. context.sceneFrame must be non-null.
+        void UploadFrame(FrameContext& context);
+
         // Run all passes whose GetPhase() matches `phase`, in registration order.
         // Before each pass's Record(), emits any barriers required to transition
         // declared buffers from their last-known access state to the pass's declared state.

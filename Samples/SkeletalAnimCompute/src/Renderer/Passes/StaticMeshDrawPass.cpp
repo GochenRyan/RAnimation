@@ -1,9 +1,11 @@
 #include <Renderer/Passes/StaticMeshDrawPass.h>
 
 #include <cstddef>
+#include <cstring>
 
 #include <fmt/base.h>
 #include <fmt/color.h>
+#include <glm/gtc/matrix_transform.hpp>
 
 #include <Model/Model.h>
 #include <Model/ModelAndInstanceData.h>
@@ -208,6 +210,95 @@ namespace RAnimation
             context.NRI.UpdateDescriptorRanges(ranges, helper::GetCountOf(ranges));
         }
         return true;
+    }
+
+    void StaticMeshDrawPass::Upload(FrameContext& context)
+    {
+        // ---- Camera upload (always runs) ----
+        mMatrixGenerateTimer.Start();
+        const RRenderData& rd = context.renderData;
+        glm::vec3 forward = glm::normalize(glm::vec3(
+                std::cos(glm::radians(rd.rdViewElevation)) * std::cos(glm::radians(rd.rdViewAzimuth)),
+                std::sin(glm::radians(rd.rdViewElevation)),
+                std::cos(glm::radians(rd.rdViewElevation)) * std::sin(glm::radians(rd.rdViewAzimuth))));
+        glm::vec3 target = rd.rdCameraWorldPosition + forward;
+
+        RUploadMatrices matrices = {};
+        matrices.viewMatrix = glm::lookAtRH(rd.rdCameraWorldPosition, target, glm::vec3(0.0f, 1.0f, 0.0f));
+        matrices.projectionMatrix =
+                glm::perspectiveRH_ZO(glm::radians(static_cast<float>(rd.rdFieldOfView)),
+                                      static_cast<float>(rd.rdOutputResolution.x) /
+                                              static_cast<float>(rd.rdOutputResolution.y),
+                                      0.1f,
+                                      500.0f);
+        context.renderData.rdMatrixGenerateTime += mMatrixGenerateTimer.Stop();
+
+        const uint32_t frameIndex = context.renderData.queuedFrameIndex;
+        RenderResourceRegistry& registry = context.registry;
+
+        mUploadToUBOTimer.Start();
+        {
+            nri::Buffer* cameraBuffer = registry.GetBuffer(mCameraBuffer);
+            const uint64_t cameraOffset = registry.GetOffsetForFrame(mCameraBuffer, frameIndex);
+            void* cameraDst = context.NRI.MapBuffer(*cameraBuffer, cameraOffset, sizeof(RUploadMatrices));
+            std::memcpy(cameraDst, &matrices, sizeof(RUploadMatrices));
+            context.NRI.UnmapBuffer(*cameraBuffer);
+        }
+        context.renderData.rdUploadToUBOTime += mUploadToUBOTimer.Stop();
+
+        // ---- World matrix upload (non-animated instances) ----
+        mWorldPosMatrices.clear();
+        if (context.sceneFrame != nullptr && context.sceneFrame->modelInstData != nullptr)
+        {
+            for (const auto& modelType : context.sceneFrame->modelInstData->miModelInstancesPerModel)
+            {
+                if (modelType.second.empty())
+                {
+                    continue;
+                }
+                std::shared_ptr<Model> model = modelType.second.front()->GetModel();
+                if (model->HasAnimations() && !model->GetBoneList().empty())
+                {
+                    continue;
+                }
+                for (const auto& instance : modelType.second)
+                {
+                    mMatrixGenerateTimer.Start();
+                    mWorldPosMatrices.emplace_back(instance->GetWorldTransformMatrix());
+                    context.renderData.rdMatrixGenerateTime += mMatrixGenerateTimer.Stop();
+                }
+            }
+        }
+
+        // Budget usage reporting (static portion).
+        context.renderData.rdResourceBudgetUsage.staticWorldMatrices = mWorldPosMatrices.size();
+        context.renderData.rdResourceBudgetUsage.uploadBytes += mWorldPosMatrices.size() * sizeof(glm::mat4);
+        context.renderData.rdMatricesSize +=
+                static_cast<unsigned int>(mWorldPosMatrices.size() * sizeof(glm::mat4));
+
+        const uint64_t maxWorldMatrices = context.renderData.rdResourceBudget.maxWorldMatrices;
+        if (mWorldPosMatrices.size() > maxWorldMatrices)
+        {
+            fmt::print(stderr,
+                       fg(fmt::color::red),
+                       "StaticMeshDrawPass::Upload error: static world matrix upload capacity exceeded "
+                       "({}/{})\n",
+                       mWorldPosMatrices.size(),
+                       maxWorldMatrices);
+            return;
+        }
+
+        if (!mWorldPosMatrices.empty())
+        {
+            mUploadToUBOTimer.Start();
+            nri::Buffer* worldBuffer = registry.GetBuffer(mWorldMatrixBuffer);
+            const uint64_t worldOffset = registry.GetOffsetForFrame(mWorldMatrixBuffer, frameIndex);
+            const size_t worldBytes = mWorldPosMatrices.size() * sizeof(glm::mat4);
+            void* worldDst = context.NRI.MapBuffer(*worldBuffer, worldOffset, worldBytes);
+            std::memcpy(worldDst, mWorldPosMatrices.data(), worldBytes);
+            context.NRI.UnmapBuffer(*worldBuffer);
+            context.renderData.rdUploadToUBOTime += mUploadToUBOTimer.Stop();
+        }
     }
 
     void StaticMeshDrawPass::Record(CommandContext& context)
