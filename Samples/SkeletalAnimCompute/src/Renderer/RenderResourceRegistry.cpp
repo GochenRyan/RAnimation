@@ -150,6 +150,96 @@ namespace RAnimation
         return handle;
     }
 
+    BufferHandle RenderResourceRegistry::RegisterSharedBuffer(const char* name, const BufferDesc& desc)
+    {
+        auto it = mNamedBuffers.find(name);
+        if (it != mNamedBuffers.end())
+        {
+            const BufferDesc& existing = mBuffers[it->second.index].desc;
+            const bool equivalent = existing.elementSize == desc.elementSize &&
+                                    existing.elementCount == desc.elementCount &&
+                                    existing.structureStride == desc.structureStride &&
+                                    existing.usage == desc.usage &&
+                                    existing.memoryLocation == desc.memoryLocation &&
+                                    existing.perQueuedFrame == desc.perQueuedFrame;
+            if (!equivalent)
+            {
+                fmt::print(stderr,
+                           fg(fmt::color::red),
+                           "RenderResourceRegistry error: shared buffer '{}' re-registered with a "
+                           "different BufferDesc (elementSize {} vs {}, elementCount {} vs {}, "
+                           "structureStride {} vs {}, usage {:#x} vs {:#x}, memoryLocation {} vs {}, "
+                           "perQueuedFrame {} vs {})\n",
+                           name,
+                           existing.elementSize,
+                           desc.elementSize,
+                           existing.elementCount,
+                           desc.elementCount,
+                           existing.structureStride,
+                           desc.structureStride,
+                           static_cast<uint32_t>(existing.usage),
+                           static_cast<uint32_t>(desc.usage),
+                           static_cast<uint32_t>(existing.memoryLocation),
+                           static_cast<uint32_t>(desc.memoryLocation),
+                           existing.perQueuedFrame,
+                           desc.perQueuedFrame);
+                return BufferHandle{};
+            }
+            return it->second;
+        }
+
+        BufferHandle handle = RegisterBuffer(desc);
+        mNamedBuffers.emplace(name, handle);
+        return handle;
+    }
+
+    BufferViewHandle RenderResourceRegistry::RegisterSharedView(const char* name,
+                                                                BufferHandle buffer,
+                                                                nri::BufferViewType viewType,
+                                                                uint32_t viewStructureStride)
+    {
+        auto it = mNamedViews.find(name);
+        if (it != mNamedViews.end())
+        {
+            const ViewEntry& existing = mViews[it->second.index];
+            const bool equivalent = existing.buffer == buffer && existing.viewType == viewType &&
+                                    existing.structureStride == viewStructureStride;
+            if (!equivalent)
+            {
+                fmt::print(stderr,
+                           fg(fmt::color::red),
+                           "RenderResourceRegistry error: shared view '{}' re-registered with a "
+                           "different buffer/type/stride (buffer {} vs {}, viewType {} vs {}, "
+                           "structureStride {} vs {})\n",
+                           name,
+                           existing.buffer.index,
+                           buffer.index,
+                           static_cast<uint32_t>(existing.viewType),
+                           static_cast<uint32_t>(viewType),
+                           existing.structureStride,
+                           viewStructureStride);
+                return BufferViewHandle{};
+            }
+            return it->second;
+        }
+
+        BufferViewHandle handle = RegisterView(buffer, viewType, viewStructureStride);
+        mNamedViews.emplace(name, handle);
+        return handle;
+    }
+
+    BufferHandle RenderResourceRegistry::FindBuffer(const char* name) const
+    {
+        auto it = mNamedBuffers.find(name);
+        return it != mNamedBuffers.end() ? it->second : BufferHandle{};
+    }
+
+    BufferViewHandle RenderResourceRegistry::FindView(const char* name) const
+    {
+        auto it = mNamedViews.find(name);
+        return it != mNamedViews.end() ? it->second : BufferViewHandle{};
+    }
+
     bool RenderResourceRegistry::CreateBuffers(RRenderData& renderData)
     {
         for (BufferEntry& entry : mBuffers)
@@ -211,6 +301,9 @@ namespace RAnimation
 
     void RenderResourceRegistry::Cleanup(RRenderData& renderData)
     {
+        mNamedViews.clear();
+        mNamedBuffers.clear();
+
         if (renderData.rdDevice == nullptr)
         {
             mViews.clear();

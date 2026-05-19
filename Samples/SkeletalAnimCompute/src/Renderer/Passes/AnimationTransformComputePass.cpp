@@ -5,7 +5,9 @@
 
 #include <Model/RenderData.h>
 #include <Renderer/RenderResourceRegistry.h>
+#include <Renderer/SceneBufferDescs.h>
 #include <Renderer/SceneFrameData.h>
+#include <Renderer/SceneResourceNames.h>
 #include <RHIWrap/Helper.h>
 
 namespace RAnimation
@@ -29,6 +31,28 @@ namespace RAnimation
             uint32_t instanceCount = 0;
         };
     } // namespace
+
+    bool AnimationTransformComputePass::DeclareResources(ResourceContext& context)
+    {
+        // Owns NodeTransformBuffer + TRSMatrixBuffer.
+        mNodeTransformBuffer =
+                context.registry.RegisterSharedBuffer(SceneResourceNames::kNodeTransformBuffer,
+                                                      SceneBufferDescs::NodeTransform(context.budget));
+        mTRSMatrixBuffer = context.registry.RegisterSharedBuffer(SceneResourceNames::kTRSMatrixBuffer,
+                                                                 SceneBufferDescs::TRSMatrix(context.budget));
+
+        mNodeTransformView =
+                context.registry.RegisterSharedView(SceneResourceNames::kNodeTransformBufferView,
+                                                    mNodeTransformBuffer,
+                                                    nri::BufferViewType::SHADER_RESOURCE);
+        mTRSMatrixStorageView =
+                context.registry.RegisterSharedView(SceneResourceNames::kTRSMatrixStorageView,
+                                                    mTRSMatrixBuffer,
+                                                    nri::BufferViewType::SHADER_RESOURCE_STORAGE);
+
+        return mNodeTransformBuffer.IsValid() && mTRSMatrixBuffer.IsValid() &&
+               mNodeTransformView.IsValid() && mTRSMatrixStorageView.IsValid();
+    }
 
     bool AnimationTransformComputePass::CreatePipeline(RenderContext& context)
     {
@@ -91,10 +115,8 @@ namespace RAnimation
                                                                     1,
                                                                     0));
 
-            nri::Descriptor* nodeTransformView =
-                    context.registry.GetView(context.renderData.rdNodeTransformBufferView, frameIndex);
-            nri::Descriptor* trsStorageView =
-                    context.registry.GetView(context.renderData.rdTRSMatrixStorageView, frameIndex);
+            nri::Descriptor* nodeTransformView = context.registry.GetView(mNodeTransformView, frameIndex);
+            nri::Descriptor* trsStorageView = context.registry.GetView(mTRSMatrixStorageView, frameIndex);
 
             nri::Descriptor* descriptors[] = {nodeTransformView, trsStorageView};
             nri::UpdateDescriptorRangeDesc ranges[] = {
@@ -106,11 +128,10 @@ namespace RAnimation
         return true;
     }
 
-    void AnimationTransformComputePass::DeclareAccess(const RRenderData& renderData,
-                                                      RegistryAccessBuilder& builder) const
+    void AnimationTransformComputePass::DeclareAccess(RegistryAccessBuilder& builder) const
     {
         // Writes TRS matrices in compute storage.
-        builder.Use(renderData.rdTRSMatrixBuffer,
+        builder.Use(mTRSMatrixBuffer,
                     nri::AccessBits::SHADER_RESOURCE_STORAGE,
                     nri::StageBits::COMPUTE_SHADER);
     }

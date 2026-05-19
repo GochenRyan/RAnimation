@@ -16,6 +16,7 @@
 #include <Renderer/Passes/SkinnedMeshDrawPass.h>
 #include <Renderer/Passes/StaticMeshDrawPass.h>
 #include <Renderer/Renderer.h>
+#include <Renderer/SceneResourceNames.h>
 #include <RHIWrap/Helper.h>
 
 using namespace RAnimation;
@@ -26,105 +27,6 @@ using namespace RAnimation;
 
 namespace
 {
-    BufferDesc GetCameraBufferDesc()
-    {
-        return {"CameraBuffer",
-                sizeof(RUploadMatrices),
-                1,
-                0,
-                nri::BufferUsageBits::CONSTANT_BUFFER,
-                nri::MemoryLocation::HOST_UPLOAD,
-                true};
-    }
-
-    BufferDesc GetWorldMatrixBufferDesc(const RenderResourceBudget& budget)
-    {
-        return {"WorldMatrixBuffer",
-                sizeof(glm::mat4),
-                budget.maxWorldMatrices,
-                sizeof(glm::mat4),
-                nri::BufferUsageBits::SHADER_RESOURCE,
-                nri::MemoryLocation::HOST_UPLOAD,
-                true};
-    }
-
-    BufferDesc GetBoneMatrixBufferDesc(const RenderResourceBudget& budget)
-    {
-        return {"BoneMatrixBuffer",
-                sizeof(glm::mat4),
-                budget.GetMaxBoneMatrices(),
-                sizeof(glm::mat4),
-                nri::BufferUsageBits::SHADER_RESOURCE | nri::BufferUsageBits::SHADER_RESOURCE_STORAGE,
-                nri::MemoryLocation::DEVICE,
-                true};
-    }
-
-    BufferDesc GetNodeTransformBufferDesc(const RenderResourceBudget& budget)
-    {
-        return {"NodeTransformBuffer",
-                sizeof(RNodeTransformData),
-                budget.GetMaxNodeTransforms(),
-                sizeof(RNodeTransformData),
-                nri::BufferUsageBits::SHADER_RESOURCE,
-                nri::MemoryLocation::HOST_UPLOAD,
-                true};
-    }
-
-    BufferDesc GetTRSMatrixBufferDesc(const RenderResourceBudget& budget)
-    {
-        return {"TRSMatrixBuffer",
-                sizeof(glm::mat4),
-                budget.GetMaxNodeTransforms(),
-                sizeof(glm::mat4),
-                nri::BufferUsageBits::SHADER_RESOURCE | nri::BufferUsageBits::SHADER_RESOURCE_STORAGE,
-                nri::MemoryLocation::DEVICE,
-                true};
-    }
-
-    BufferDesc GetModelRootMatrixBufferDesc(const RenderResourceBudget& budget)
-    {
-        return {"ModelRootMatrixBuffer",
-                sizeof(glm::mat4),
-                budget.maxWorldMatrices,
-                sizeof(glm::mat4),
-                nri::BufferUsageBits::SHADER_RESOURCE,
-                nri::MemoryLocation::HOST_UPLOAD,
-                true};
-    }
-
-    BufferDesc GetNodeParentIndexBufferDesc(const RenderResourceBudget& budget)
-    {
-        return {"NodeParentIndexBuffer",
-                sizeof(int32_t),
-                budget.GetMaxNodeTransforms(),
-                sizeof(int32_t),
-                nri::BufferUsageBits::SHADER_RESOURCE,
-                nri::MemoryLocation::HOST_UPLOAD,
-                true};
-    }
-
-    BufferDesc GetBoneNodeIndexBufferDesc(const RenderResourceBudget& budget)
-    {
-        return {"BoneNodeIndexBuffer",
-                sizeof(uint32_t),
-                budget.GetMaxBoneMatrices(),
-                sizeof(uint32_t),
-                nri::BufferUsageBits::SHADER_RESOURCE,
-                nri::MemoryLocation::HOST_UPLOAD,
-                true};
-    }
-
-    BufferDesc GetBoneOffsetMatrixBufferDesc(const RenderResourceBudget& budget)
-    {
-        return {"BoneOffsetMatrixBuffer",
-                sizeof(glm::mat4),
-                budget.GetMaxBoneMatrices(),
-                sizeof(glm::mat4),
-                nri::BufferUsageBits::SHADER_RESOURCE,
-                nri::MemoryLocation::HOST_UPLOAD,
-                true};
-    }
-
     const char* GetRenderResourceTierName(RenderResourceTier tier)
     {
         switch (tier)
@@ -245,17 +147,13 @@ bool Renderer::Init(unsigned int width, unsigned int height)
         return false;
     }
 
-    if (!createMatrixUBO() || !createSSBOs() || !allocateAndBindMemory())
-    {
-        return false;
-    }
-
     if (!createSwapchain() || !createSwapchainTextures())
     {
         return false;
     }
 
-    if (!createQueuedFrames() || !registerPasses() || !createSampler() || !createDescriptorPool() ||
+    if (!createQueuedFrames() || !registerPasses() || !allocateAndBindMemory() ||
+        !cacheUploadBufferHandles() || !createSampler() || !createDescriptorPool() ||
         !createPassPipelinesAndDescriptors())
     {
         return false;
@@ -419,9 +317,9 @@ void Renderer::updateCameraBuffer()
     mRenderData.rdMatrixGenerateTime += mMatrixGenerateTimer.Stop();
 
     mUploadToUBOTimer.Start();
-    nri::Buffer* cameraBuffer = mRenderData.rdResourceRegistry.GetBuffer(mRenderData.rdCameraBuffer);
+    nri::Buffer* cameraBuffer = mRenderData.rdResourceRegistry.GetBuffer(mCameraBufferHandle);
     const uint64_t cameraOffset =
-            mRenderData.rdResourceRegistry.GetOffsetForFrame(mRenderData.rdCameraBuffer, mRenderData.queuedFrameIndex);
+            mRenderData.rdResourceRegistry.GetOffsetForFrame(mCameraBufferHandle, mRenderData.queuedFrameIndex);
     void* cameraDst = mRenderData.NRI.MapBuffer(*cameraBuffer, cameraOffset, sizeof(RUploadMatrices));
     std::memcpy(cameraDst, &matrices, sizeof(RUploadMatrices));
     mRenderData.NRI.UnmapBuffer(*cameraBuffer);
@@ -627,7 +525,7 @@ bool Renderer::updateModelBuffer(float deltaTime)
     if (!mWorldPosMatrices.empty())
     {
         mUploadToUBOTimer.Start();
-        uploadToBuffer(mRenderData.rdWorldMatrixBuffer,
+        uploadToBuffer(mWorldMatrixBufferHandle,
                        mWorldPosMatrices.data(),
                        mWorldPosMatrices.size() * sizeof(glm::mat4));
         mRenderData.rdUploadToUBOTime += mUploadToUBOTimer.Stop();
@@ -636,19 +534,19 @@ bool Renderer::updateModelBuffer(float deltaTime)
     if (!mNodeTransformData.empty())
     {
         mUploadToUBOTimer.Start();
-        uploadToBuffer(mRenderData.rdNodeTransformBuffer,
+        uploadToBuffer(mNodeTransformBufferHandle,
                        mNodeTransformData.data(),
                        mNodeTransformData.size() * sizeof(RNodeTransformData));
-        uploadToBuffer(mRenderData.rdNodeParentIndexBuffer,
+        uploadToBuffer(mNodeParentIndexBufferHandle,
                        mNodeParentIndices.data(),
                        mNodeParentIndices.size() * sizeof(int32_t));
-        uploadToBuffer(mRenderData.rdBoneNodeIndexBuffer,
+        uploadToBuffer(mBoneNodeIndexBufferHandle,
                        mBoneNodeIndices.data(),
                        mBoneNodeIndices.size() * sizeof(uint32_t));
-        uploadToBuffer(mRenderData.rdBoneOffsetMatrixBuffer,
+        uploadToBuffer(mBoneOffsetMatrixBufferHandle,
                        mBoneOffsetMatrices.data(),
                        mBoneOffsetMatrices.size() * sizeof(glm::mat4));
-        uploadToBuffer(mRenderData.rdModelRootMatrixBuffer,
+        uploadToBuffer(mModelRootMatrixBufferHandle,
                        mModelRootMatrices.data(),
                        mModelRootMatrices.size() * sizeof(glm::mat4));
         mRenderData.rdUploadToUBOTime += mUploadToUBOTimer.Stop();
@@ -1222,7 +1120,40 @@ bool Renderer::registerPasses()
     mRenderData.rdPassRegistry.Add<AnimationTransformComputePass>();
     mRenderData.rdPassRegistry.Add<BoneMatrixComputePass>();
     mRenderData.rdPassRegistry.Add<ImguiPass>();
-    return mRenderData.rdPassRegistry.DeclareResources(mRenderData.rdResourceRegistry);
+
+    ResourceContext resourceContext = {mRenderData.rdResourceRegistry, mResourceBudget};
+    if (!mRenderData.rdPassRegistry.DeclareResources(resourceContext))
+    {
+        return false;
+    }
+
+    return mRenderData.rdResourceRegistry.CreateBuffers(mRenderData);
+}
+
+bool Renderer::cacheUploadBufferHandles()
+{
+    RenderResourceRegistry& registry = mRenderData.rdResourceRegistry;
+    mCameraBufferHandle = registry.FindBuffer(SceneResourceNames::kCameraBuffer);
+    mWorldMatrixBufferHandle = registry.FindBuffer(SceneResourceNames::kWorldMatrixBuffer);
+    mNodeTransformBufferHandle = registry.FindBuffer(SceneResourceNames::kNodeTransformBuffer);
+    mNodeParentIndexBufferHandle = registry.FindBuffer(SceneResourceNames::kNodeParentIndexBuffer);
+    mBoneNodeIndexBufferHandle = registry.FindBuffer(SceneResourceNames::kBoneNodeIndexBuffer);
+    mBoneOffsetMatrixBufferHandle = registry.FindBuffer(SceneResourceNames::kBoneOffsetMatrixBuffer);
+    mModelRootMatrixBufferHandle = registry.FindBuffer(SceneResourceNames::kModelRootMatrixBuffer);
+
+    if (!mCameraBufferHandle.IsValid() || !mWorldMatrixBufferHandle.IsValid() ||
+        !mNodeTransformBufferHandle.IsValid() || !mNodeParentIndexBufferHandle.IsValid() ||
+        !mBoneNodeIndexBufferHandle.IsValid() || !mBoneOffsetMatrixBufferHandle.IsValid() ||
+        !mModelRootMatrixBufferHandle.IsValid())
+    {
+        fmt::print(stderr,
+                   fg(fmt::color::red),
+                   "{} error: one or more upload buffer handles missing — pass DeclareResources "
+                   "did not register an expected name\n",
+                   __FUNCTION__);
+        return false;
+    }
+    return true;
 }
 
 bool Renderer::createPassPipelinesAndDescriptors()
@@ -1259,52 +1190,6 @@ bool Renderer::createPassPipelinesAndDescriptors()
                                  *mRenderData.rdDescriptorPool,
                                  mRenderData.GetQueuedFrameNum()};
     return mRenderData.rdPassRegistry.CreateDescriptors(frameContext);
-}
-
-bool Renderer::createMatrixUBO()
-{
-    RenderResourceRegistry& registry = mRenderData.rdResourceRegistry;
-    mRenderData.rdCameraBuffer = registry.RegisterBuffer(GetCameraBufferDesc());
-    mRenderData.rdCameraBufferView = registry.RegisterView(mRenderData.rdCameraBuffer,
-                                                            nri::BufferViewType::CONSTANT);
-    return true;
-}
-
-bool Renderer::createSSBOs()
-{
-    RenderResourceRegistry& registry = mRenderData.rdResourceRegistry;
-
-    mRenderData.rdWorldMatrixBuffer = registry.RegisterBuffer(GetWorldMatrixBufferDesc(mResourceBudget));
-    mRenderData.rdNodeTransformBuffer = registry.RegisterBuffer(GetNodeTransformBufferDesc(mResourceBudget));
-    mRenderData.rdTRSMatrixBuffer = registry.RegisterBuffer(GetTRSMatrixBufferDesc(mResourceBudget));
-    mRenderData.rdModelRootMatrixBuffer = registry.RegisterBuffer(GetModelRootMatrixBufferDesc(mResourceBudget));
-    mRenderData.rdNodeParentIndexBuffer = registry.RegisterBuffer(GetNodeParentIndexBufferDesc(mResourceBudget));
-    mRenderData.rdBoneNodeIndexBuffer = registry.RegisterBuffer(GetBoneNodeIndexBufferDesc(mResourceBudget));
-    mRenderData.rdBoneOffsetMatrixBuffer = registry.RegisterBuffer(GetBoneOffsetMatrixBufferDesc(mResourceBudget));
-    mRenderData.rdBoneMatrixBuffer = registry.RegisterBuffer(GetBoneMatrixBufferDesc(mResourceBudget));
-
-    mRenderData.rdWorldMatrixBufferView =
-            registry.RegisterView(mRenderData.rdWorldMatrixBuffer, nri::BufferViewType::SHADER_RESOURCE);
-    mRenderData.rdBoneMatrixBufferView =
-            registry.RegisterView(mRenderData.rdBoneMatrixBuffer, nri::BufferViewType::SHADER_RESOURCE);
-    mRenderData.rdBoneMatrixStorageView =
-            registry.RegisterView(mRenderData.rdBoneMatrixBuffer, nri::BufferViewType::SHADER_RESOURCE_STORAGE);
-    mRenderData.rdNodeTransformBufferView =
-            registry.RegisterView(mRenderData.rdNodeTransformBuffer, nri::BufferViewType::SHADER_RESOURCE);
-    mRenderData.rdTRSMatrixBufferView =
-            registry.RegisterView(mRenderData.rdTRSMatrixBuffer, nri::BufferViewType::SHADER_RESOURCE);
-    mRenderData.rdTRSMatrixStorageView =
-            registry.RegisterView(mRenderData.rdTRSMatrixBuffer, nri::BufferViewType::SHADER_RESOURCE_STORAGE);
-    mRenderData.rdModelRootMatrixBufferView =
-            registry.RegisterView(mRenderData.rdModelRootMatrixBuffer, nri::BufferViewType::SHADER_RESOURCE);
-    mRenderData.rdNodeParentIndexBufferView =
-            registry.RegisterView(mRenderData.rdNodeParentIndexBuffer, nri::BufferViewType::SHADER_RESOURCE);
-    mRenderData.rdBoneNodeIndexBufferView =
-            registry.RegisterView(mRenderData.rdBoneNodeIndexBuffer, nri::BufferViewType::SHADER_RESOURCE);
-    mRenderData.rdBoneOffsetMatrixBufferView =
-            registry.RegisterView(mRenderData.rdBoneOffsetMatrixBuffer, nri::BufferViewType::SHADER_RESOURCE);
-
-    return registry.CreateBuffers(mRenderData);
 }
 
 bool Renderer::allocateAndBindMemory()

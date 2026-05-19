@@ -7,6 +7,7 @@
 #include <Model/ModelInstance.h>
 #include <Platform/NativeWindowHandle.h>
 #include <Renderer/RenderResourceBudget.h>
+#include <Renderer/RenderResourceRegistry.h>
 #include <Renderer/SceneFrameData.h>
 #include <Renderer/UserInterface.h>
 #include <Tools/Timer.h>
@@ -59,9 +60,8 @@ namespace RAnimation
         bool createSwapchain();
         bool createQueuedFrames();
         bool registerPasses();
-        bool createMatrixUBO();
-        bool createSSBOs();
         bool allocateAndBindMemory();
+        bool cacheUploadBufferHandles();
         bool createSampler();
         bool createDescriptorPool();
         bool createPassPipelinesAndDescriptors();
@@ -108,5 +108,15 @@ namespace RAnimation
 
         bool mDepthAttachmentInitialized = false;
         bool mSwapchainRecreateRequested = false;
+
+        // Cached BufferHandle lookups for host-upload paths. Populated by cacheUploadBufferHandles()
+        // after PassRegistry::DeclareResources has registered the named buffers.
+        BufferHandle mCameraBufferHandle{};
+        BufferHandle mWorldMatrixBufferHandle{};
+        BufferHandle mNodeTransformBufferHandle{};
+        BufferHandle mNodeParentIndexBufferHandle{};
+        BufferHandle mBoneNodeIndexBufferHandle{};
+        BufferHandle mBoneOffsetMatrixBufferHandle{};
+        BufferHandle mModelRootMatrixBufferHandle{};
     };
 } // namespace RAnimation

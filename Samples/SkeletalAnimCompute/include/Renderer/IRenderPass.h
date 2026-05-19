@@ -27,6 +27,12 @@ namespace RAnimation
     };
 
     // -- Contexts --
+    struct ResourceContext
+    {
+        RenderResourceRegistry& registry;
+        const RenderResourceBudget& budget;
+    };
+
     struct RenderContext
     {
         RRenderData& renderData;
@@ -124,19 +130,21 @@ namespace RAnimation
         virtual const char* GetName() const = 0;
         virtual RenderPassPhase GetPhase() const = 0;
 
-        // Optional: register additional registry buffers/views. Default no-op.
-        virtual bool DeclareResources(RenderResourceRegistry& registry)
+        // Register the pass's buffers and views with the shared registry pool. Pass uses
+        // RegisterSharedBuffer/View(name, ...) — first registration wins; subsequent calls with
+        // the same name return the existing handle. Pass caches returned handles as private
+        // members for later use in DeclareAccess / CreateDescriptors / Record.
+        virtual bool DeclareResources(ResourceContext& context)
         {
-            (void)registry;
+            (void)context;
             return true;
         }
 
         // Optional: declare buffer accesses for auto-barrier generation. Default no-op.
-        // Called once per Record() invocation by the PassRegistry. The renderData reference
-        // provides access to RRenderData::rdXxxBuffer handles registered during Init().
-        virtual void DeclareAccess(const RRenderData& renderData, RegistryAccessBuilder& builder) const
+        // Called once per Record() invocation by the PassRegistry. The pass uses its own private
+        // BufferHandle members (cached during DeclareResources) to reference buffers.
+        virtual void DeclareAccess(RegistryAccessBuilder& builder) const
         {
-            (void)renderData;
             (void)builder;
         }
 

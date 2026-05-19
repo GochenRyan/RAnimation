@@ -2,6 +2,8 @@
 
 #include <cstdint>
 #include <limits>
+#include <string>
+#include <unordered_map>
 #include <vector>
 
 #include <NRI.h>
@@ -44,6 +46,20 @@ namespace RAnimation
                                       nri::BufferViewType viewType,
                                       uint32_t viewStructureStride = 0);
 
+        // -- Shared resource pool (Phase E: pass-owned declarations) --
+        // Idempotent registration keyed by name. First registration wins; subsequent calls with
+        // the same name return the existing handle and validate desc/view equivalence (fail-loud
+        // on mismatch). Returns invalid handle on validation failure.
+        BufferHandle RegisterSharedBuffer(const char* name, const BufferDesc& desc);
+        BufferViewHandle RegisterSharedView(const char* name,
+                                            BufferHandle buffer,
+                                            nri::BufferViewType viewType,
+                                            uint32_t viewStructureStride = 0);
+
+        // Lookup-only accessors. Return invalid handle if name was never registered.
+        BufferHandle FindBuffer(const char* name) const;
+        BufferViewHandle FindView(const char* name) const;
+
         // -- Creation phase --
         bool CreateBuffers(RRenderData& renderData);
         bool CreateViews(RRenderData& renderData);
@@ -83,5 +99,7 @@ namespace RAnimation
 
         std::vector<BufferEntry> mBuffers;
         std::vector<ViewEntry> mViews;
+        std::unordered_map<std::string, BufferHandle> mNamedBuffers;
+        std::unordered_map<std::string, BufferViewHandle> mNamedViews;
     };
 } // namespace RAnimation

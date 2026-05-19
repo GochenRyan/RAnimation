@@ -5,7 +5,9 @@
 
 #include <Model/RenderData.h>
 #include <Renderer/RenderResourceRegistry.h>
+#include <Renderer/SceneBufferDescs.h>
 #include <Renderer/SceneFrameData.h>
+#include <Renderer/SceneResourceNames.h>
 #include <RHIWrap/Helper.h>
 
 namespace RAnimation
@@ -29,6 +31,58 @@ namespace RAnimation
             uint32_t instanceCount = 0;
         };
     } // namespace
+
+    bool BoneMatrixComputePass::DeclareResources(ResourceContext& context)
+    {
+        // Owns: BoneMatrix (write), ModelRootMatrix, NodeParentIndex, BoneNodeIndex, BoneOffsetMatrix.
+        // References (shared with AnimationTransformComputePass): TRSMatrix (read).
+        mTRSMatrixBuffer = context.registry.RegisterSharedBuffer(SceneResourceNames::kTRSMatrixBuffer,
+                                                                 SceneBufferDescs::TRSMatrix(context.budget));
+        mBoneMatrixBuffer = context.registry.RegisterSharedBuffer(SceneResourceNames::kBoneMatrixBuffer,
+                                                                  SceneBufferDescs::BoneMatrix(context.budget));
+        mNodeParentIndexBuffer =
+                context.registry.RegisterSharedBuffer(SceneResourceNames::kNodeParentIndexBuffer,
+                                                      SceneBufferDescs::NodeParentIndex(context.budget));
+        mBoneOffsetMatrixBuffer =
+                context.registry.RegisterSharedBuffer(SceneResourceNames::kBoneOffsetMatrixBuffer,
+                                                      SceneBufferDescs::BoneOffsetMatrix(context.budget));
+        mModelRootMatrixBuffer =
+                context.registry.RegisterSharedBuffer(SceneResourceNames::kModelRootMatrixBuffer,
+                                                      SceneBufferDescs::ModelRootMatrix(context.budget));
+        mBoneNodeIndexBuffer =
+                context.registry.RegisterSharedBuffer(SceneResourceNames::kBoneNodeIndexBuffer,
+                                                      SceneBufferDescs::BoneNodeIndex(context.budget));
+
+        mTRSMatrixView = context.registry.RegisterSharedView(SceneResourceNames::kTRSMatrixBufferView,
+                                                             mTRSMatrixBuffer,
+                                                             nri::BufferViewType::SHADER_RESOURCE);
+        mBoneMatrixStorageView =
+                context.registry.RegisterSharedView(SceneResourceNames::kBoneMatrixStorageView,
+                                                    mBoneMatrixBuffer,
+                                                    nri::BufferViewType::SHADER_RESOURCE_STORAGE);
+        mNodeParentIndexView =
+                context.registry.RegisterSharedView(SceneResourceNames::kNodeParentIndexBufferView,
+                                                    mNodeParentIndexBuffer,
+                                                    nri::BufferViewType::SHADER_RESOURCE);
+        mBoneOffsetMatrixView =
+                context.registry.RegisterSharedView(SceneResourceNames::kBoneOffsetMatrixBufferView,
+                                                    mBoneOffsetMatrixBuffer,
+                                                    nri::BufferViewType::SHADER_RESOURCE);
+        mModelRootMatrixView =
+                context.registry.RegisterSharedView(SceneResourceNames::kModelRootMatrixBufferView,
+                                                    mModelRootMatrixBuffer,
+                                                    nri::BufferViewType::SHADER_RESOURCE);
+        mBoneNodeIndexView = context.registry.RegisterSharedView(SceneResourceNames::kBoneNodeIndexBufferView,
+                                                                 mBoneNodeIndexBuffer,
+                                                                 nri::BufferViewType::SHADER_RESOURCE);
+
+        return mTRSMatrixBuffer.IsValid() && mBoneMatrixBuffer.IsValid() &&
+               mNodeParentIndexBuffer.IsValid() && mBoneOffsetMatrixBuffer.IsValid() &&
+               mModelRootMatrixBuffer.IsValid() && mBoneNodeIndexBuffer.IsValid() &&
+               mTRSMatrixView.IsValid() && mBoneMatrixStorageView.IsValid() &&
+               mNodeParentIndexView.IsValid() && mBoneOffsetMatrixView.IsValid() &&
+               mModelRootMatrixView.IsValid() && mBoneNodeIndexView.IsValid();
+    }
 
     bool BoneMatrixComputePass::CreatePipeline(RenderContext& context)
     {
@@ -107,17 +161,12 @@ namespace RAnimation
                                                                     1,
                                                                     0));
 
-            nri::Descriptor* trsSrView = context.registry.GetView(context.renderData.rdTRSMatrixBufferView, frameIndex);
-            nri::Descriptor* boneStorageView =
-                    context.registry.GetView(context.renderData.rdBoneMatrixStorageView, frameIndex);
-            nri::Descriptor* nodeParentView =
-                    context.registry.GetView(context.renderData.rdNodeParentIndexBufferView, frameIndex);
-            nri::Descriptor* boneOffsetView =
-                    context.registry.GetView(context.renderData.rdBoneOffsetMatrixBufferView, frameIndex);
-            nri::Descriptor* modelRootView =
-                    context.registry.GetView(context.renderData.rdModelRootMatrixBufferView, frameIndex);
-            nri::Descriptor* boneNodeView =
-                    context.registry.GetView(context.renderData.rdBoneNodeIndexBufferView, frameIndex);
+            nri::Descriptor* trsSrView = context.registry.GetView(mTRSMatrixView, frameIndex);
+            nri::Descriptor* boneStorageView = context.registry.GetView(mBoneMatrixStorageView, frameIndex);
+            nri::Descriptor* nodeParentView = context.registry.GetView(mNodeParentIndexView, frameIndex);
+            nri::Descriptor* boneOffsetView = context.registry.GetView(mBoneOffsetMatrixView, frameIndex);
+            nri::Descriptor* modelRootView = context.registry.GetView(mModelRootMatrixView, frameIndex);
+            nri::Descriptor* boneNodeView = context.registry.GetView(mBoneNodeIndexView, frameIndex);
 
             nri::Descriptor* set0Descriptors[] = {trsSrView, boneStorageView};
             nri::UpdateDescriptorRangeDesc set0Ranges[] = {
@@ -138,14 +187,11 @@ namespace RAnimation
         return true;
     }
 
-    void BoneMatrixComputePass::DeclareAccess(const RRenderData& renderData,
-                                              RegistryAccessBuilder& builder) const
+    void BoneMatrixComputePass::DeclareAccess(RegistryAccessBuilder& builder) const
     {
         // Reads TRS as SR, writes BoneMatrix as SRS.
-        builder.Use(renderData.rdTRSMatrixBuffer,
-                    nri::AccessBits::SHADER_RESOURCE,
-                    nri::StageBits::COMPUTE_SHADER);
-        builder.Use(renderData.rdBoneMatrixBuffer,
+        builder.Use(mTRSMatrixBuffer, nri::AccessBits::SHADER_RESOURCE, nri::StageBits::COMPUTE_SHADER);
+        builder.Use(mBoneMatrixBuffer,
                     nri::AccessBits::SHADER_RESOURCE_STORAGE,
                     nri::StageBits::COMPUTE_SHADER);
     }

@@ -4,11 +4,11 @@
 
 namespace RAnimation
 {
-    bool PassRegistry::DeclareResources(RenderResourceRegistry& registry)
+    bool PassRegistry::DeclareResources(ResourceContext& context)
     {
         for (auto& pass : mPasses)
         {
-            if (!pass->DeclareResources(registry))
+            if (!pass->DeclareResources(context))
             {
                 return false;
             }
@@ -66,7 +66,7 @@ namespace RAnimation
     void PassRegistry::EmitBarriersForPass(CommandContext& context, IRenderPass& pass)
     {
         RegistryAccessBuilder builder;
-        pass.DeclareAccess(context.renderData, builder);
+        pass.DeclareAccess(builder);
         const std::vector<ResourceAccess>& declared = builder.Accesses();
         if (declared.empty())
         {

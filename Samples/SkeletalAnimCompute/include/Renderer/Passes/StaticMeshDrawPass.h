@@ -15,6 +15,7 @@ namespace RAnimation
         const char* GetName() const override { return "StaticMeshDrawPass"; }
         RenderPassPhase GetPhase() const override { return RenderPassPhase::Scene; }
 
+        bool DeclareResources(ResourceContext& context) override;
         bool CreatePipeline(RenderContext& context) override;
         DescriptorPoolRequirements GetDescriptorPoolRequirements(uint32_t queuedFrameNum) const override;
         bool CreateDescriptors(FrameContext& context) override;
@@ -26,5 +27,10 @@ namespace RAnimation
         std::vector<nri::DescriptorRangeDesc> mTextureRanges;
         std::vector<nri::DescriptorRangeDesc> mBufferRanges;
         std::vector<nri::DescriptorSet*> mDescriptorSets;
+
+        BufferHandle mCameraBuffer{};
+        BufferHandle mWorldMatrixBuffer{};
+        BufferViewHandle mCameraView{};
+        BufferViewHandle mWorldMatrixView{};
     };
 } // namespace RAnimation

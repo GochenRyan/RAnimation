@@ -16,10 +16,11 @@ namespace RAnimation
         const char* GetName() const override { return "BoneMatrixComputePass"; }
         RenderPassPhase GetPhase() const override { return RenderPassPhase::Compute; }
 
+        bool DeclareResources(ResourceContext& context) override;
         bool CreatePipeline(RenderContext& context) override;
         DescriptorPoolRequirements GetDescriptorPoolRequirements(uint32_t queuedFrameNum) const override;
         bool CreateDescriptors(FrameContext& context) override;
-        void DeclareAccess(const RRenderData& renderData, RegistryAccessBuilder& builder) const override;
+        void DeclareAccess(RegistryAccessBuilder& builder) const override;
         void Record(CommandContext& context) override;
         void Cleanup(RRenderData& renderData) override;
 
@@ -30,5 +31,18 @@ namespace RAnimation
         std::vector<nri::DescriptorRangeDesc> mDescriptorRanges1;
         std::vector<nri::DescriptorSet*> mDescriptorSet0PerFrame;
         std::vector<nri::DescriptorSet*> mDescriptorSet1PerFrame;
+
+        BufferHandle mTRSMatrixBuffer{};
+        BufferHandle mBoneMatrixBuffer{};
+        BufferHandle mNodeParentIndexBuffer{};
+        BufferHandle mBoneOffsetMatrixBuffer{};
+        BufferHandle mModelRootMatrixBuffer{};
+        BufferHandle mBoneNodeIndexBuffer{};
+        BufferViewHandle mTRSMatrixView{};
+        BufferViewHandle mBoneMatrixStorageView{};
+        BufferViewHandle mNodeParentIndexView{};
+        BufferViewHandle mBoneOffsetMatrixView{};
+        BufferViewHandle mModelRootMatrixView{};
+        BufferViewHandle mBoneNodeIndexView{};
     };
 } // namespace RAnimation

@@ -23,7 +23,7 @@ namespace RAnimation
             return raw;
         }
 
-        bool DeclareResources(RenderResourceRegistry& registry);
+        bool DeclareResources(ResourceContext& context);
         bool CreatePipelines(RenderContext& context);
         DescriptorPoolRequirements GetDescriptorPoolRequirements(uint32_t queuedFrameNum) const;
         bool CreateDescriptors(FrameContext& context);

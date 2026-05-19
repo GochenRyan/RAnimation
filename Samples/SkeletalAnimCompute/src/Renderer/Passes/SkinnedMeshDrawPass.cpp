@@ -10,7 +10,9 @@
 #include <Model/ModelInstance.h>
 #include <Model/RenderData.h>
 #include <Renderer/RenderResourceRegistry.h>
+#include <Renderer/SceneBufferDescs.h>
 #include <Renderer/SceneFrameData.h>
+#include <Renderer/SceneResourceNames.h>
 #include <RHIWrap/Helper.h>
 
 namespace RAnimation
@@ -23,6 +25,26 @@ namespace RAnimation
             int worldPosOffset = 0;
         };
     } // namespace
+
+    bool SkinnedMeshDrawPass::DeclareResources(ResourceContext& context)
+    {
+        // Shares CameraBuffer (owned by StaticMeshDrawPass) and BoneMatrixBuffer
+        // (owned by BoneMatrixComputePass). Re-registration with identical desc is idempotent.
+        mCameraBuffer = context.registry.RegisterSharedBuffer(SceneResourceNames::kCameraBuffer,
+                                                              SceneBufferDescs::Camera());
+        mBoneMatrixBuffer = context.registry.RegisterSharedBuffer(SceneResourceNames::kBoneMatrixBuffer,
+                                                                  SceneBufferDescs::BoneMatrix(context.budget));
+
+        mCameraView = context.registry.RegisterSharedView(SceneResourceNames::kCameraBufferView,
+                                                          mCameraBuffer,
+                                                          nri::BufferViewType::CONSTANT);
+        mBoneMatrixView = context.registry.RegisterSharedView(SceneResourceNames::kBoneMatrixBufferView,
+                                                              mBoneMatrixBuffer,
+                                                              nri::BufferViewType::SHADER_RESOURCE);
+
+        return mCameraBuffer.IsValid() && mBoneMatrixBuffer.IsValid() && mCameraView.IsValid() &&
+               mBoneMatrixView.IsValid();
+    }
 
     bool SkinnedMeshDrawPass::CreatePipeline(RenderContext& context)
     {
@@ -150,8 +172,8 @@ namespace RAnimation
                                                                     1,
                                                                     0));
 
-            nri::Descriptor* cameraView = context.registry.GetView(context.renderData.rdCameraBufferView, frameIndex);
-            nri::Descriptor* boneSrView = context.registry.GetView(context.renderData.rdBoneMatrixBufferView, frameIndex);
+            nri::Descriptor* cameraView = context.registry.GetView(mCameraView, frameIndex);
+            nri::Descriptor* boneSrView = context.registry.GetView(mBoneMatrixView, frameIndex);
 
             nri::Descriptor* descriptors[] = {cameraView, boneSrView};
             nri::UpdateDescriptorRangeDesc ranges[] = {
@@ -163,13 +185,10 @@ namespace RAnimation
         return true;
     }
 
-    void SkinnedMeshDrawPass::DeclareAccess(const RRenderData& renderData,
-                                            RegistryAccessBuilder& builder) const
+    void SkinnedMeshDrawPass::DeclareAccess(RegistryAccessBuilder& builder) const
     {
         // Reads bone matrices as SR in vertex shader (skinning).
-        builder.Use(renderData.rdBoneMatrixBuffer,
-                    nri::AccessBits::SHADER_RESOURCE,
-                    nri::StageBits::VERTEX_SHADER);
+        builder.Use(mBoneMatrixBuffer, nri::AccessBits::SHADER_RESOURCE, nri::StageBits::VERTEX_SHADER);
     }
 
     void SkinnedMeshDrawPass::Record(CommandContext& context)

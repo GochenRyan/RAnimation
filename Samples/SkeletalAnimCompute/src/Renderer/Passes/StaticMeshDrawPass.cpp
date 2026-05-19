@@ -10,7 +10,9 @@
 #include <Model/ModelInstance.h>
 #include <Model/RenderData.h>
 #include <Renderer/RenderResourceRegistry.h>
+#include <Renderer/SceneBufferDescs.h>
 #include <Renderer/SceneFrameData.h>
+#include <Renderer/SceneResourceNames.h>
 #include <RHIWrap/Helper.h>
 
 namespace RAnimation
@@ -23,6 +25,25 @@ namespace RAnimation
             int worldPosOffset = 0;
         };
     } // namespace
+
+    bool StaticMeshDrawPass::DeclareResources(ResourceContext& context)
+    {
+        // Owns CameraBuffer (also referenced by SkinnedMeshDrawPass) and WorldMatrixBuffer.
+        mCameraBuffer = context.registry.RegisterSharedBuffer(SceneResourceNames::kCameraBuffer,
+                                                              SceneBufferDescs::Camera());
+        mWorldMatrixBuffer = context.registry.RegisterSharedBuffer(SceneResourceNames::kWorldMatrixBuffer,
+                                                                   SceneBufferDescs::WorldMatrix(context.budget));
+
+        mCameraView = context.registry.RegisterSharedView(SceneResourceNames::kCameraBufferView,
+                                                          mCameraBuffer,
+                                                          nri::BufferViewType::CONSTANT);
+        mWorldMatrixView = context.registry.RegisterSharedView(SceneResourceNames::kWorldMatrixBufferView,
+                                                               mWorldMatrixBuffer,
+                                                               nri::BufferViewType::SHADER_RESOURCE);
+
+        return mCameraBuffer.IsValid() && mWorldMatrixBuffer.IsValid() && mCameraView.IsValid() &&
+               mWorldMatrixView.IsValid();
+    }
 
     bool StaticMeshDrawPass::CreatePipeline(RenderContext& context)
     {
@@ -176,8 +197,8 @@ namespace RAnimation
                                                                     1,
                                                                     0));
 
-            nri::Descriptor* cameraView = context.registry.GetView(context.renderData.rdCameraBufferView, frameIndex);
-            nri::Descriptor* worldView = context.registry.GetView(context.renderData.rdWorldMatrixBufferView, frameIndex);
+            nri::Descriptor* cameraView = context.registry.GetView(mCameraView, frameIndex);
+            nri::Descriptor* worldView = context.registry.GetView(mWorldMatrixView, frameIndex);
 
             nri::Descriptor* descriptors[] = {cameraView, worldView};
             nri::UpdateDescriptorRangeDesc ranges[] = {

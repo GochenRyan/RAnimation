@@ -155,28 +155,6 @@ namespace RAnimation
         RenderResourceRegistry rdResourceRegistry{};
         PassRegistry rdPassRegistry{};
 
-        BufferHandle rdCameraBuffer{};
-        BufferHandle rdWorldMatrixBuffer{};
-        BufferHandle rdNodeTransformBuffer{};
-        BufferHandle rdTRSMatrixBuffer{};
-        BufferHandle rdModelRootMatrixBuffer{};
-        BufferHandle rdNodeParentIndexBuffer{};
-        BufferHandle rdBoneNodeIndexBuffer{};
-        BufferHandle rdBoneOffsetMatrixBuffer{};
-        BufferHandle rdBoneMatrixBuffer{};
-
-        BufferViewHandle rdCameraBufferView{};
-        BufferViewHandle rdWorldMatrixBufferView{};
-        BufferViewHandle rdBoneMatrixBufferView{};
-        BufferViewHandle rdBoneMatrixStorageView{};
-        BufferViewHandle rdNodeTransformBufferView{};
-        BufferViewHandle rdTRSMatrixBufferView{};
-        BufferViewHandle rdTRSMatrixStorageView{};
-        BufferViewHandle rdModelRootMatrixBufferView{};
-        BufferViewHandle rdNodeParentIndexBufferView{};
-        BufferViewHandle rdBoneNodeIndexBufferView{};
-        BufferViewHandle rdBoneOffsetMatrixBufferView{};
-
         uint64_t rdFrameIndex = 0;
 
         uint8_t GetQueuedFrameNum() const { return rdVsync ? 2 : 3; }
