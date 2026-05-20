@@ -6,6 +6,9 @@
 #include <Model/ModelAndInstanceData.h>
 #include <Model/ModelInstance.h>
 #include <Platform/NativeWindowHandle.h>
+#include <Renderer/RenderResourceBudget.h>
+#include <Renderer/RenderResourceRegistry.h>
+#include <Renderer/SceneFrameData.h>
 #include <Renderer/UserInterface.h>
 #include <Tools/Timer.h>
 #include <Tools/Camera.h>
@@ -19,20 +22,6 @@ namespace RAnimation
     constexpr nri::VKBindingOffsets VK_BINDING_OFFSETS = {100, 200, 300, 400};
     constexpr bool D3D11_ENABLE_COMMAND_BUFFER_EMULATION = false;
     constexpr bool D3D12_DISABLE_ENHANCED_BARRIERS = false;
-
-    enum class BUFFER_INDEX : uint32_t
-    {
-        VP_MATRIX_BUFFER = 0,
-        WORLD_POS_BUFFER,
-        NODE_TRANSFORM_BUFFER,
-        TRS_MATRIX_BUFFER,
-        MODEL_ROOT_MATRIX_BUFFER,
-        NODE_PARENT_INDEX_BUFFER,
-        BONE_NODE_INDEX_BUFFER,
-        BONE_OFFSET_MATRIX_BUFFER,
-        BONE_MATRIX_BUFFER,
-    };
-    constexpr uint32_t MAX_BONES = 100;
 
     constexpr uint32_t TEXTURES_PER_MATERIAL = 1;
 
@@ -70,15 +59,11 @@ namespace RAnimation
         bool createSyncObjects();
         bool createSwapchain();
         bool createQueuedFrames();
-        bool createPipelineLayout();
-        bool createPipelines();
-        bool createMatrixUBO();
-        bool createSSBOs();
+        bool registerPasses();
         bool allocateAndBindMemory();
-        bool updateDescriptors();
+        bool createSampler();
         bool createDescriptorPool();
-        bool createDescriptorSetLayouts();
-        bool createDescriptorSets();
+        bool createPassPipelinesAndDescriptors();
         bool createSwapchainTextures();
         bool createDepthAttachmentResources();
         bool recreateSwapchain();
@@ -89,27 +74,14 @@ namespace RAnimation
 
         void latencySleep(uint32_t frameIndex);
 
-        void updateCameraBuffer();
-        bool updateModelBuffer(float deltaTime);
         bool recordCommandBuffer();
 
     private:
-        struct AnimatedDispatch
-        {
-            uint32_t nodeTransformOffset = 0;
-            uint32_t boneMatrixOffset = 0;
-            uint32_t modelRootOffset = 0;
-            uint32_t numberOfNodes = 0;
-            uint32_t numberOfBones = 0;
-            uint32_t instanceCount = 0;
-        };
-
         RRenderData mRenderData{};
+        RenderResourceBudget mResourceBudget{};
         ModelAndInstanceData mModelInstData{};
 
         Timer mFrameTimer{};
-        Timer mMatrixGenerateTimer{};
-        Timer mUploadToUBOTimer{};
         Timer mUIGenerateTimer{};
         Timer mUIDrawTimer{};
 
@@ -118,16 +90,10 @@ namespace RAnimation
         UserInterface mUserInterface{};
         Camera mCamera;
 
-        /* for non-animated models */
-        std::vector<glm::mat4> mWorldPosMatrices;
-
-        /* for animated models */
-        std::vector<RNodeTransformData> mNodeTransformData;
-        std::vector<int32_t> mNodeParentIndices;
-        std::vector<uint32_t> mBoneNodeIndices;
-        std::vector<glm::mat4> mBoneOffsetMatrices;
-        std::vector<glm::mat4> mModelRootMatrices;
-        std::vector<AnimatedDispatch> mAnimatedDispatches;
+        // Per-frame scene state. Filled by Renderer::Draw (modelInstData/hasSceneGeometry) and
+        // by AnimationTransformComputePass::Upload (animatedDispatches/uploadedBoneOffsetMatrixCount).
+        // Consumed by passes during Record() via CommandContext::sceneFrame.
+        SceneFrameData mSceneFrame{};
 
         bool mDepthAttachmentInitialized = false;
         bool mSwapchainRecreateRequested = false;
