@@ -190,16 +190,21 @@ namespace RAnimation
             return;
         }
 
-        const glm::vec3 foot = instance->GetWorldPosition();
+        // Draw the instance's local coordinate frame: origin and axes come from the instance's world
+        // transform (the same matrix the mesh is rendered with), so the gizmo rotates/orients with the
+        // instance instead of staying world-aligned. Basis vectors are normalized so the gizmo keeps a
+        // constant on-screen length regardless of the instance scale.
+        const glm::mat4 worldTransform = instance->GetWorldTransformMatrix();
+        const glm::vec3 origin = glm::vec3(worldTransform[3]);
         const glm::vec3 axisColors[3] = {
                 {1.0f, 0.15f, 0.15f}, // X red
                 {0.15f, 1.0f, 0.15f}, // Y green
                 {0.2f, 0.4f, 1.0f},   // Z blue
         };
-        const glm::vec3 axisDirs[3] = {
-                {kAxisLength, 0.0f, 0.0f},
-                {0.0f, kAxisLength, 0.0f},
-                {0.0f, 0.0f, kAxisLength},
+        const glm::vec3 worldFallback[3] = {
+                {1.0f, 0.0f, 0.0f},
+                {0.0f, 1.0f, 0.0f},
+                {0.0f, 0.0f, 1.0f},
         };
 
         for (int axis = 0; axis < 3; ++axis)
@@ -208,8 +213,11 @@ namespace RAnimation
             {
                 break;
             }
-            mVertices.push_back({foot, axisColors[axis]});
-            mVertices.push_back({foot + axisDirs[axis], axisColors[axis]});
+            const glm::vec3 basis = glm::vec3(worldTransform[axis]);
+            const float length = glm::length(basis);
+            const glm::vec3 direction = length > 1e-6f ? basis / length : worldFallback[axis];
+            mVertices.push_back({origin, axisColors[axis]});
+            mVertices.push_back({origin + direction * kAxisLength, axisColors[axis]});
         }
 
         mVertexCount = static_cast<uint32_t>(mVertices.size());
