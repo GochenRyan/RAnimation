@@ -22,6 +22,7 @@ using instanceAddCallback = std::function<std::shared_ptr<RAnimation::ModelInsta
 using instanceAddManyCallback = std::function<void(std::shared_ptr<RAnimation::Model>, int)>;
 using instanceDeleteCallback = std::function<void(std::shared_ptr<RAnimation::ModelInstance>)>;
 using instanceCloneCallback = std::function<void(std::shared_ptr<RAnimation::ModelInstance>)>;
+using instanceFocusCallback = std::function<void(std::shared_ptr<RAnimation::ModelInstance>)>;
 
 struct ModelAndInstanceData
 {
@@ -44,4 +45,5 @@ struct ModelAndInstanceData
     instanceAddManyCallback miInstanceAddManyCallbackFunction;
     instanceDeleteCallback miInstanceDeleteCallbackFunction;
     instanceCloneCallback miInstanceCloneCallbackFunction;
+    instanceFocusCallback miInstanceFocusCallbackFunction;
 };

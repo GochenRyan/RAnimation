@@ -148,6 +148,22 @@ void UserInterface::CreateFrame(RRenderData& renderData, ModelAndInstanceData& m
     ImGui::NewFrame();
     ImGui::DockSpaceOverViewport(0, ImGui::GetMainViewport(), ImGuiDockNodeFlags_PassthruCentralNode);
 
+    // Viewport left-click (not over an ImGui window) requests a GPU pick. The Renderer issues the
+    // 1px ID readback next frame and resolves the selection. MousePos is in points; scale to pixels.
+    {
+        ImGuiIO& io = ImGui::GetIO();
+        if (io.MouseClicked[0] && !io.WantCaptureMouse)
+        {
+            const int pixelX = static_cast<int>(io.MousePos.x * io.DisplayFramebufferScale.x);
+            const int pixelY = static_cast<int>(io.MousePos.y * io.DisplayFramebufferScale.y);
+            renderData.rdPendingPick.x =
+                    std::clamp(pixelX, 0, static_cast<int>(renderData.rdOutputResolution.x) - 1);
+            renderData.rdPendingPick.y =
+                    std::clamp(pixelY, 0, static_cast<int>(renderData.rdOutputResolution.y) - 1);
+            renderData.rdPendingPick.requested = true;
+        }
+    }
+
     if (renderData.rdFrameTime > 0.0f)
     {
         mNewFps = 1000.0f / renderData.rdFrameTime;
@@ -500,6 +516,11 @@ void UserInterface::CreateFrame(RRenderData& renderData, ModelAndInstanceData& m
             if (perModelCount < 2)
             {
                 ImGui::EndDisabled();
+            }
+
+            if (ImGui::Button("Center on Instance") && modInstData.miInstanceFocusCallbackFunction)
+            {
+                modInstData.miInstanceFocusCallbackFunction(instance);
             }
 
             ImGui::Checkbox("Swap Y/Z", &settings.mSwapYZAxis);

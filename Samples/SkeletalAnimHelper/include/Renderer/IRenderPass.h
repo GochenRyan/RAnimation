@@ -23,6 +23,9 @@ namespace RAnimation
     {
         Compute,
         Scene,
+        // Runs after the scene pass, inside its own CmdBeginRendering(color only) once the pick-ID
+        // target has been transitioned to SHADER_RESOURCE. Used by the selection outline.
+        PostProcess,
         UI,
     };
 

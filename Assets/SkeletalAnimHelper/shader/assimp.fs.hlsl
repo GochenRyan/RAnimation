@@ -6,6 +6,13 @@ struct PSInput
     float4 color    : COLOR0;
     float3 normal   : TEXCOORD1;
     float2 texCoord : TEXCOORD0;
+    nointerpolation uint pickID : TEXCOORD2;
+};
+
+struct PSOutput
+{
+    float4 color : SV_Target0;
+    uint   id    : SV_Target1;
 };
 
 static const float3 lightPos = float3(4.0, 3.0, 6.0);
@@ -19,7 +26,7 @@ float toSRGB(float x)
         return 1.055 * pow(x, 1.0 / 2.4) - 0.055;
 }
 
-float4 main(PSInput input) : SV_Target
+PSOutput main(PSInput input)
 {
     float3 norm = normalize(input.normal);
     float3 lightDir = normalize(lightPos);
@@ -30,5 +37,8 @@ float4 main(PSInput input) : SV_Target
 
     float3 result = texColor.rgb * diff * lightColor;
 
-    return float4(result, texColor.a);
+    PSOutput output;
+    output.color = float4(result, texColor.a);
+    output.id = input.pickID;
+    return output;
 }

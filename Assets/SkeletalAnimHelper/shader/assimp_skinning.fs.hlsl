@@ -5,9 +5,16 @@ struct PSInput
 {
     float3 normal   : TEXCOORD1;
     float2 texCoord : TEXCOORD0;
+    nointerpolation uint pickID : TEXCOORD2;
 };
 
-float4 main(PSInput input) : SV_Target
+struct PSOutput
+{
+    float4 color : SV_Target0;
+    uint   id    : SV_Target1;
+};
+
+PSOutput main(PSInput input)
 {
     const float3 lightDir = normalize(float3(1.0, 1.0, 1.0));
     float3 norm = normalize(input.normal);
@@ -15,5 +22,8 @@ float4 main(PSInput input) : SV_Target
 
     float4 texColor = tex.Sample(samp, input.texCoord);
 
-    return float4(texColor.rgb * diff, texColor.a);
+    PSOutput output;
+    output.color = float4(texColor.rgb * diff, texColor.a);
+    output.id = input.pickID;
+    return output;
 }

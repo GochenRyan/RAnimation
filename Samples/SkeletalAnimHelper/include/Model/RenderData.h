@@ -1,5 +1,6 @@
 #pragma once
 #include <cstdint>
+#include <memory>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -18,6 +19,27 @@ struct SDL_Window;
 
 namespace RAnimation
 {
+    class ModelInstance;
+
+    // One slot of the GPU pick-ID readback ring. A 1x1 region of the R32_UINT ID target is copied
+    // into readbackBuffer after the scene pass; the result is read back queuedFrameNum frames later
+    // (once its command buffer fence has signalled) and resolved against the draw-order snapshot.
+    struct PickReadbackSlot
+    {
+        nri::Buffer* readbackBuffer = nullptr;
+        nri::Memory* readbackMemory = nullptr;
+        bool hasResult = false;
+        std::vector<std::shared_ptr<ModelInstance>> snapshot;
+    };
+
+    // Pending viewport click awaiting a GPU ID readback (set by UserInterface, consumed by Renderer).
+    struct PendingPick
+    {
+        int x = 0;
+        int y = 0;
+        bool requested = false;
+    };
+
     struct RVertex
     {
         glm::vec3 position = glm::vec3(0.0f);
@@ -132,6 +154,17 @@ namespace RAnimation
         nri::Texture* rdDepthTexture = nullptr;
         nri::Descriptor* rdDepthAttachment = nullptr;
         nri::Memory* rdDepthMemory = nullptr;
+
+        // Picking / selection-outline render target (R32_UINT). Swapchain-sized; recreated on resize
+        // alongside the depth attachment. rdPickIdColorAttachment is the MRT slot-1 view; rdPickIdShaderResource
+        // is the SRV the OutlinePass samples.
+        nri::Texture* rdPickIdTexture = nullptr;
+        nri::Memory* rdPickIdMemory = nullptr;
+        nri::Descriptor* rdPickIdColorAttachment = nullptr;
+        nri::Descriptor* rdPickIdShaderResource = nullptr;
+
+        std::vector<PickReadbackSlot> rdPickReadbackSlots;
+        PendingPick rdPendingPick{};
 
         nri::Descriptor* anisotropicSampler = nullptr;
 

@@ -48,6 +48,7 @@ namespace RAnimation
         void AddInstances(std::shared_ptr<RAnimation::Model> model, int numInstances);
         void DeleteInstance(std::shared_ptr<RAnimation::ModelInstance> instance);
         void CloneInstance(std::shared_ptr<RAnimation::ModelInstance> instance);
+        void FocusCameraOn(std::shared_ptr<RAnimation::ModelInstance> instance);
 
         void Cleanup();
 
@@ -66,8 +67,13 @@ namespace RAnimation
         bool createPassPipelinesAndDescriptors();
         bool createSwapchainTextures();
         bool createDepthAttachmentResources();
+        bool createPickingResources();
         bool recreateSwapchain();
         void destroySwapchainResources();
+
+        // Picking: issue a 1px readback after the scene pass, then resolve completed readbacks.
+        void resolvePendingReadback();
+        void recordPickReadback(nri::CommandBuffer& commandBuffer);
 
         void updateTriangleCount();
         void focusCameraOnPoint(const glm::vec3& focusPoint);
@@ -95,7 +101,16 @@ namespace RAnimation
         // Consumed by passes during Record() via CommandContext::sceneFrame.
         SceneFrameData mSceneFrame{};
 
+        // Owned by the PassRegistry; cached so the Renderer can re-point its pick-ID SRV on resize.
+        class OutlinePass* mOutlinePass = nullptr;
+
         bool mDepthAttachmentInitialized = false;
         bool mSwapchainRecreateRequested = false;
+
+        // Tracks the current barrier state of the R32_UINT pick-ID texture across its per-frame
+        // cycle (COLOR_ATTACHMENT -> COPY_SOURCE? -> SHADER_RESOURCE). Reset on swapchain recreate.
+        nri::AccessBits mPickIdAccess = nri::AccessBits::NONE;
+        nri::Layout mPickIdLayout = nri::Layout::UNDEFINED;
+        nri::StageBits mPickIdStage = nri::StageBits::NONE;
     };
 } // namespace RAnimation

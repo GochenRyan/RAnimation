@@ -4,6 +4,7 @@ struct Constants
 {
     int modelStride;
     int worldPosOffset;
+    int pickIDBase;
 };
 
 struct CameraBuffer
@@ -27,6 +28,7 @@ struct VSOutput
     float4 position : SV_Position;
     float3 normal   : TEXCOORD1;
     float2 texCoord : TEXCOORD0;
+    nointerpolation uint pickID : TEXCOORD2;
 };
 
 NRI_RESOURCE(ConstantBuffer<CameraBuffer>, g_Camera, b, 0, 1);
@@ -51,6 +53,7 @@ VSOutput main(VSInput input, NRI_DECLARE_DRAW_PARAMETERS)
     output.position = mul(g_Camera.proj, viewPos);
     output.normal = mul((float3x3) skinMat, input.normal);
     output.texCoord = input.texCoord;
+    output.pickID = NRI_INSTANCE_ID + uint(g_PushConstants.pickIDBase) + 1;
 
     return output;
 }

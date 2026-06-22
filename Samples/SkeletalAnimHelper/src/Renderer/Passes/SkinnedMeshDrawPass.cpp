@@ -23,6 +23,7 @@ namespace RAnimation
         {
             int modelStride = 0;
             int worldPosOffset = 0;
+            int pickIDBase = 0;
         };
     } // namespace
 
@@ -105,10 +106,14 @@ namespace RAnimation
         multisampleDesc.sampleNum = 1;
         multisampleDesc.sampleLocations = false;
 
-        nri::ColorAttachmentDesc colorAttachmentDesc = {};
-        colorAttachmentDesc.format = context.swapChainFormat;
-        colorAttachmentDesc.colorWriteMask = nri::ColorWriteBits::RGBA;
-        colorAttachmentDesc.blendEnabled = false;
+        nri::ColorAttachmentDesc colorAttachmentDescs[2] = {};
+        colorAttachmentDescs[0].format = context.swapChainFormat;
+        colorAttachmentDescs[0].colorWriteMask = nri::ColorWriteBits::RGBA;
+        colorAttachmentDescs[0].blendEnabled = false;
+        // Second target: per-instance pick ID (see Renderer picking).
+        colorAttachmentDescs[1].format = nri::Format::R32_UINT;
+        colorAttachmentDescs[1].colorWriteMask = nri::ColorWriteBits::R;
+        colorAttachmentDescs[1].blendEnabled = false;
 
         nri::DepthAttachmentDesc depthAttachmentDesc = {};
         depthAttachmentDesc.compareOp = nri::CompareOp::LESS_EQUAL;
@@ -120,8 +125,8 @@ namespace RAnimation
         stencilAttachmentDesc.back.compareOp = nri::CompareOp::NONE;
 
         nri::OutputMergerDesc outputMergerDesc = {};
-        outputMergerDesc.colors = &colorAttachmentDesc;
-        outputMergerDesc.colorNum = 1;
+        outputMergerDesc.colors = colorAttachmentDescs;
+        outputMergerDesc.colorNum = helper::GetCountOf(colorAttachmentDescs);
         outputMergerDesc.depthStencilFormat = context.depthFormat;
         outputMergerDesc.depth = depthAttachmentDesc;
         outputMergerDesc.stencil = stencilAttachmentDesc;
@@ -215,9 +220,15 @@ namespace RAnimation
             const uint32_t instanceCount = static_cast<uint32_t>(modelType.second.size());
             const uint32_t boneCount = static_cast<uint32_t>(model->GetBoneList().size());
 
+            const auto pickBaseIter = context.sceneFrame->pickBaseByModel.find(modelType.first);
+            const uint32_t pickBase = pickBaseIter != context.sceneFrame->pickBaseByModel.end()
+                                              ? pickBaseIter->second
+                                              : 0;
+
             PushConstants pushConstants = {};
             pushConstants.modelStride = static_cast<int>(boneCount);
             pushConstants.worldPosOffset = static_cast<int>(boneMatrixOffset);
+            pushConstants.pickIDBase = static_cast<int>(pickBase);
 
             const uint32_t requiredBoneMatrices = instanceCount * boneCount;
             if (boneMatrixOffset + requiredBoneMatrices > context.sceneFrame->uploadedBoneOffsetMatrixCount)

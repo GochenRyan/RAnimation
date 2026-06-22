@@ -12,7 +12,9 @@
 
 #include <Renderer/Passes/AnimationTransformComputePass.h>
 #include <Renderer/Passes/BoneMatrixComputePass.h>
+#include <Renderer/Passes/GizmoDrawPass.h>
 #include <Renderer/Passes/ImguiPass.h>
+#include <Renderer/Passes/OutlinePass.h>
 #include <Renderer/Passes/SkinnedMeshDrawPass.h>
 #include <Renderer/Passes/StaticMeshDrawPass.h>
 #include <Renderer/Renderer.h>
@@ -158,6 +160,12 @@ bool Renderer::Init(unsigned int width, unsigned int height)
         return false;
     }
 
+    // Point the outline pass at the pick-ID SRV now that both the views and the descriptor set exist.
+    if (mOutlinePass != nullptr)
+    {
+        mOutlinePass->SetIdTextureSRV(mRenderData, mRenderData.rdPickIdShaderResource);
+    }
+
     if (!mUserInterface.Init(mRenderData))
     {
         fmt::print(stderr, fg(fmt::color::red), "{} error: could not init user interface\n", __FUNCTION__);
@@ -177,6 +185,8 @@ bool Renderer::Init(unsigned int width, unsigned int height)
     { DeleteInstance(instance); };
     mModelInstData.miInstanceCloneCallbackFunction = [this](std::shared_ptr<RAnimation::ModelInstance> instance)
     { CloneInstance(instance); };
+    mModelInstData.miInstanceFocusCallbackFunction = [this](std::shared_ptr<RAnimation::ModelInstance> instance)
+    { FocusCameraOn(instance); };
 
     mFrameTimer.Start();
 
@@ -225,6 +235,9 @@ bool Renderer::Draw(float deltaTime)
     mRenderData.queuedFrameIndex = mFrameIndex % mRenderData.GetQueuedFrameNum();
     QueuedFrame& queuedFrame = mRenderData.GetCurrentQueueFrame();
 
+    // Resolve a pick readback issued queuedFrameNum frames ago (its fence has signalled via latencySleep).
+    resolvePendingReadback();
+
     const uint32_t recycledSemaphoreIndex = mFrameIndex % mRenderData.rdSwapChainTextures.size();
     nri::Fence* acquiredSemaphore = mRenderData.rdSwapChainTextures[recycledSemaphoreIndex].acquireSemaphore;
     const nri::Result acquireResult = mRenderData.NRI.AcquireNextTexture(
@@ -244,6 +257,45 @@ bool Renderer::Draw(float deltaTime)
     mSceneFrame = SceneFrameData{};
     mSceneFrame.modelInstData = &mModelInstData;
     mSceneFrame.hasSceneGeometry = !mModelInstData.miModelInstances.empty();
+
+    // Assign global pick IDs in draw order. The draw passes iterate miModelInstancesPerModel over
+    // disjoint subsets (static vs. skinned); both look up their group's base here so each emitted
+    // pick ID (base + instanceID + 1) is globally unique. drawOrderInstances snapshots the order so
+    // a returned ID can be resolved back to an instance. Pick ID 0 means "nothing".
+    {
+        uint32_t runningPickBase = 0;
+        for (const auto& modelType : mModelInstData.miModelInstancesPerModel)
+        {
+            if (modelType.second.empty())
+            {
+                continue;
+            }
+            mSceneFrame.pickBaseByModel[modelType.first] = runningPickBase;
+            for (const auto& instance : modelType.second)
+            {
+                mSceneFrame.drawOrderInstances.emplace_back(instance);
+            }
+            runningPickBase += static_cast<uint32_t>(modelType.second.size());
+        }
+
+        if (!mModelInstData.miModelInstances.empty())
+        {
+            const int selectedIndex = mModelInstData.miSelectedInstance;
+            if (selectedIndex >= 0 && selectedIndex < static_cast<int>(mModelInstData.miModelInstances.size()))
+            {
+                const std::shared_ptr<ModelInstance>& selected =
+                        mModelInstData.miModelInstances[selectedIndex];
+                for (size_t i = 0; i < mSceneFrame.drawOrderInstances.size(); ++i)
+                {
+                    if (mSceneFrame.drawOrderInstances[i] == selected)
+                    {
+                        mSceneFrame.selectedPickID = static_cast<uint32_t>(i) + 1;
+                        break;
+                    }
+                }
+            }
+        }
+    }
 
     FrameContext frameContext = {mRenderData,
                                  mRenderData.NRI,
@@ -333,7 +385,7 @@ bool Renderer::recordCommandBuffer()
     mRenderData.rdPassRegistry.RecordPhase(cmdContext, RenderPassPhase::Compute);
 
     // Render-target transitions before scene/UI rendering.
-    nri::TextureBarrierDesc beginRenderingBarriers[2] = {};
+    nri::TextureBarrierDesc beginRenderingBarriers[3] = {};
     uint32_t beginRenderingBarrierCount = 0;
     beginRenderingBarriers[beginRenderingBarrierCount++] = {
             mRenderData.rdSwapChainTextures[queuedFrame.swapChainTextureIndex].texture,
@@ -355,6 +407,15 @@ bool Renderer::recordCommandBuffer()
                 {nri::AccessBits::DEPTH_STENCIL_ATTACHMENT,
                  nri::Layout::DEPTH_STENCIL_ATTACHMENT,
                  nri::StageBits::DEPTH_STENCIL_ATTACHMENT}};
+
+        // Pick-ID target -> COLOR_ATTACHMENT (before-state tracked across its per-frame cycle).
+        beginRenderingBarriers[beginRenderingBarrierCount++] = {
+                mRenderData.rdPickIdTexture,
+                {mPickIdAccess, mPickIdLayout, mPickIdStage},
+                {nri::AccessBits::COLOR_ATTACHMENT, nri::Layout::COLOR_ATTACHMENT, nri::StageBits::COLOR_ATTACHMENT}};
+        mPickIdAccess = nri::AccessBits::COLOR_ATTACHMENT;
+        mPickIdLayout = nri::Layout::COLOR_ATTACHMENT;
+        mPickIdStage = nri::StageBits::COLOR_ATTACHMENT;
     }
 
     nri::BarrierDesc beginRenderingBarrierDesc = {};
@@ -386,9 +447,17 @@ bool Renderer::recordCommandBuffer()
         depthAttachment.storeOp = nri::StoreOp::STORE;
         depthAttachment.clearValue.depthStencil = {1.0f, 0};
 
+        // MRT: slot 0 = swapchain color, slot 1 = R32_UINT pick ID (cleared to 0 = "nothing").
+        nri::AttachmentDesc sceneColorAttachments[2] = {};
+        sceneColorAttachments[0] = colorAttachment;
+        sceneColorAttachments[1].descriptor = mRenderData.rdPickIdColorAttachment;
+        sceneColorAttachments[1].loadOp = nri::LoadOp::CLEAR;
+        sceneColorAttachments[1].storeOp = nri::StoreOp::STORE;
+        sceneColorAttachments[1].clearValue.color.ui = {0, 0, 0, 0};
+
         nri::RenderingDesc renderingDesc = {};
-        renderingDesc.colors = &colorAttachment;
-        renderingDesc.colorNum = 1;
+        renderingDesc.colors = sceneColorAttachments;
+        renderingDesc.colorNum = helper::GetCountOf(sceneColorAttachments);
         renderingDesc.depth = depthAttachment;
 
         mRenderData.NRI.CmdBeginRendering(*queuedFrame.commandBuffer, renderingDesc);
@@ -400,6 +469,39 @@ bool Renderer::recordCommandBuffer()
 
         mRenderData.NRI.CmdEndRendering(*queuedFrame.commandBuffer);
         mDepthAttachmentInitialized = true;
+
+        // Copy the clicked pixel of the pick-ID target into the readback ring (if a pick is pending).
+        recordPickReadback(*queuedFrame.commandBuffer);
+
+        // Transition pick-ID target -> SHADER_RESOURCE so the outline post-process can sample it.
+        nri::TextureBarrierDesc toShaderResource = {
+                mRenderData.rdPickIdTexture,
+                {mPickIdAccess, mPickIdLayout, mPickIdStage},
+                {nri::AccessBits::SHADER_RESOURCE, nri::Layout::SHADER_RESOURCE, nri::StageBits::FRAGMENT_SHADER}};
+        nri::BarrierDesc toShaderResourceDesc = {};
+        toShaderResourceDesc.textures = &toShaderResource;
+        toShaderResourceDesc.textureNum = 1;
+        mRenderData.NRI.CmdBarrier(*queuedFrame.commandBuffer, toShaderResourceDesc);
+        mPickIdAccess = nri::AccessBits::SHADER_RESOURCE;
+        mPickIdLayout = nri::Layout::SHADER_RESOURCE;
+        mPickIdStage = nri::StageBits::FRAGMENT_SHADER;
+
+        // Post-process (outline) renders over the scene color, sampling the pick-ID target.
+        nri::AttachmentDesc postColorAttachment = colorAttachment;
+        postColorAttachment.loadOp = nri::LoadOp::LOAD;
+
+        nri::RenderingDesc postRenderingDesc = {};
+        postRenderingDesc.colors = &postColorAttachment;
+        postRenderingDesc.colorNum = 1;
+
+        mRenderData.NRI.CmdBeginRendering(*queuedFrame.commandBuffer, postRenderingDesc);
+        mRenderData.NRI.CmdSetViewports(*queuedFrame.commandBuffer, &viewport, 1);
+        mRenderData.NRI.CmdSetScissors(*queuedFrame.commandBuffer, &scissor, 1);
+        mRenderData.NRI.CmdSetDescriptorPool(*queuedFrame.commandBuffer, *mRenderData.rdDescriptorPool);
+
+        mRenderData.rdPassRegistry.RecordPhase(cmdContext, RenderPassPhase::PostProcess);
+
+        mRenderData.NRI.CmdEndRendering(*queuedFrame.commandBuffer);
     }
 
     if (hasImgui)
@@ -659,6 +761,16 @@ void Renderer::CloneInstance(std::shared_ptr<RAnimation::ModelInstance> instance
     updateTriangleCount();
 }
 
+void Renderer::FocusCameraOn(std::shared_ptr<RAnimation::ModelInstance> instance)
+{
+    if (instance == nullptr)
+    {
+        return;
+    }
+
+    focusCameraOnPoint(instance->GetWorldPosition());
+}
+
 void Renderer::Cleanup()
 {
     if (mRenderData.rdDevice == nullptr)
@@ -865,8 +977,10 @@ bool Renderer::registerPasses()
     // that SkinnedMeshDrawPass and material descriptor allocation depend on.
     mRenderData.rdPassRegistry.Add<StaticMeshDrawPass>();
     mRenderData.rdPassRegistry.Add<SkinnedMeshDrawPass>();
+    mRenderData.rdPassRegistry.Add<GizmoDrawPass>();
     mRenderData.rdPassRegistry.Add<AnimationTransformComputePass>();
     mRenderData.rdPassRegistry.Add<BoneMatrixComputePass>();
+    mOutlinePass = mRenderData.rdPassRegistry.Add<OutlinePass>();
     mRenderData.rdPassRegistry.Add<ImguiPass>();
 
     ResourceContext resourceContext = {mRenderData.rdResourceRegistry, mResourceBudget};
@@ -1020,6 +1134,11 @@ bool Renderer::createSwapchainTextures()
         return false;
     }
 
+    if (!createPickingResources())
+    {
+        return false;
+    }
+
     // Swap chain attachments
     mRenderData.rdSwapChainTextures.clear();
     for (uint32_t i = 0; i < swapChainTextureNum; i++)
@@ -1083,6 +1202,161 @@ bool Renderer::createDepthAttachmentResources()
     return true;
 }
 
+void Renderer::recordPickReadback(nri::CommandBuffer& commandBuffer)
+{
+    if (!mRenderData.rdPendingPick.requested || mRenderData.rdPickReadbackSlots.empty())
+    {
+        return;
+    }
+
+    const uint32_t x = static_cast<uint32_t>(
+            std::clamp(mRenderData.rdPendingPick.x, 0, static_cast<int>(mRenderData.rdOutputResolution.x) - 1));
+    const uint32_t y = static_cast<uint32_t>(
+            std::clamp(mRenderData.rdPendingPick.y, 0, static_cast<int>(mRenderData.rdOutputResolution.y) - 1));
+
+    // Pick-ID target -> COPY_SOURCE for the 1px readback.
+    nri::TextureBarrierDesc toCopySource = {
+            mRenderData.rdPickIdTexture,
+            {mPickIdAccess, mPickIdLayout, mPickIdStage},
+            {nri::AccessBits::COPY_SOURCE, nri::Layout::COPY_SOURCE, nri::StageBits::COPY}};
+    nri::BarrierDesc toCopySourceDesc = {};
+    toCopySourceDesc.textures = &toCopySource;
+    toCopySourceDesc.textureNum = 1;
+    mRenderData.NRI.CmdBarrier(commandBuffer, toCopySourceDesc);
+    mPickIdAccess = nri::AccessBits::COPY_SOURCE;
+    mPickIdLayout = nri::Layout::COPY_SOURCE;
+    mPickIdStage = nri::StageBits::COPY;
+
+    PickReadbackSlot& slot = mRenderData.rdPickReadbackSlots[mRenderData.queuedFrameIndex];
+
+    const nri::DeviceDesc& deviceDesc = mRenderData.NRI.GetDeviceDesc(*mRenderData.rdDevice);
+    const uint32_t rowAlignment = std::max(1u, deviceDesc.memoryAlignment.uploadBufferTextureRow);
+    const uint32_t rowPitch = ((sizeof(uint32_t) + rowAlignment - 1) / rowAlignment) * rowAlignment;
+
+    nri::TextureRegionDesc srcRegion = {};
+    srcRegion.x = static_cast<nri::Dim_t>(x);
+    srcRegion.y = static_cast<nri::Dim_t>(y);
+    srcRegion.z = 0;
+    srcRegion.width = 1;
+    srcRegion.height = 1;
+    srcRegion.depth = 1;
+
+    nri::TextureDataLayoutDesc dstLayout = {};
+    dstLayout.offset = 0;
+    dstLayout.rowPitch = rowPitch;
+    dstLayout.slicePitch = rowPitch;
+
+    mRenderData.NRI.CmdReadbackTextureToBuffer(
+            commandBuffer, *slot.readbackBuffer, dstLayout, *mRenderData.rdPickIdTexture, srcRegion);
+
+    slot.hasResult = true;
+    slot.snapshot = mSceneFrame.drawOrderInstances;
+    mRenderData.rdPendingPick.requested = false;
+}
+
+void Renderer::resolvePendingReadback()
+{
+    if (mRenderData.rdPickReadbackSlots.empty())
+    {
+        return;
+    }
+
+    // latencySleep() has already waited on this queued frame's fence, so its previous readback
+    // (issued queuedFrameNum frames ago) is complete and safe to map.
+    PickReadbackSlot& slot = mRenderData.rdPickReadbackSlots[mRenderData.queuedFrameIndex];
+    if (!slot.hasResult)
+    {
+        return;
+    }
+
+    uint32_t pickID = 0;
+    void* mapped = mRenderData.NRI.MapBuffer(*slot.readbackBuffer, 0, sizeof(uint32_t));
+    if (mapped != nullptr)
+    {
+        std::memcpy(&pickID, mapped, sizeof(uint32_t));
+        mRenderData.NRI.UnmapBuffer(*slot.readbackBuffer);
+    }
+
+    if (pickID != 0 && pickID - 1 < slot.snapshot.size())
+    {
+        const std::shared_ptr<ModelInstance>& picked = slot.snapshot[pickID - 1];
+        for (size_t i = 0; i < mModelInstData.miModelInstances.size(); ++i)
+        {
+            if (mModelInstData.miModelInstances[i] == picked)
+            {
+                mModelInstData.miSelectedInstance = static_cast<int>(i);
+                break;
+            }
+        }
+    }
+
+    slot.hasResult = false;
+    slot.snapshot.clear();
+}
+
+bool Renderer::createPickingResources()
+{
+    // R32_UINT pick-ID target: MRT slot 1 of the scene pass, sampled by the outline post-process,
+    // and the source of the 1px GPU readback used for mouse picking.
+    nri::TextureDesc textureDesc = {};
+    textureDesc.type = nri::TextureType::TEXTURE_2D;
+    textureDesc.usage = nri::TextureUsageBits::COLOR_ATTACHMENT | nri::TextureUsageBits::SHADER_RESOURCE;
+    textureDesc.format = nri::Format::R32_UINT;
+    textureDesc.width = static_cast<uint16_t>(mRenderData.rdOutputResolution.x);
+    textureDesc.height = static_cast<uint16_t>(mRenderData.rdOutputResolution.y);
+    textureDesc.mipNum = 1;
+
+    NRI_ABORT_ON_FAILURE(
+            mRenderData.NRI.CreateTexture(*mRenderData.rdDevice, textureDesc, mRenderData.rdPickIdTexture));
+
+    nri::ResourceGroupDesc resourceGroupDesc = {};
+    resourceGroupDesc.memoryLocation = nri::MemoryLocation::DEVICE;
+    resourceGroupDesc.textureNum = 1;
+    resourceGroupDesc.textures = &mRenderData.rdPickIdTexture;
+    NRI_ABORT_ON_FAILURE(mRenderData.NRI.AllocateAndBindMemory(*mRenderData.rdDevice,
+                                                               resourceGroupDesc,
+                                                               &mRenderData.rdPickIdMemory));
+
+    nri::Texture2DViewDesc colorViewDesc = {mRenderData.rdPickIdTexture,
+                                            nri::Texture2DViewType::COLOR_ATTACHMENT,
+                                            nri::Format::R32_UINT};
+    NRI_ABORT_ON_FAILURE(
+            mRenderData.NRI.CreateTexture2DView(colorViewDesc, mRenderData.rdPickIdColorAttachment));
+
+    nri::Texture2DViewDesc srvViewDesc = {mRenderData.rdPickIdTexture,
+                                          nri::Texture2DViewType::SHADER_RESOURCE,
+                                          nri::Format::R32_UINT};
+    NRI_ABORT_ON_FAILURE(
+            mRenderData.NRI.CreateTexture2DView(srvViewDesc, mRenderData.rdPickIdShaderResource));
+
+    // Readback ring: one HOST_READBACK buffer per queued frame, each holding a single aligned pixel row.
+    const nri::DeviceDesc& deviceDesc = mRenderData.NRI.GetDeviceDesc(*mRenderData.rdDevice);
+    const uint32_t rowAlignment = std::max(1u, deviceDesc.memoryAlignment.uploadBufferTextureRow);
+    const uint64_t readbackSize = ((sizeof(uint32_t) + rowAlignment - 1) / rowAlignment) * rowAlignment;
+
+    const uint32_t queuedFrameNum = mRenderData.GetQueuedFrameNum();
+    mRenderData.rdPickReadbackSlots.clear();
+    mRenderData.rdPickReadbackSlots.resize(queuedFrameNum);
+    for (PickReadbackSlot& slot : mRenderData.rdPickReadbackSlots)
+    {
+        nri::BufferDesc bufferDesc = {};
+        bufferDesc.size = readbackSize;
+        bufferDesc.structureStride = 0;
+        bufferDesc.usage = nri::BufferUsageBits::NONE;
+        NRI_ABORT_ON_FAILURE(mRenderData.NRI.CreateBuffer(*mRenderData.rdDevice, bufferDesc, slot.readbackBuffer));
+
+        nri::ResourceGroupDesc bufferGroupDesc = {};
+        bufferGroupDesc.memoryLocation = nri::MemoryLocation::HOST_READBACK;
+        bufferGroupDesc.bufferNum = 1;
+        bufferGroupDesc.buffers = &slot.readbackBuffer;
+        NRI_ABORT_ON_FAILURE(mRenderData.NRI.AllocateAndBindMemory(*mRenderData.rdDevice,
+                                                                   bufferGroupDesc,
+                                                                   &slot.readbackMemory));
+    }
+
+    return true;
+}
+
 bool Renderer::recreateSwapchain()
 {
     if (mRenderData.rdOutputResolution.x == 0 || mRenderData.rdOutputResolution.y == 0)
@@ -1102,6 +1376,12 @@ bool Renderer::recreateSwapchain()
     for (QueuedFrame& queuedFrame : mRenderData.rdQueuedFrames)
     {
         queuedFrame.swapChainTextureIndex = 0;
+    }
+
+    // The pick-ID texture/views were recreated; re-point the outline pass at the new SRV.
+    if (mOutlinePass != nullptr)
+    {
+        mOutlinePass->SetIdTextureSRV(mRenderData, mRenderData.rdPickIdShaderResource);
     }
 
     mDepthAttachmentInitialized = false;
@@ -1147,6 +1427,43 @@ void Renderer::destroySwapchainResources()
         mRenderData.rdDepthMemory = nullptr;
     }
 
+    if (mRenderData.rdPickIdColorAttachment != nullptr)
+    {
+        mRenderData.NRI.DestroyDescriptor(mRenderData.rdPickIdColorAttachment);
+        mRenderData.rdPickIdColorAttachment = nullptr;
+    }
+
+    if (mRenderData.rdPickIdShaderResource != nullptr)
+    {
+        mRenderData.NRI.DestroyDescriptor(mRenderData.rdPickIdShaderResource);
+        mRenderData.rdPickIdShaderResource = nullptr;
+    }
+
+    if (mRenderData.rdPickIdTexture != nullptr)
+    {
+        mRenderData.NRI.DestroyTexture(mRenderData.rdPickIdTexture);
+        mRenderData.rdPickIdTexture = nullptr;
+    }
+
+    if (mRenderData.rdPickIdMemory != nullptr)
+    {
+        mRenderData.NRI.FreeMemory(mRenderData.rdPickIdMemory);
+        mRenderData.rdPickIdMemory = nullptr;
+    }
+
+    for (PickReadbackSlot& slot : mRenderData.rdPickReadbackSlots)
+    {
+        if (slot.readbackBuffer != nullptr)
+        {
+            mRenderData.NRI.DestroyBuffer(slot.readbackBuffer);
+        }
+        if (slot.readbackMemory != nullptr)
+        {
+            mRenderData.NRI.FreeMemory(slot.readbackMemory);
+        }
+    }
+    mRenderData.rdPickReadbackSlots.clear();
+
     if (mRenderData.rdSwapChain != nullptr)
     {
         mRenderData.NRI.DestroySwapChain(mRenderData.rdSwapChain);
@@ -1155,6 +1472,11 @@ void Renderer::destroySwapchainResources()
 
     mRenderData.rdDepthFormat = nri::Format::UNKNOWN;
     mDepthAttachmentInitialized = false;
+
+    // Pick-ID texture is recreated by createPickingResources(); reset its tracked barrier state.
+    mPickIdAccess = nri::AccessBits::NONE;
+    mPickIdLayout = nri::Layout::UNDEFINED;
+    mPickIdStage = nri::StageBits::NONE;
 }
 
 void Renderer::updateTriangleCount()
