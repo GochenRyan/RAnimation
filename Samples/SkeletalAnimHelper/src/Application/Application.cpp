@@ -14,6 +14,8 @@ bool Application::init(unsigned int width, unsigned int height, std::string titl
         return false;
     }
 
+    mBaseTitle = title;
+
     WindowDesc windowDesc{};
     windowDesc.width = width;
     windowDesc.height = height;
@@ -40,6 +42,20 @@ bool Application::init(unsigned int width, unsigned int height, std::string titl
     {
         return false;
     }
+
+    if (!mUserInterface.Init(mRenderer->GetRenderData()))
+    {
+        return false;
+    }
+
+    // The SceneEditor performs structural edits but owns no GPU code; route its GPU needs to the
+    // Renderer's services. This is the only seam where the editor and renderer meet.
+    Renderer* renderer = mRenderer.get();
+    mSceneEditor.SetGpuHooks(
+            [renderer](const std::string& fileName) { return renderer->LoadModel(fileName); },
+            [renderer](const std::shared_ptr<Model>& model) { renderer->ReleaseModel(model); },
+            [renderer](const glm::vec3& point) { renderer->FocusCameraOnPoint(point); });
+
     return true;
 }
 
@@ -49,13 +65,29 @@ void Application::MainLoop()
     std::chrono::time_point<std::chrono::steady_clock> loopEndTime = std::chrono::steady_clock::now();
     float deltaTime = 0.0f;
 
+    // Reflect the editor mode in the window title. Start in View (no suffix); update only on change.
+    bool lastEditMode = mSceneEditor.IsEditMode();
+    mPlatform->GetMainWindow()->SetTitle((mBaseTitle + (lastEditMode ? "  [edit]" : "")).c_str());
+
     while (!mPlatform->GetMainWindow()->ShouldClose())
     {
         mRenderer->SetSize(mPlatform->GetMainWindow()->GetWidth(), mPlatform->GetMainWindow()->GetHeight());
 
-        if (!mRenderer->Draw(deltaTime))
+        // Build the UI for this frame (reads renderer telemetry, reads/edits the SceneEditor) before
+        // rendering, so this frame's ImguiPass draws this frame's UI. ImGui draw data is global state.
+        mUserInterface.CreateFrame(mRenderer->GetRenderData(), mSceneEditor);
+        mUserInterface.Render(mRenderer->GetRenderData());
+
+        if (!mRenderer->Draw(deltaTime, mSceneEditor.ModelData()))
         {
             break;
+        }
+
+        const bool editMode = mSceneEditor.IsEditMode();
+        if (editMode != lastEditMode)
+        {
+            mPlatform->GetMainWindow()->SetTitle((mBaseTitle + (editMode ? "  [edit]" : "")).c_str());
+            lastEditMode = editMode;
         }
 
         mPlatform->PumpEvents();
@@ -75,6 +107,11 @@ void Application::Cleanup()
 {
     if (mRenderer)
     {
+        // Order matters: the device must stay alive while the UI and the scene's models release their
+        // GPU resources. The Renderer tears down its own device last.
+        mRenderer->WaitIdle();
+        mUserInterface.Cleanup(mRenderer->GetRenderData());
+        mSceneEditor.ReleaseAllGpuResources();
         mRenderer->Cleanup();
         mRenderer.reset();
     }

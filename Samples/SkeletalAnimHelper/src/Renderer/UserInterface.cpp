@@ -2,6 +2,8 @@
 #include <cstdio>
 #include <filesystem>
 #include <limits>
+#include <memory>
+#include <string>
 
 #define GLM_ENABLE_EXPERIMENTAL
 #include <glm/gtc/type_ptr.hpp>
@@ -14,6 +16,7 @@
 #include <Model\InstanceSettings.h>
 #include <Model\Model.h>
 #include <Model\ModelInstance.h>
+#include <Editor/SceneEditor.h>
 #include <Renderer/UserInterface.h>
 
 using namespace RAnimation;
@@ -142,11 +145,104 @@ void UserInterface::HideMouse(bool hide)
     }
 }
 
-void UserInterface::CreateFrame(RRenderData& renderData, ModelAndInstanceData& modInstData)
+void UserInterface::drawMenuBarAndHotkeys(SceneEditor& sceneEditor)
 {
+    ImGuiIO& io = ImGui::GetIO();
+    const bool editMode = sceneEditor.IsEditMode();
+
+    // Editor hotkeys. Ignore while a text field has focus (e.g. the import file dialog) so typing
+    // does not steal Ctrl+Z/Y. Undo/redo only act in Edit mode; mode toggle works in either.
+    if (!io.WantTextInput)
+    {
+        if (ImGui::IsKeyChordPressed(ImGuiMod_Ctrl | ImGuiKey_E))
+        {
+            sceneEditor.ToggleMode();
+        }
+        if (editMode)
+        {
+            if (ImGui::IsKeyChordPressed(ImGuiMod_Ctrl | ImGuiKey_Z))
+            {
+                sceneEditor.Undo();
+            }
+            if (ImGui::IsKeyChordPressed(ImGuiMod_Ctrl | ImGuiKey_Y) ||
+                ImGui::IsKeyChordPressed(ImGuiMod_Ctrl | ImGuiMod_Shift | ImGuiKey_Z))
+            {
+                sceneEditor.Redo();
+            }
+        }
+    }
+
+    if (ImGui::BeginMainMenuBar())
+    {
+        if (ImGui::BeginMenu("Edit"))
+        {
+            const std::string undoLabel = std::string("Undo ") + sceneEditor.UndoName();
+            if (ImGui::MenuItem(undoLabel.c_str(), "Ctrl+Z", false, editMode && sceneEditor.CanUndo()))
+            {
+                sceneEditor.Undo();
+            }
+
+            const std::string redoLabel = std::string("Redo ") + sceneEditor.RedoName();
+            if (ImGui::MenuItem(redoLabel.c_str(), "Ctrl+Y", false, editMode && sceneEditor.CanRedo()))
+            {
+                sceneEditor.Redo();
+            }
+
+            ImGui::Separator();
+
+            bool editFlag = editMode;
+            if (ImGui::MenuItem("Edit Mode", "Ctrl+E", &editFlag))
+            {
+                sceneEditor.ToggleMode();
+            }
+
+            ImGui::EndMenu();
+        }
+
+        const char* modeText = editMode ? "[ EDIT ]" : "[ VIEW ]";
+        ImGui::SameLine(ImGui::GetWindowWidth() - ImGui::CalcTextSize(modeText).x - 20.0f);
+        ImGui::TextUnformatted(modeText);
+
+        ImGui::EndMainMenuBar();
+    }
+}
+
+void UserInterface::trackSettingsEdit(SceneEditor& sceneEditor,
+                                      const std::shared_ptr<ModelInstance>& instance,
+                                      const InstanceSettings& edited,
+                                      const char* editName)
+{
+    // Coalesce a continuous slider drag into a single command: snapshot the pre-edit settings when
+    // the widget becomes active (the instance still holds the previous frame's applied value), push
+    // one command (before -> final) when the edit finishes.
+    if (ImGui::IsItemActivated())
+    {
+        mPendingSettingsInstance = instance;
+        mPendingSettingsBefore = instance->GetInstanceSettings();
+    }
+
+    if (ImGui::IsItemDeactivatedAfterEdit() && mPendingSettingsInstance == instance)
+    {
+        sceneEditor.RecordInstanceEdit(instance, mPendingSettingsBefore, edited, editName);
+        mPendingSettingsInstance = nullptr;
+    }
+}
+
+void UserInterface::CreateFrame(RRenderData& renderData, SceneEditor& sceneEditor)
+{
+    mUIGenerateTimer.Start();
+
+    ModelAndInstanceData& modInstData = sceneEditor.ModelData();
+
+    HideMouse(false);
+
     ImGui_ImplSDL3_NewFrame();
     ImGui::NewFrame();
     ImGui::DockSpaceOverViewport(0, ImGui::GetMainViewport(), ImGuiDockNodeFlags_PassthruCentralNode);
+
+    drawMenuBarAndHotkeys(sceneEditor);
+
+    const bool editMode = sceneEditor.IsEditMode();
 
     // Viewport left-click (not over an ImGui window) requests a GPU pick. The Renderer issues the
     // 1px ID readback next frame and resolves the selection. MousePos is in points; scale to pixels.
@@ -390,6 +486,7 @@ void UserInterface::CreateFrame(RRenderData& renderData, ModelAndInstanceData& m
 
     if (ImGui::CollapsingHeader("Models", ImGuiTreeNodeFlags_DefaultOpen))
     {
+        ImGui::BeginDisabled(!editMode);
         if (ImGui::Button("Import Model"))
         {
             IGFD::FileDialogConfig config;
@@ -415,17 +512,15 @@ void UserInterface::CreateFrame(RRenderData& renderData, ModelAndInstanceData& m
                 }
                 std::replace(filePathName.begin(), filePathName.end(), '\\', '/');
 
-                if (modInstData.miModelAddCallbackFunction)
-                {
-                    modInstData.miModelAddCallbackFunction(filePathName);
-                    modInstData.miSelectedModel = std::max(0, static_cast<int>(modInstData.miModelList.size()) - 1);
-                    modInstData.miSelectedInstance =
-                            std::max(0, static_cast<int>(modInstData.miModelInstances.size()) - 1);
-                }
+                sceneEditor.AddModel(filePathName);
+                modInstData.miSelectedModel = std::max(0, static_cast<int>(modInstData.miModelList.size()) - 1);
+                modInstData.miSelectedInstance =
+                        std::max(0, static_cast<int>(modInstData.miModelInstances.size()) - 1);
             }
 
             ImGuiFileDialog::Instance()->Close();
         }
+        ImGui::EndDisabled();
 
         if (!modInstData.miModelList.empty())
         {
@@ -448,9 +543,10 @@ void UserInterface::CreateFrame(RRenderData& renderData, ModelAndInstanceData& m
                 ImGui::EndCombo();
             }
 
-            if (ImGui::Button("Delete Model") && modInstData.miModelDeleteCallbackFunction)
+            ImGui::BeginDisabled(!editMode);
+            if (ImGui::Button("Delete Model"))
             {
-                modInstData.miModelDeleteCallbackFunction(
+                sceneEditor.DeleteModel(
                         modInstData.miModelList[modInstData.miSelectedModel]->GetModelFileNamePath());
                 modInstData.miSelectedModel =
                         std::clamp(modInstData.miSelectedModel - 1,
@@ -463,10 +559,12 @@ void UserInterface::CreateFrame(RRenderData& renderData, ModelAndInstanceData& m
 
                 if (modInstData.miModelList.empty())
                 {
+                    ImGui::EndDisabled();
                     ImGui::End();
                     return;
                 }
             }
+            ImGui::EndDisabled();
         }
     }
 
@@ -486,22 +584,21 @@ void UserInterface::CreateFrame(RRenderData& renderData, ModelAndInstanceData& m
             std::shared_ptr<ModelInstance> instance = modInstData.miModelInstances[modInstData.miSelectedInstance];
             InstanceSettings settings = instance->GetInstanceSettings();
 
-            if (ImGui::Button("Clone Instance") && modInstData.miInstanceCloneCallbackFunction)
+            ImGui::BeginDisabled(!editMode);
+            if (ImGui::Button("Clone Instance"))
             {
-                modInstData.miInstanceCloneCallbackFunction(instance);
+                sceneEditor.CloneInstance(instance);
                 modInstData.miSelectedInstance = std::max(0, static_cast<int>(modInstData.miModelInstances.size()) - 1);
             }
+            ImGui::EndDisabled();
 
             ImGui::SameLine();
             const std::string modelName = instance->GetModel()->GetModelFileName();
             const size_t perModelCount = modInstData.miModelInstancesPerModel[modelName].size();
-            if (perModelCount < 2)
+            ImGui::BeginDisabled(!editMode || perModelCount < 2);
+            if (ImGui::Button("Delete Instance"))
             {
-                ImGui::BeginDisabled();
-            }
-            if (ImGui::Button("Delete Instance") && modInstData.miInstanceDeleteCallbackFunction)
-            {
-                modInstData.miInstanceDeleteCallbackFunction(instance);
+                sceneEditor.DeleteInstance(instance);
                 modInstData.miSelectedInstance =
                         std::clamp(modInstData.miSelectedInstance - 1,
                                    0,
@@ -509,36 +606,50 @@ void UserInterface::CreateFrame(RRenderData& renderData, ModelAndInstanceData& m
 
                 if (modInstData.miModelInstances.empty())
                 {
+                    ImGui::EndDisabled();
                     ImGui::End();
                     return;
                 }
             }
-            if (perModelCount < 2)
+            ImGui::EndDisabled();
+
+            // Camera focus is a viewing aid, available in both modes.
+            if (ImGui::Button("Center on Instance"))
             {
-                ImGui::EndDisabled();
+                sceneEditor.FocusCameraOn(instance);
             }
 
-            if (ImGui::Button("Center on Instance") && modInstData.miInstanceFocusCallbackFunction)
+            ImGui::BeginDisabled(!editMode);
+
+            const bool swapBefore = settings.mSwapYZAxis;
+            if (ImGui::Checkbox("Swap Y/Z", &settings.mSwapYZAxis))
             {
-                modInstData.miInstanceFocusCallbackFunction(instance);
+                // Discrete toggle: record immediately with the pre-toggle value as "before".
+                InstanceSettings before = settings;
+                before.mSwapYZAxis = swapBefore;
+                sceneEditor.RecordInstanceEdit(instance, before, settings, "Toggle Swap Y/Z");
             }
 
-            ImGui::Checkbox("Swap Y/Z", &settings.mSwapYZAxis);
             ImGui::SliderFloat3(
                     "World Position", glm::value_ptr(settings.mWorldPosition), -25.0f, 25.0f, "%.2f", sliderFlags);
+            trackSettingsEdit(sceneEditor, instance, settings, "Move Instance");
             ImGui::SliderFloat3(
                     "World Rotation", glm::value_ptr(settings.mWorldRotation), -180.0f, 180.0f, "%.1f", sliderFlags);
+            trackSettingsEdit(sceneEditor, instance, settings, "Rotate Instance");
             ImGui::SliderFloat("Scale", &settings.mScale, 0.01f, 10.0f, "%.3f", sliderFlags);
+            trackSettingsEdit(sceneEditor, instance, settings, "Scale Instance");
 
             instance->SetInstanceSettings(settings);
 
             if (ImGui::Button("Create Multiple Instances")) {
                 std::shared_ptr<Model> currentModel = modInstData.miModelList[modInstData.miSelectedModel];
-                modInstData.miInstanceAddManyCallbackFunction(currentModel, mManyInstanceCreateNum);
+                sceneEditor.AddInstances(currentModel, mManyInstanceCreateNum);
                 modInstData.miSelectedInstance = modInstData.miModelInstances.size() - 1;
             }
             ImGui::SameLine();
             ImGui::SliderInt("##MassInstanceCreation", &mManyInstanceCreateNum, 1, 100, "%d", ImGuiSliderFlags_AlwaysClamp);
+
+            ImGui::EndDisabled();
         }
     }
 
@@ -559,6 +670,9 @@ void UserInterface::CreateFrame(RRenderData& renderData, ModelAndInstanceData& m
                 }
                 const char* selectedClipName = clips[settings.mAnimClipNr]->GetClipName().c_str();
 
+                ImGui::BeginDisabled(!editMode);
+
+                const unsigned int clipBefore = settings.mAnimClipNr;
                 if (ImGui::BeginCombo("Clip", selectedClipName))
                 {
                     for (int i = 0; i < static_cast<int>(clips.size()); ++i)
@@ -576,9 +690,19 @@ void UserInterface::CreateFrame(RRenderData& renderData, ModelAndInstanceData& m
                     }
                     ImGui::EndCombo();
                 }
+                if (settings.mAnimClipNr != clipBefore)
+                {
+                    // Discrete combo selection: record immediately (before = previous clip index).
+                    InstanceSettings before = settings;
+                    before.mAnimClipNr = clipBefore;
+                    sceneEditor.RecordInstanceEdit(instance, before, settings, "Change Clip");
+                }
 
                 ImGui::SliderFloat("Speed", &settings.mAnimSpeedFactor, 0.0f, 2.0f, "%.2f", sliderFlags);
+                trackSettingsEdit(sceneEditor, instance, settings, "Change Speed");
                 instance->SetInstanceSettings(settings);
+
+                ImGui::EndDisabled();
             }
             else
             {
@@ -588,11 +712,15 @@ void UserInterface::CreateFrame(RRenderData& renderData, ModelAndInstanceData& m
     }
 
     ImGui::End();
+
+    renderData.rdUIGenerateTime = mUIGenerateTimer.Stop();
 }
 
 void UserInterface::Render(RRenderData& renderData)
 {
+    mUIDrawTimer.Start();
     ImGui::Render();
+    renderData.rdUIDrawTime = mUIDrawTimer.Stop();
 }
 
 void UserInterface::Cleanup(RRenderData& renderData)

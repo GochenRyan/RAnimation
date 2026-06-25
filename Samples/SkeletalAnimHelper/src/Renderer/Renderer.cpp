@@ -166,28 +166,6 @@ bool Renderer::Init(unsigned int width, unsigned int height)
         mOutlinePass->SetIdTextureSRV(mRenderData, mRenderData.rdPickIdShaderResource);
     }
 
-    if (!mUserInterface.Init(mRenderData))
-    {
-        fmt::print(stderr, fg(fmt::color::red), "{} error: could not init user interface\n", __FUNCTION__);
-        return false;
-    }
-
-    /* register callbacks */
-    mModelInstData.miModelCheckCallbackFunction = [this](std::string fileName) { return HasModel(fileName); };
-    mModelInstData.miModelAddCallbackFunction = [this](std::string fileName) { return AddModel(fileName); };
-    mModelInstData.miModelDeleteCallbackFunction = [this](std::string modelName) { DeleteModel(modelName); };
-
-    mModelInstData.miInstanceAddCallbackFunction = [this](std::shared_ptr<RAnimation::Model> model)
-    { return AddInstance(model); };
-    mModelInstData.miInstanceAddManyCallbackFunction = [this](std::shared_ptr<RAnimation::Model> model,
-                                                              int numInstances) { AddInstances(model, numInstances); };
-    mModelInstData.miInstanceDeleteCallbackFunction = [this](std::shared_ptr<RAnimation::ModelInstance> instance)
-    { DeleteInstance(instance); };
-    mModelInstData.miInstanceCloneCallbackFunction = [this](std::shared_ptr<RAnimation::ModelInstance> instance)
-    { CloneInstance(instance); };
-    mModelInstData.miInstanceFocusCallbackFunction = [this](std::shared_ptr<RAnimation::ModelInstance> instance)
-    { FocusCameraOn(instance); };
-
     mFrameTimer.Start();
 
     fmt::print("{}: Renderer initialized to {}x{}\n", __FUNCTION__, width, height);
@@ -215,10 +193,12 @@ void Renderer::SetSize(unsigned int width, unsigned int height)
     }
 }
 
-bool Renderer::Draw(float deltaTime)
+bool Renderer::Draw(float deltaTime, ModelAndInstanceData& modInstData)
 {
     mRenderData.rdFrameTime = mFrameTimer.Stop();
     mFrameTimer.Start();
+
+    updateTriangleCount(modInstData);
 
     if (mSwapchainRecreateRequested && !recreateSwapchain())
     {
@@ -236,7 +216,7 @@ bool Renderer::Draw(float deltaTime)
     QueuedFrame& queuedFrame = mRenderData.GetCurrentQueueFrame();
 
     // Resolve a pick readback issued queuedFrameNum frames ago (its fence has signalled via latencySleep).
-    resolvePendingReadback();
+    resolvePendingReadback(modInstData);
 
     const uint32_t recycledSemaphoreIndex = mFrameIndex % mRenderData.rdSwapChainTextures.size();
     nri::Fence* acquiredSemaphore = mRenderData.rdSwapChainTextures[recycledSemaphoreIndex].acquireSemaphore;
@@ -255,8 +235,8 @@ bool Renderer::Draw(float deltaTime)
     // AnimationTransformComputePass also publishes animatedDispatches + uploadedBoneOffsetMatrixCount
     // into mSceneFrame, which is later passed via CommandContext to RecordPhase.
     mSceneFrame = SceneFrameData{};
-    mSceneFrame.modelInstData = &mModelInstData;
-    mSceneFrame.hasSceneGeometry = !mModelInstData.miModelInstances.empty();
+    mSceneFrame.modelInstData = &modInstData;
+    mSceneFrame.hasSceneGeometry = !modInstData.miModelInstances.empty();
 
     // Assign global pick IDs in draw order. The draw passes iterate miModelInstancesPerModel over
     // disjoint subsets (static vs. skinned); both look up their group's base here so each emitted
@@ -264,7 +244,7 @@ bool Renderer::Draw(float deltaTime)
     // a returned ID can be resolved back to an instance. Pick ID 0 means "nothing".
     {
         uint32_t runningPickBase = 0;
-        for (const auto& modelType : mModelInstData.miModelInstancesPerModel)
+        for (const auto& modelType : modInstData.miModelInstancesPerModel)
         {
             if (modelType.second.empty())
             {
@@ -278,13 +258,13 @@ bool Renderer::Draw(float deltaTime)
             runningPickBase += static_cast<uint32_t>(modelType.second.size());
         }
 
-        if (!mModelInstData.miModelInstances.empty())
+        if (!modInstData.miModelInstances.empty())
         {
-            const int selectedIndex = mModelInstData.miSelectedInstance;
-            if (selectedIndex >= 0 && selectedIndex < static_cast<int>(mModelInstData.miModelInstances.size()))
+            const int selectedIndex = modInstData.miSelectedInstance;
+            if (selectedIndex >= 0 && selectedIndex < static_cast<int>(modInstData.miModelInstances.size()))
             {
                 const std::shared_ptr<ModelInstance>& selected =
-                        mModelInstData.miModelInstances[selectedIndex];
+                        modInstData.miModelInstances[selectedIndex];
                 for (size_t i = 0; i < mSceneFrame.drawOrderInstances.size(); ++i)
                 {
                     if (mSceneFrame.drawOrderInstances[i] == selected)
@@ -310,15 +290,6 @@ bool Renderer::Draw(float deltaTime)
     {
         return false;
     }
-
-    mUIGenerateTimer.Start();
-    mUserInterface.HideMouse(false);
-    mUserInterface.CreateFrame(mRenderData, mModelInstData);
-    mRenderData.rdUIGenerateTime = mUIGenerateTimer.Stop();
-
-    mUIDrawTimer.Start();
-    mUserInterface.Render(mRenderData);
-    mRenderData.rdUIDrawTime = mUIDrawTimer.Stop();
 
     nri::Fence* releaseSemaphore = mRenderData.rdSwapChainTextures[queuedFrame.swapChainTextureIndex].releaseSemaphore;
 
@@ -570,44 +541,8 @@ void Renderer::HandleMousePositionEvents(double xPos, double yPos)
 {
 }
 
-bool Renderer::HasModel(std::string modelFileName)
+std::shared_ptr<RAnimation::Model> Renderer::LoadModel(const std::string& modelFileName)
 {
-    auto modelIter = std::find_if(mModelInstData.miModelList.begin(),
-                                  mModelInstData.miModelList.end(),
-                                  [modelFileName](const auto& model)
-                                  {
-                                      return model->GetModelFileNamePath() == modelFileName ||
-                                             model->GetModelFileName() == modelFileName;
-                                  });
-    return modelIter != mModelInstData.miModelList.end();
-}
-
-std::shared_ptr<RAnimation::Model> Renderer::GetModel(std::string modelFileName)
-{
-    auto modelIter = std::find_if(mModelInstData.miModelList.begin(),
-                                  mModelInstData.miModelList.end(),
-                                  [modelFileName](const auto& model)
-                                  {
-                                      return model->GetModelFileNamePath() == modelFileName ||
-                                             model->GetModelFileName() == modelFileName;
-                                  });
-    if (modelIter != mModelInstData.miModelList.end())
-    {
-        return *modelIter;
-    }
-    return nullptr;
-}
-
-bool Renderer::AddModel(std::string modelFileName)
-{
-    if (HasModel(modelFileName))
-    {
-        fmt::print("{} warning: model '{}' already existed, skipping\n", __FUNCTION__, modelFileName);
-        return true;
-    }
-
-    const bool shouldFocusImportedModel = mModelInstData.miModelList.empty();
-
     /* Runtime model import uploads textures and mesh buffers directly through the graphics queue.
      * Keep it serialized with the render loop so queue-owned upload work does not overlap frame submissions. */
     NRI_ABORT_ON_FAILURE(mRenderData.NRI.QueueWaitIdle(mRenderData.rdGraphicsQueue));
@@ -617,158 +552,31 @@ bool Renderer::AddModel(std::string modelFileName)
     {
         fmt::print(
                 stderr, fg(fmt::color::red), "{} error: could not load model file '{}'\n", __FUNCTION__, modelFileName);
-        return false;
+        return nullptr;
     }
 
     NRI_ABORT_ON_FAILURE(mRenderData.NRI.QueueWaitIdle(mRenderData.rdGraphicsQueue));
 
-    mModelInstData.miModelList.emplace_back(model);
-
-    /* also add a new instance here to see the model */
-    std::shared_ptr<ModelInstance> instance = AddInstance(model);
-
-    if (shouldFocusImportedModel && instance != nullptr)
-    {
-        const glm::mat4 worldTransform = instance->GetWorldTransformMatrix();
-        focusCameraOnPoint(glm::vec3(worldTransform[3]));
-    }
-
-    return true;
+    return model;
 }
 
-void Renderer::DeleteModel(std::string modelFileName)
+void Renderer::ReleaseModel(const std::shared_ptr<RAnimation::Model>& model)
 {
-    std::string shortModelFileName = std::filesystem::path(modelFileName).filename().generic_string();
-    std::vector<std::shared_ptr<Model>> modelsToDelete;
-
-    for (const auto& model : mModelInstData.miModelList)
-    {
-        if (model != nullptr &&
-            (model->GetModelFileName() == shortModelFileName || model->GetModelFileNamePath() == modelFileName))
-        {
-            modelsToDelete.emplace_back(model);
-        }
-    }
-
-    if (!mModelInstData.miModelInstances.empty())
-    {
-        mModelInstData.miModelInstances.erase(
-                std::remove_if(mModelInstData.miModelInstances.begin(),
-                               mModelInstData.miModelInstances.end(),
-                               [shortModelFileName](std::shared_ptr<ModelInstance> instance)
-                               { return instance->GetModel()->GetModelFileName() == shortModelFileName; }),
-                mModelInstData.miModelInstances.end());
-    }
-
-    if (mModelInstData.miModelInstancesPerModel.count(shortModelFileName) > 0)
-    {
-        mModelInstData.miModelInstancesPerModel[shortModelFileName].clear();
-        mModelInstData.miModelInstancesPerModel.erase(shortModelFileName);
-    }
-
-    mModelInstData.miModelList.erase(std::remove_if(mModelInstData.miModelList.begin(),
-                                                    mModelInstData.miModelList.end(),
-                                                    [modelFileName, shortModelFileName](std::shared_ptr<Model> model)
-                                                    {
-                                                        return model->GetModelFileName() == shortModelFileName ||
-                                                               model->GetModelFileNamePath() == modelFileName;
-                                                    }),
-                                     mModelInstData.miModelList.end());
-
-    if (!modelsToDelete.empty())
-    {
-        NRI_ABORT_ON_FAILURE(mRenderData.NRI.QueueWaitIdle(mRenderData.rdGraphicsQueue));
-        for (const auto& model : modelsToDelete)
-        {
-            model->Cleanup(mRenderData);
-            mModelInstData.miPendingDeleteModels.erase(model);
-        }
-    }
-
-    updateTriangleCount();
-}
-
-std::shared_ptr<RAnimation::ModelInstance> Renderer::AddInstance(std::shared_ptr<RAnimation::Model> model)
-{
-    std::shared_ptr<ModelInstance> newInst = std::make_shared<ModelInstance>(model);
-    mModelInstData.miModelInstances.emplace_back(newInst);
-    mModelInstData.miModelInstancesPerModel[model->GetModelFileName()].emplace_back(newInst);
-
-    updateTriangleCount();
-
-    return newInst;
-}
-
-void Renderer::AddInstances(std::shared_ptr<RAnimation::Model> model, int numInstances)
-{
-    size_t animClipNum = model->GetAnimClips().size();
-    for (int i = 0; i < numInstances; ++i)
-    {
-        int xPos = std::rand() % 50 - 25;
-        int zPos = std::rand() % 50 - 25;
-        int rotation = std::rand() % 360 - 180;
-        int clipNr = animClipNum > 0 ? std::rand() % animClipNum : 0;
-
-        std::shared_ptr<ModelInstance> newInstance =
-                std::make_shared<ModelInstance>(model, glm::vec3(xPos, 0.0f, zPos), glm::vec3(0.0f, rotation, 0.0f));
-        if (animClipNum > 0)
-        {
-            InstanceSettings instSettings = newInstance->GetInstanceSettings();
-            instSettings.mAnimClipNr = clipNr;
-            newInstance->SetInstanceSettings(instSettings);
-        }
-
-        mModelInstData.miModelInstances.emplace_back(newInstance);
-        mModelInstData.miModelInstancesPerModel[model->GetModelFileName()].emplace_back(newInstance);
-    }
-    updateTriangleCount();
-}
-
-void Renderer::DeleteInstance(std::shared_ptr<RAnimation::ModelInstance> instance)
-{
-    std::shared_ptr<Model> currentModel = instance->GetModel();
-    std::string currentModelName = currentModel->GetModelFileName();
-
-    mModelInstData.miModelInstances.erase(std::remove_if(mModelInstData.miModelInstances.begin(),
-                                                         mModelInstData.miModelInstances.end(),
-                                                         [instance](std::shared_ptr<ModelInstance> inst)
-                                                         { return inst == instance; }),
-                                          mModelInstData.miModelInstances.end());
-
-
-    mModelInstData.miModelInstancesPerModel[currentModelName].erase(
-            std::remove_if(mModelInstData.miModelInstancesPerModel[currentModelName].begin(),
-                           mModelInstData.miModelInstancesPerModel[currentModelName].end(),
-                           [instance](std::shared_ptr<ModelInstance> inst) { return inst == instance; }),
-            mModelInstData.miModelInstancesPerModel[currentModelName].end());
-
-    updateTriangleCount();
-}
-
-void Renderer::CloneInstance(std::shared_ptr<RAnimation::ModelInstance> instance)
-{
-    std::shared_ptr<Model> currentModel = instance->GetModel();
-    std::shared_ptr<ModelInstance> newInstance = std::make_shared<ModelInstance>(currentModel);
-    InstanceSettings newInstanceSettings = instance->GetInstanceSettings();
-
-    /* slight offset to see new instance */
-    newInstanceSettings.mWorldPosition += glm::vec3(1.0f, 0.0f, -1.0f);
-    newInstance->SetInstanceSettings(newInstanceSettings);
-
-    mModelInstData.miModelInstances.emplace_back(newInstance);
-    mModelInstData.miModelInstancesPerModel[currentModel->GetModelFileName()].emplace_back(newInstance);
-
-    updateTriangleCount();
-}
-
-void Renderer::FocusCameraOn(std::shared_ptr<RAnimation::ModelInstance> instance)
-{
-    if (instance == nullptr)
+    if (model == nullptr)
     {
         return;
     }
 
-    focusCameraOnPoint(instance->GetWorldPosition());
+    NRI_ABORT_ON_FAILURE(mRenderData.NRI.QueueWaitIdle(mRenderData.rdGraphicsQueue));
+    model->Cleanup(mRenderData);
+}
+
+void Renderer::WaitIdle()
+{
+    if (mRenderData.rdDevice != nullptr)
+    {
+        mRenderData.NRI.DeviceWaitIdle(mRenderData.rdDevice);
+    }
 }
 
 void Renderer::Cleanup()
@@ -780,23 +588,9 @@ void Renderer::Cleanup()
 
     mRenderData.NRI.DeviceWaitIdle(mRenderData.rdDevice);
 
-    mUserInterface.Cleanup(mRenderData);
-
-    for (const auto& model : mModelInstData.miModelList)
-    {
-        if (model)
-        {
-            model->Cleanup(mRenderData);
-        }
-    }
-
-    for (const auto& model : mModelInstData.miPendingDeleteModels)
-    {
-        if (model)
-        {
-            model->Cleanup(mRenderData);
-        }
-    }
+    // Scene models are owned by the SceneEditor; the Application releases them (and the UI) before
+    // calling Cleanup(), while the device is still alive. Here the Renderer tears down only its own
+    // resources.
 
     for (QueuedFrame& queuedFrame : mRenderData.rdQueuedFrames)
     {
@@ -1254,7 +1048,7 @@ void Renderer::recordPickReadback(nri::CommandBuffer& commandBuffer)
     mRenderData.rdPendingPick.requested = false;
 }
 
-void Renderer::resolvePendingReadback()
+void Renderer::resolvePendingReadback(ModelAndInstanceData& modInstData)
 {
     if (mRenderData.rdPickReadbackSlots.empty())
     {
@@ -1280,11 +1074,11 @@ void Renderer::resolvePendingReadback()
     if (pickID != 0 && pickID - 1 < slot.snapshot.size())
     {
         const std::shared_ptr<ModelInstance>& picked = slot.snapshot[pickID - 1];
-        for (size_t i = 0; i < mModelInstData.miModelInstances.size(); ++i)
+        for (size_t i = 0; i < modInstData.miModelInstances.size(); ++i)
         {
-            if (mModelInstData.miModelInstances[i] == picked)
+            if (modInstData.miModelInstances[i] == picked)
             {
-                mModelInstData.miSelectedInstance = static_cast<int>(i);
+                modInstData.miSelectedInstance = static_cast<int>(i);
                 break;
             }
         }
@@ -1479,16 +1273,16 @@ void Renderer::destroySwapchainResources()
     mPickIdStage = nri::StageBits::NONE;
 }
 
-void Renderer::updateTriangleCount()
+void Renderer::updateTriangleCount(const ModelAndInstanceData& modInstData)
 {
     mRenderData.rdTriangleCount = 0;
-    for (const auto& inst : mModelInstData.miModelInstances)
+    for (const auto& inst : modInstData.miModelInstances)
     {
         mRenderData.rdTriangleCount += inst->GetModel()->GetTriangleCount();
     }
 }
 
-void Renderer::focusCameraOnPoint(const glm::vec3& focusPoint)
+void Renderer::FocusCameraOnPoint(const glm::vec3& focusPoint)
 {
     const glm::vec3 defaultViewOffset(2.0f, 5.0f, 7.0f);
     mRenderData.rdCameraWorldPosition = focusPoint + defaultViewOffset;

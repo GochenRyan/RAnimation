@@ -9,7 +9,6 @@
 #include <Renderer/RenderResourceBudget.h>
 #include <Renderer/RenderResourceRegistry.h>
 #include <Renderer/SceneFrameData.h>
-#include <Renderer/UserInterface.h>
 #include <Tools/Timer.h>
 #include <Tools/Camera.h>
 
@@ -33,22 +32,22 @@ namespace RAnimation
         bool Init(unsigned int width, unsigned int height);
         void SetSize(unsigned int width, unsigned int height);
 
-        bool Draw(float deltaTime);
+        // Renders one frame of the given scene. The Renderer holds no scene/editor state of its own;
+        // the caller (Application) owns the scene data and the UI build.
+        bool Draw(float deltaTime, ModelAndInstanceData& modInstData);
 
         void HandleKeyEvents(int key, int scancode, int action, int mods);
         void HandleMouseButtonEvents(int button, int action, int mods);
         void HandleMousePositionEvents(double xPos, double yPos);
 
-        bool HasModel(std::string modelFileName);
-        std::shared_ptr<RAnimation::Model> GetModel(std::string modelFileName);
-        bool AddModel(std::string modelFileName);
-        void DeleteModel(std::string modelFileName);
+        // GPU services exposed to the editor layer (wired in as hooks) and the host application.
+        // The Renderer knows nothing about commands, undo/redo, or modes.
+        std::shared_ptr<RAnimation::Model> LoadModel(const std::string& modelFileName);
+        void ReleaseModel(const std::shared_ptr<RAnimation::Model>& model);
+        void FocusCameraOnPoint(const glm::vec3& focusPoint);
 
-        std::shared_ptr<RAnimation::ModelInstance> AddInstance(std::shared_ptr<RAnimation::Model> model);
-        void AddInstances(std::shared_ptr<RAnimation::Model> model, int numInstances);
-        void DeleteInstance(std::shared_ptr<RAnimation::ModelInstance> instance);
-        void CloneInstance(std::shared_ptr<RAnimation::ModelInstance> instance);
-        void FocusCameraOn(std::shared_ptr<RAnimation::ModelInstance> instance);
+        void WaitIdle();
+        RRenderData& GetRenderData() { return mRenderData; }
 
         void Cleanup();
 
@@ -72,11 +71,10 @@ namespace RAnimation
         void destroySwapchainResources();
 
         // Picking: issue a 1px readback after the scene pass, then resolve completed readbacks.
-        void resolvePendingReadback();
+        void resolvePendingReadback(ModelAndInstanceData& modInstData);
         void recordPickReadback(nri::CommandBuffer& commandBuffer);
 
-        void updateTriangleCount();
-        void focusCameraOnPoint(const glm::vec3& focusPoint);
+        void updateTriangleCount(const ModelAndInstanceData& modInstData);
 
         void latencySleep(uint32_t frameIndex);
 
@@ -85,15 +83,11 @@ namespace RAnimation
     private:
         RRenderData mRenderData{};
         RenderResourceBudget mResourceBudget{};
-        ModelAndInstanceData mModelInstData{};
 
         Timer mFrameTimer{};
-        Timer mUIGenerateTimer{};
-        Timer mUIDrawTimer{};
 
         uint32_t mFrameIndex = 0;
 
-        UserInterface mUserInterface{};
         Camera mCamera;
 
         // Per-frame scene state. Filled by Renderer::Draw (modelInstData/hasSceneGeometry) and
