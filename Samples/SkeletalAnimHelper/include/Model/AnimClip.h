@@ -3,8 +3,6 @@
 #include <string>
 #include <vector>
 
-#include <assimp/anim.h>
-
 #include <Model/AnimChannel.h>
 
 namespace RAnimation
@@ -12,7 +10,7 @@ namespace RAnimation
     class AnimClip
     {
     public:
-        void AddChannels(aiAnimation* animation);
+        void AddChannel(std::shared_ptr<AnimChannel> channel);
         const std::vector<std::shared_ptr<AnimChannel>>& GetChannels();
 
         std::string GetClipName();
@@ -20,6 +18,8 @@ namespace RAnimation
         float GetClipTicksPerSecond();
 
         void SetClipName(std::string name);
+        void SetClipDuration(float duration);
+        void SetClipTicksPerSecond(float ticksPerSecond);
 
     private:
         std::string mClipName;

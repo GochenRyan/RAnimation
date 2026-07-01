@@ -1,19 +1,41 @@
 #pragma once
 
 #include <algorithm>
+#include <cstdint>
 #include <string>
 #include <vector>
 
-#include <assimp/anim.h>
 #include <glm/gtc/quaternion.hpp>
 #include <glm/glm.hpp>
 
 namespace RAnimation
 {
+    // Behaviour of a channel outside its authored time range. First-party replacement for assimp's
+    // aiAnimBehaviour; the integer values match the pre/post-state semantics the interpolation relies on.
+    enum class AnimBehaviour : uint8_t
+    {
+        Default = 0,
+        Constant = 1,
+        Linear = 2,
+        Repeat = 3
+    };
+
     class AnimChannel
     {
     public:
-        void LoadChannelData(aiNodeAnim* nodeAnim);
+        // Populates the channel from already-sampled keyframes (e.g. produced by the USD loader). Timing
+        // vectors are in clip ticks/frames and must be sorted ascending; value vectors are index-aligned
+        // with their timings. The inverse per-segment time diffs used for interpolation are derived here.
+        void SetChannelData(std::string nodeName,
+                            std::vector<float> translationTimings,
+                            std::vector<glm::vec3> translations,
+                            std::vector<float> rotationTimings,
+                            std::vector<glm::quat> rotations,
+                            std::vector<float> scaleTimings,
+                            std::vector<glm::vec3> scalings,
+                            AnimBehaviour preState = AnimBehaviour::Default,
+                            AnimBehaviour postState = AnimBehaviour::Default);
+
         std::string GetTargetNodeName();
         float GetMaxTime();
         bool HasTranslationKeys() const;
@@ -42,7 +64,7 @@ namespace RAnimation
         std::vector<glm::vec3> mScalings{};
         std::vector<glm::quat> mRotations{};
 
-        unsigned int mPreState = 0;
-        unsigned int mPostState = 0;
+        AnimBehaviour mPreState = AnimBehaviour::Default;
+        AnimBehaviour mPostState = AnimBehaviour::Default;
     };
 } // namespace RAnimation

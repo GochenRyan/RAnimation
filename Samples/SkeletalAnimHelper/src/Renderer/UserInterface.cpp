@@ -16,6 +16,7 @@
 #include <Model\InstanceSettings.h>
 #include <Model\Model.h>
 #include <Model\ModelInstance.h>
+#include <Model\UsdSceneExporter.h>
 #include <Editor/SceneEditor.h>
 #include <Renderer/UserInterface.h>
 
@@ -174,6 +175,33 @@ void UserInterface::drawMenuBarAndHotkeys(SceneEditor& sceneEditor)
 
     if (ImGui::BeginMainMenuBar())
     {
+        if (ImGui::BeginMenu("File"))
+        {
+            // Importing mutates the scene (adds models/instances), so it needs Edit mode like Import Model.
+            if (ImGui::MenuItem("Import Scene from USD...", nullptr, false, editMode))
+            {
+                IGFD::FileDialogConfig config;
+                config.path = ".";
+                config.countSelectionMax = 1;
+                config.flags = ImGuiFileDialogFlags_Modal;
+                ImGuiFileDialog::Instance()->OpenDialog(
+                        "ImportSceneFromUSD", "Import Scene from USD", "USD Scene{.usda,.usd,.usdc}", config);
+            }
+
+            if (ImGui::MenuItem("Export Scene to USD..."))
+            {
+                IGFD::FileDialogConfig config;
+                config.path = ".";
+                config.fileName = "untitled.level.usda";
+                config.countSelectionMax = 1;
+                config.flags = ImGuiFileDialogFlags_Modal | ImGuiFileDialogFlags_ConfirmOverwrite;
+                ImGuiFileDialog::Instance()->OpenDialog(
+                        "ExportSceneToUSD", "Export Scene to USD", "USD Scene{.usda}", config);
+            }
+
+            ImGui::EndMenu();
+        }
+
         if (ImGui::BeginMenu("Edit"))
         {
             const std::string undoLabel = std::string("Undo ") + sceneEditor.UndoName();
@@ -204,6 +232,63 @@ void UserInterface::drawMenuBarAndHotkeys(SceneEditor& sceneEditor)
         ImGui::TextUnformatted(modeText);
 
         ImGui::EndMainMenuBar();
+    }
+
+    // Resolve the export dialog (opened from the File menu). Pure CPU/USD work, no Renderer involvement.
+    if (ImGuiFileDialog::Instance()->Display("ExportSceneToUSD"))
+    {
+        if (ImGuiFileDialog::Instance()->IsOk())
+        {
+            const std::string outPath = ImGuiFileDialog::Instance()->GetFilePathName();
+            ExportSceneToUsd(sceneEditor.ModelData(), outPath);
+        }
+        ImGuiFileDialog::Instance()->Close();
+    }
+
+    // Resolve the import dialog: parse the scene USD, then load each asset and recreate its instances.
+    if (ImGuiFileDialog::Instance()->Display("ImportSceneFromUSD"))
+    {
+        if (ImGuiFileDialog::Instance()->IsOk())
+        {
+            ModelAndInstanceData& modInstData = sceneEditor.ModelData();
+            const std::string scenePath = ImGuiFileDialog::Instance()->GetFilePathName();
+
+            std::vector<ImportedSceneInstance> imported;
+            if (ImportSceneFromUsd(scenePath, imported))
+            {
+                for (const ImportedSceneInstance& imp : imported)
+                {
+                    std::shared_ptr<Model> model = sceneEditor.GetModel(imp.assetPath);
+                    if (model == nullptr)
+                    {
+                        // first instance of this asset: AddModel loads it and creates one default instance,
+                        // which we reconfigure with this instance's settings
+                        if (!sceneEditor.AddModel(imp.assetPath))
+                        {
+                            continue;
+                        }
+                        if (!modInstData.miModelInstances.empty())
+                        {
+                            modInstData.miModelInstances.back()->SetInstanceSettings(imp.settings);
+                        }
+                    }
+                    else
+                    {
+                        // further instances of an already-loaded asset
+                        std::shared_ptr<ModelInstance> instance = sceneEditor.AddInstance(model);
+                        if (instance != nullptr)
+                        {
+                            instance->SetInstanceSettings(imp.settings);
+                        }
+                    }
+                }
+
+                modInstData.miSelectedModel = std::max(0, static_cast<int>(modInstData.miModelList.size()) - 1);
+                modInstData.miSelectedInstance =
+                        std::max(0, static_cast<int>(modInstData.miModelInstances.size()) - 1);
+            }
+        }
+        ImGuiFileDialog::Instance()->Close();
     }
 }
 
@@ -494,8 +579,8 @@ void UserInterface::CreateFrame(RRenderData& renderData, SceneEditor& sceneEdito
             config.countSelectionMax = 1;
             config.flags = ImGuiFileDialogFlags_Modal;
             ImGuiFileDialog::Instance()->OpenDialog("ChooseModelFile",
-                                                    "Choose Model File",
-                                                    "Supported Model Files{.gltf,.glb,.obj,.fbx,.dae,.mdl,.md3,.pk3}",
+                                                    "Choose USD Asset",
+                                                    "USD Assets{.usd,.usda,.usdc,.usdz}",
                                                     config);
         }
 
@@ -668,12 +753,13 @@ void UserInterface::CreateFrame(RRenderData& renderData, SceneEditor& sceneEdito
                     settings.mAnimClipNr = 0;
                     settings.mAnimPlayTimePos = 0.0f;
                 }
-                const char* selectedClipName = clips[settings.mAnimClipNr]->GetClipName().c_str();
+                
+                std::string selectedClipNameStr = clips[settings.mAnimClipNr]->GetClipName();
 
                 ImGui::BeginDisabled(!editMode);
 
                 const unsigned int clipBefore = settings.mAnimClipNr;
-                if (ImGui::BeginCombo("Clip", selectedClipName))
+                if (ImGui::BeginCombo("Clip", selectedClipNameStr.data()))
                 {
                     for (int i = 0; i < static_cast<int>(clips.size()); ++i)
                     {

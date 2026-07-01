@@ -1,0 +1,20 @@
+{
+  "version": 2,
+  "cmakeMinimumRequired": {
+    "major": 3,
+    "minor": 20,
+    "patch": 0
+  },
+  "configurePresets": [
+    {
+      "name": "vcpkg",
+      "displayName": "vcpkg (OpenUSD)",
+      "description": "Configures with the vcpkg toolchain so the manifest's OpenUSD dependency resolves. Requires VCPKG_ROOT to be set (run setup_vcpkg.bat once, or point it at an existing vcpkg).",
+      "binaryDir": "${sourceDir}/build",
+      "cacheVariables": {
+        "CMAKE_TOOLCHAIN_FILE": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
+        "VCPKG_TARGET_TRIPLET": "x64-windows"
+      }
+    }
+  ]
+}

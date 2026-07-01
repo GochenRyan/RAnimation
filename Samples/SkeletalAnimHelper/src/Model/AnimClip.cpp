@@ -2,19 +2,9 @@
 
 using namespace RAnimation;
 
-void AnimClip::AddChannels(aiAnimation* animation)
+void AnimClip::AddChannel(std::shared_ptr<AnimChannel> channel)
 {
-    mClipName = animation->mName.C_Str();
-    mClipDuration = animation->mDuration;
-    mClipTicksPerSecond = animation->mTicksPerSecond;
-
-    for (unsigned int i = 0; i < animation->mNumChannels; ++i)
-    {
-        std::shared_ptr<AnimChannel> channel = std::make_shared<AnimChannel>();
-
-        channel->LoadChannelData(animation->mChannels[i]);
-        mAnimChannels.emplace_back(channel);
-    }
+    mAnimChannels.emplace_back(std::move(channel));
 }
 
 const std::vector<std::shared_ptr<AnimChannel>>& AnimClip::GetChannels()
@@ -40,4 +30,14 @@ float AnimClip::GetClipTicksPerSecond()
 void AnimClip::SetClipName(std::string name)
 {
     mClipName = name;
+}
+
+void AnimClip::SetClipDuration(float duration)
+{
+    mClipDuration = duration;
+}
+
+void AnimClip::SetClipTicksPerSecond(float ticksPerSecond)
+{
+    mClipTicksPerSecond = ticksPerSecond;
 }

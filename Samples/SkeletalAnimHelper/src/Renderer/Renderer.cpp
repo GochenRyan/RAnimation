@@ -1,5 +1,6 @@
 #include <algorithm>
 #include <cmath>
+#include <cstdlib>
 #include <cstring>
 #include <filesystem>
 #include <limits>
@@ -624,6 +625,15 @@ bool Renderer::initDevice()
 #if defined(_DEBUG)
     mRenderData.rdDebugAPI = true;
     mRenderData.rdDebugNRI = true;
+
+#if defined(RANIM_VK_LAYER_PATH)
+    // Use the vcpkg-pinned Khronos validation layer (reproducible version, see vcpkg.json) instead of
+    // whatever the system Vulkan SDK happens to provide. NRI is built against Vulkan-Headers v1.4.337 and
+    // chains newer feature structs (e.g. VkPhysicalDeviceMaintenance10Features); an older system layer
+    // rejects them as "unknown VkStructureType" at vkCreateDevice. VK_LAYER_PATH must be set before NRI
+    // creates the VkInstance (in nriEnumerateAdapters / nriCreateDevice below).
+    _putenv_s("VK_LAYER_PATH", RANIM_VK_LAYER_PATH);
+#endif
 #endif
 
     // Adapters

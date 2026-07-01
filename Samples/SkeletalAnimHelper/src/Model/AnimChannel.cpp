@@ -2,39 +2,29 @@
 
 using namespace RAnimation;
 
-void AnimChannel::LoadChannelData(aiNodeAnim* nodeAnim)
+void AnimChannel::SetChannelData(std::string nodeName,
+                                 std::vector<float> translationTimings,
+                                 std::vector<glm::vec3> translations,
+                                 std::vector<float> rotationTimings,
+                                 std::vector<glm::quat> rotations,
+                                 std::vector<float> scaleTimings,
+                                 std::vector<glm::vec3> scalings,
+                                 AnimBehaviour preState,
+                                 AnimBehaviour postState)
 {
-    mNodeName = nodeAnim->mNodeName.C_Str();
-    unsigned int numTranslations = nodeAnim->mNumPositionKeys;
-    unsigned int numRotations = nodeAnim->mNumRotationKeys;
-    unsigned int numScalings = nodeAnim->mNumScalingKeys;
-    mPreState = nodeAnim->mPreState;
-    mPostState = nodeAnim->mPostState;
+    mNodeName = std::move(nodeName);
+    mTranslationTimings = std::move(translationTimings);
+    mTranslations = std::move(translations);
+    mRotationTimings = std::move(rotationTimings);
+    mRotations = std::move(rotations);
+    mScaleTimings = std::move(scaleTimings);
+    mScalings = std::move(scalings);
+    mPreState = preState;
+    mPostState = postState;
 
-    for (size_t i = 0; i < numTranslations; ++i)
-    {
-        mTranslationTimings.emplace_back(static_cast<float>(nodeAnim->mPositionKeys[i].mTime));
-        mTranslations.emplace_back(glm::vec3(nodeAnim->mPositionKeys[i].mValue.x,
-                                             nodeAnim->mPositionKeys[i].mValue.y,
-                                             nodeAnim->mPositionKeys[i].mValue.z));
-    }
-
-    for (size_t i = 0; i < numRotations; ++i)
-    {
-        mRotationTimings.emplace_back(static_cast<float>(nodeAnim->mRotationKeys[i].mTime));
-        mRotations.emplace_back(nodeAnim->mRotationKeys[i].mValue.w,
-                                nodeAnim->mRotationKeys[i].mValue.x,
-                                nodeAnim->mRotationKeys[i].mValue.y,
-                                nodeAnim->mRotationKeys[i].mValue.z);
-    }
-
-    for (size_t i = 0; i < numScalings; ++i)
-    {
-        mScaleTimings.emplace_back(static_cast<float>(nodeAnim->mScalingKeys[i].mTime));
-        mScalings.emplace_back(glm::vec3(nodeAnim->mScalingKeys[i].mValue.x,
-                                         nodeAnim->mScalingKeys[i].mValue.y,
-                                         nodeAnim->mScalingKeys[i].mValue.z));
-    }
+    mInverseTranslationTimeDiffs.clear();
+    mInverseRotationTimeDiffs.clear();
+    mInverseScaleTimeDiffs.clear();
 
     for (size_t i = 0; i + 1 < mTranslationTimings.size(); ++i)
     {
@@ -102,14 +92,14 @@ glm::vec3 AnimChannel::GetTranslation(float time)
     /* handle time before and after */
     switch (mPreState)
     {
-        case 0:
+        case AnimBehaviour::Default:
             /* keep the authored transform instead of zeroing the node */
             if (time < mTranslationTimings.at(0))
             {
                 return mTranslations.at(0);
             }
             break;
-        case 1:
+        case AnimBehaviour::Constant:
             /* use value at zero time "aiAnimBehaviour_CONSTANT" */
             if (time < mTranslationTimings.at(0))
             {
@@ -122,13 +112,13 @@ glm::vec3 AnimChannel::GetTranslation(float time)
 
     switch (mPostState)
     {
-        case 0:
+        case AnimBehaviour::Default:
             if (time > mTranslationTimings.at(mTranslationTimings.size() - 1))
             {
                 return mTranslations.at(mTranslations.size() - 1);
             }
             break;
-        case 1:
+        case AnimBehaviour::Constant:
             if (time >= mTranslationTimings.at(mTranslationTimings.size() - 1))
             {
                 return mTranslations.at(mTranslations.size() - 1);
@@ -161,14 +151,14 @@ glm::vec3 AnimChannel::GetScaling(float time)
     /* handle time before and after */
     switch (mPreState)
     {
-        case 0:
+        case AnimBehaviour::Default:
             /* keep the authored scale instead of collapsing to zero */
             if (time < mScaleTimings.at(0))
             {
                 return mScalings.at(0);
             }
             break;
-        case 1:
+        case AnimBehaviour::Constant:
             /* use value at zero time "aiAnimBehaviour_CONSTANT" */
             if (time < mScaleTimings.at(0))
             {
@@ -181,13 +171,13 @@ glm::vec3 AnimChannel::GetScaling(float time)
 
     switch (mPostState)
     {
-        case 0:
+        case AnimBehaviour::Default:
             if (time > mScaleTimings.at(mScaleTimings.size() - 1))
             {
                 return mScalings.at(mScalings.size() - 1);
             }
             break;
-        case 1:
+        case AnimBehaviour::Constant:
             if (time >= mScaleTimings.at(mScaleTimings.size() - 1))
             {
                 return mScalings.at(mScalings.size() - 1);
@@ -220,14 +210,14 @@ glm::quat AnimChannel::GetRotation(float time)
     /* handle time before and after */
     switch (mPreState)
     {
-        case 0:
+        case AnimBehaviour::Default:
             /* keep the authored orientation instead of resetting to identity */
             if (time < mRotationTimings.at(0))
             {
                 return glm::normalize(mRotations.at(0));
             }
             break;
-        case 1:
+        case AnimBehaviour::Constant:
             /* use value at zero time "aiAnimBehaviour_CONSTANT" */
             if (time < mRotationTimings.at(0))
             {
@@ -240,13 +230,13 @@ glm::quat AnimChannel::GetRotation(float time)
 
     switch (mPostState)
     {
-        case 0:
+        case AnimBehaviour::Default:
             if (time > mRotationTimings.at(mRotationTimings.size() - 1))
             {
                 return glm::normalize(mRotations.at(mRotations.size() - 1));
             }
             break;
-        case 1:
+        case AnimBehaviour::Constant:
             if (time >= mRotationTimings.at(mRotationTimings.size() - 1))
             {
                 return mRotations.at(mRotations.size() - 1);

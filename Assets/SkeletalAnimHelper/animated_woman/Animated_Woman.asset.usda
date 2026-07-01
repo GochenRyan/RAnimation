@@ -1,0 +1,18 @@
+#usda 1.0
+(
+    customLayerData = {
+        string assetName = "Animated_Woman"
+        string clips = "metadata/Animated_Woman_clips.json"
+        string model = "model/model.usda"
+    }
+    defaultPrim = "Animated_Woman_AssetRoot"
+    metersPerUnit = 0.01
+    upAxis = "Y"
+)
+
+def SkelRoot "Animated_Woman_AssetRoot" (
+    prepend references = @model/model.usda@</Animated_Woman_AssetRoot>
+)
+{
+}
+

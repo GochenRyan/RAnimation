@@ -5,8 +5,6 @@
 #include <unordered_map>
 #include <vector>
 
-#include <assimp/scene.h>
-
 #include <Model/AnimClip.h>
 #include <Model/Bone.h>
 #include <Model/Node.h>
@@ -42,12 +40,6 @@ namespace RAnimation
         void Cleanup(RRenderData& renderData);
 
     private:
-        void processNode(RRenderData& renderData,
-                         std::shared_ptr<Node> node,
-                         aiNode* aNode,
-                         const aiScene* scene,
-                         std::string assetDirectory);
-
         unsigned int mTriangleCount = 0;
         unsigned int mVertexCount = 0;
 

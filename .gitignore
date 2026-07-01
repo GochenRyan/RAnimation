@@ -41,6 +41,7 @@
 *.dwo
 
 build/
+build-usd/
 _BuildLogs/
 
 _Bin/
@@ -52,3 +53,10 @@ _Shaders/
 
 .claude/
 CLAUDE.md
+
+__pycache__/
+
+# vcpkg (OpenUSD delivery)
+vcpkg_installed/
+.vcpkg-cache/
+Packages/vcpkg/

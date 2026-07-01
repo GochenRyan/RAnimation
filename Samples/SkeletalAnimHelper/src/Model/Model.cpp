@@ -1,92 +1,32 @@
+#include <algorithm>
 #include <filesystem>
 #include <unordered_map>
+#include <utility>
 
-#include <assimp/Importer.hpp>
-#include <assimp/scene.h>
-#include <assimp/postprocess.h>
 #include <fmt/base.h>
 #include <fmt/color.h>
 
 #include <Model/Model.h>
-#include <Model/Mesh.h>
+#include <Model/UsdModelLoader.h>
 #include <Renderer/NRITexture.h>
 #include <RHIWrap/Helper.h>
-#include <Tools/Tools.h>
 
 using namespace RAnimation;
 
 bool Model::LoadModel(RRenderData& renderData, std::string modelFilename, unsigned int extraImportFlags)
 {
-    fmt::print("{}: loading model from file '{}'\n", __FUNCTION__, modelFilename);
+    (void)extraImportFlags; // retained for API compatibility; USD loading takes no assimp post-process flags
+    fmt::print("{}: loading USD model from file '{}'\n", __FUNCTION__, modelFilename);
 
-    Assimp::Importer importer;
-    /* we need to flip texture coordinates for Vulkan */
-    const aiScene* scene = importer.ReadFile(modelFilename,
-                                             aiProcess_Triangulate | aiProcess_GenNormals |
-                                                     aiProcess_ValidateDataStructure | aiProcess_FlipUVs |
-                                                     extraImportFlags);
-
-    if (!scene || scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE || !scene->mRootNode)
+    UsdLoadedModel loaded;
+    if (!LoadUsdModel(modelFilename, loaded))
     {
         fmt::print(stderr,
                    fg(fmt::color::red),
-                   "{} error: assimp error '{}' while loading file '{}'\n",
+                   "{} error: could not load USD asset '{}'\n",
                    __FUNCTION__,
-                   importer.GetErrorString(),
                    modelFilename);
         return false;
-    }
-
-    unsigned int numMeshes = scene->mNumMeshes;
-    fmt::print("{}: found {} mesh{}\n", __FUNCTION__, numMeshes, numMeshes == 1 ? "" : "es");
-
-    for (unsigned int i = 0; i < numMeshes; ++i)
-    {
-        unsigned int numVertices = scene->mMeshes[i]->mNumVertices;
-        unsigned int numFaces = scene->mMeshes[i]->mNumFaces;
-
-        mVertexCount += numVertices;
-        mTriangleCount += numFaces;
-
-        fmt::print("{}: mesh {} contains {} vertices and {} faces\n", __FUNCTION__, i, numVertices, numFaces);
-    }
-    fmt::print("{}: model contains {} vertices and {} faces\n", __FUNCTION__, mVertexCount, mTriangleCount);
-
-    if (scene->HasTextures())
-    {
-        unsigned int numTextures = scene->mNumTextures;
-
-        for (unsigned int i = 0; i < scene->mNumTextures; ++i)
-        {
-            std::string texName = scene->mTextures[i]->mFilename.C_Str();
-
-            unsigned int height = scene->mTextures[i]->mHeight;
-            unsigned int width = scene->mTextures[i]->mWidth;
-            aiTexel* data = scene->mTextures[i]->pcData;
-
-            auto [it, inserted] = mTextures.try_emplace(texName);
-            if (!inserted)
-            {
-                continue;
-            }
-
-            RTextureData& texData = it->second;
-
-            if (!utils::LoadTexture(texName, texData.texture))
-            {
-                return false;
-            }
-
-            if (!NRITexture::LoadTexture(renderData, texData))
-            {
-                return false;
-            }
-
-            std::string internalTexName = "*" + std::to_string(i);
-            fmt::print("{}: - added internal texture '{}'\n", __FUNCTION__, internalTexName);
-        }
-
-        fmt::print("{}: scene has {} embedded textures\n", __FUNCTION__, numTextures);
     }
 
     /* add a white texture in case there is no diffuse tex but colors */
@@ -123,62 +63,100 @@ bool Model::LoadModel(RRenderData& renderData, std::string modelFilename, unsign
         return false;
     }
 
-    /* the textures are stored directly or relative to the model file */
-    std::string assetDirectory = modelFilename.substr(0, modelFilename.find_last_of('/'));
-
-    /* nodes */
-    fmt::print("{}: ... processing nodes...\n", __FUNCTION__);
-
-    aiNode* rootNode = scene->mRootNode;
-    std::string rootNodeName = rootNode->mName.C_Str();
-    mRootNode = Node::CreateNode(rootNodeName);
-    fmt::print("{}: root node name: '{}'\n", __FUNCTION__, rootNodeName);
-
-    processNode(renderData, mRootNode, rootNode, scene, assetDirectory);
-
-    fmt::print("{}: ... processing nodes finished...\n", __FUNCTION__);
-
-    for (auto& [textureName, textureData] : mTextures)
+    /* material textures referenced by the asset */
+    for (const auto& texRef : loaded.textures)
     {
-        if (textureData.nriTexture == nullptr)
+        auto [it, inserted] = mTextures.try_emplace(texRef.name);
+        if (!inserted)
         {
-            if (!NRITexture::LoadTexture(renderData, textureData))
-            {
-                return false;
-            }
+            continue;
+        }
+
+        RTextureData& texData = it->second;
+        if (!utils::LoadTexture(texRef.absolutePath, texData.texture))
+        {
+            fmt::print(stderr,
+                       fg(fmt::color::red),
+                       "{} error: could not load texture file '{}', skipping\n",
+                       __FUNCTION__,
+                       texRef.absolutePath);
+            mTextures.erase(it);
+            continue;
+        }
+
+        if (!NRITexture::LoadTexture(renderData, texData))
+        {
+            return false;
         }
     }
 
-    for (const auto& entry : mNodeList)
+    /* nodes: the loader emits joints in parent-before-child order, so a single walk rebuilds the tree */
+    std::vector<std::shared_ptr<Node>> nodeByIndex(loaded.nodes.size());
+    for (size_t i = 0; i < loaded.nodes.size(); ++i)
     {
-        std::vector<std::shared_ptr<Node>> childNodes = entry->GetChilds();
+        const UsdNodeData& nodeData = loaded.nodes.at(i);
 
-        std::string parentName = entry->GetParentNodeName();
-        fmt::print("{}: --- found node {} in node list, it has {} children, parent is {}\n",
-                   __FUNCTION__,
-                   entry->GetNodeName(),
-                   childNodes.size(),
-                   parentName);
-
-        for (const auto& node : childNodes)
+        std::shared_ptr<Node> node;
+        if (nodeData.parentIndex < 0)
         {
-            fmt::print("{}: ---- child: {}\n", __FUNCTION__, node->GetNodeName());
+            node = Node::CreateNode(nodeData.name);
+            mRootNode = node;
         }
+        else
+        {
+            node = nodeByIndex.at(static_cast<size_t>(nodeData.parentIndex))->AddChild(nodeData.name);
+        }
+
+        node->SetLocalTransform(nodeData.localTransform);
+        nodeByIndex.at(i) = node;
+        mNodeMap.insert({nodeData.name, node});
+        mNodeList.emplace_back(node);
     }
 
-    for (const auto& node : mNodeList)
+    /* bones: bone id == index, offset matrix == inverse bind matrix */
+    for (size_t i = 0; i < loaded.bones.size(); ++i)
     {
-        std::string nodeName = node->GetNodeName();
-        const auto boneIter = std::find_if(mBoneList.begin(),
-                                           mBoneList.end(),
-                                           [nodeName](std::shared_ptr<Bone>& bone)
-                                           { return bone->GetBoneName() == nodeName; });
-        if (boneIter != mBoneList.end())
-        {
-            mInverseBindMatrices.insert(
-                    {nodeName, mBoneList.at(std::distance(mBoneList.begin(), boneIter))->GetOffsetMatrix()});
-        }
+        const UsdBoneData& boneData = loaded.bones.at(i);
+        mBoneList.emplace_back(
+                std::make_shared<Bone>(static_cast<unsigned int>(i), boneData.name, boneData.inverseBindMatrix));
+        mInverseBindMatrices.insert({boneData.name, boneData.inverseBindMatrix});
     }
+
+    /* meshes + triangle/vertex stats */
+    mModelMeshes = std::move(loaded.meshes);
+    for (const auto& mesh : mModelMeshes)
+    {
+        mVertexCount += static_cast<unsigned int>(mesh.vertices.size());
+        mTriangleCount += static_cast<unsigned int>(mesh.indices.size() / 3);
+    }
+
+    /* animation clips */
+    for (const auto& clipData : loaded.animClips)
+    {
+        std::shared_ptr<AnimClip> animClip = std::make_shared<AnimClip>();
+        animClip->SetClipName(clipData.name);
+        animClip->SetClipDuration(clipData.duration);
+        animClip->SetClipTicksPerSecond(clipData.ticksPerSecond);
+
+        for (const auto& channelData : clipData.channels)
+        {
+            std::shared_ptr<AnimChannel> channel = std::make_shared<AnimChannel>();
+            channel->SetChannelData(channelData.nodeName,
+                                    channelData.translationTimings,
+                                    channelData.translations,
+                                    channelData.rotationTimings,
+                                    channelData.rotations,
+                                    channelData.scaleTimings,
+                                    channelData.scalings,
+                                    channelData.preState,
+                                    channelData.postState);
+            animClip->AddChannel(channel);
+        }
+
+        mAnimClips.emplace_back(animClip);
+    }
+
+    mRootTransformMatrix = loaded.rootTransform;
 
     /* create vertex buffers for the meshes */
     std::vector<nri::Buffer*> uploadBuffers;
@@ -220,34 +198,8 @@ bool Model::LoadModel(RRenderData& renderData, std::string modelFilename, unsign
                 *renderData.rdGraphicsQueue, nullptr, 0, uploadDescs.data(), static_cast<uint32_t>(uploadDescs.size())));
     }
 
-    /* animations */
-    unsigned int numAnims = scene->mNumAnimations;
-    for (unsigned int i = 0; i < numAnims; ++i)
-    {
-        aiAnimation* animation = scene->mAnimations[i];
-
-        fmt::print("{}: -- animation clip {} has {} skeletal channels, {} mesh channels, and {} morph mesh "
-                   "channels\n",
-                   __FUNCTION__,
-                   i,
-                   animation->mNumChannels,
-                   animation->mNumMeshChannels,
-                   animation->mNumMorphMeshChannels);
-
-        std::shared_ptr<AnimClip> animClip = std::make_shared<AnimClip>();
-        animClip->AddChannels(animation);
-        if (animClip->GetClipName().empty())
-        {
-            animClip->SetClipName(std::to_string(i));
-        }
-        mAnimClips.emplace_back(animClip);
-    }
-
     mModelFilenamePath = modelFilename;
     mModelFilename = std::filesystem::path(modelFilename).filename().generic_string();
-
-    /* get root transformation matrix from model's root node */
-    mRootTransformMatrix = Tools::convertAiToGLM(rootNode->mTransformation);
 
     fmt::print("{}: - model has a total of {} texture{}\n",
                __FUNCTION__,
@@ -255,7 +207,10 @@ bool Model::LoadModel(RRenderData& renderData, std::string modelFilename, unsign
                mTextures.size() == 1 ? "" : "s");
     fmt::print(
             "{}: - model has a total of {} bone{}\n", __FUNCTION__, mBoneList.size(), mBoneList.size() == 1 ? "" : "s");
-    fmt::print("{}: - model has a total of {} animation{}\n", __FUNCTION__, numAnims, numAnims == 1 ? "" : "s");
+    fmt::print("{}: - model has a total of {} animation{}\n",
+               __FUNCTION__,
+               mAnimClips.size(),
+               mAnimClips.size() == 1 ? "" : "s");
 
     fmt::print("{}: successfully loaded model '{}' ({})\n", __FUNCTION__, modelFilename, mModelFilename);
     return true;
@@ -274,7 +229,7 @@ void Model::Draw(RRenderData& renderData)
         RMesh& mesh = mModelMeshes.at(i);
         // find diffuse texture by name
         RTextureData* diffuseTex = nullptr;
-        auto diffuseTexName = mesh.textures.find(aiTextureType_DIFFUSE);
+        auto diffuseTexName = mesh.textures.find(TextureType::Diffuse);
         if (diffuseTexName != mesh.textures.end())
         {
             auto diffuseTexture = mTextures.find(diffuseTexName->second);
@@ -314,7 +269,7 @@ void Model::DrawInstanced(RRenderData& renderData, uint32_t instanceCount)
         RMesh& mesh = mModelMeshes.at(i);
         // find diffuse texture by name
         RTextureData* diffuseTex = nullptr;
-        auto diffuseTexName = mesh.textures.find(aiTextureType_DIFFUSE);
+        auto diffuseTexName = mesh.textures.find(TextureType::Diffuse);
         if (diffuseTexName != mesh.textures.end())
         {
             auto diffuseTexture = mTextures.find(diffuseTexName->second);
@@ -454,97 +409,5 @@ void Model::Cleanup(RRenderData& renderData)
     for (nri::Memory* memory : mBufferMemories)
     {
         renderData.NRI.FreeMemory(memory);
-    }
-}
-
-void Model::processNode(RRenderData& renderData,
-                        std::shared_ptr<Node> node,
-                        aiNode* aNode,
-                        const aiScene* scene,
-                        std::string assetDirectory)
-{
-    std::string nodeName = aNode->mName.C_Str();
-    fmt::print("{}: node name: '{}'\n", __FUNCTION__, nodeName);
-
-    node->SetLocalTransform(Tools::convertAiToGLM(aNode->mTransformation));
-
-    unsigned int numMeshes = aNode->mNumMeshes;
-    if (numMeshes > 0)
-    {
-        fmt::print("{}: - node has {} meshes\n", __FUNCTION__, numMeshes);
-        for (unsigned int i = 0; i < numMeshes; ++i)
-        {
-            aiMesh* modelMesh = scene->mMeshes[aNode->mMeshes[i]];
-
-            Mesh mesh;
-            mesh.ProcessMesh(renderData, modelMesh, scene, assetDirectory, mTextures);
-
-            RMesh processedMesh = mesh.GetMesh();
-
-            /* Convert mesh-local bone IDs into model-global IDs keyed by bone name. */
-            std::vector<std::shared_ptr<Bone>> flatBones = mesh.GetBoneList();
-            std::vector<uint32_t> localToGlobalBoneIds(flatBones.size(), 0);
-            for (const auto& bone : flatBones)
-            {
-                const auto iter = std::find_if(mBoneList.begin(),
-                                               mBoneList.end(),
-                                               [bone](std::shared_ptr<Bone>& otherBone)
-                                               { return bone->GetBoneName() == otherBone->GetBoneName(); });
-                if (iter == mBoneList.end())
-                {
-                    const uint32_t globalBoneId = static_cast<uint32_t>(mBoneList.size());
-                    mBoneList.emplace_back(
-                            std::make_shared<Bone>(globalBoneId, bone->GetBoneName(), bone->GetOffsetMatrix()));
-                    localToGlobalBoneIds.at(bone->GetBoneId()) = globalBoneId;
-                }
-                else
-                {
-                    localToGlobalBoneIds.at(bone->GetBoneId()) = (*iter)->GetBoneId();
-                }
-            }
-
-            for (RVertex& vertex : processedMesh.vertices)
-            {
-                for (uint32_t boneWeightIndex = 0; boneWeightIndex < 4; ++boneWeightIndex)
-                {
-                    if (vertex.boneWeight[boneWeightIndex] <= 0.0f)
-                    {
-                        continue;
-                    }
-
-                    const uint32_t localBoneId = vertex.boneNumber[boneWeightIndex];
-                    if (localBoneId >= localToGlobalBoneIds.size())
-                    {
-                        fmt::print(stderr,
-                                   fg(fmt::color::red),
-                                   "{} error: mesh '{}' references local bone id {}, but only {} local bones were registered\n",
-                                   __FUNCTION__,
-                                   mesh.GetMeshName(),
-                                   localBoneId,
-                                   localToGlobalBoneIds.size());
-                        continue;
-                    }
-
-                    vertex.boneNumber[boneWeightIndex] = localToGlobalBoneIds[localBoneId];
-                }
-            }
-
-            mModelMeshes.emplace_back(std::move(processedMesh));
-        }
-    }
-
-    mNodeMap.insert({nodeName, node});
-    mNodeList.emplace_back(node);
-
-    unsigned int numChildren = aNode->mNumChildren;
-    fmt::print("{}: - node has {} children \n", __FUNCTION__, numChildren);
-
-    for (unsigned int i = 0; i < numChildren; ++i)
-    {
-        std::string childName = aNode->mChildren[i]->mName.C_Str();
-        fmt::print("{}: --- found child node '{}'\n", __FUNCTION__, childName);
-
-        std::shared_ptr<Node> childNode = node->AddChild(childName);
-        processNode(renderData, childNode, aNode->mChildren[i], scene, assetDirectory);
     }
 }

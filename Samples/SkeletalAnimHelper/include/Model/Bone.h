@@ -1,7 +1,7 @@
 #pragma once
+#include <string>
 #include <vector>
 
-#include <assimp/anim.h>
 #include <glm/glm.hpp>
 
 namespace RAnimation

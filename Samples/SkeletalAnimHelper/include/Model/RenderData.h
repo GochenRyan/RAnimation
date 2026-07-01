@@ -5,7 +5,6 @@
 #include <unordered_map>
 #include <vector>
 
-#include <assimp/material.h>
 #include <glm/glm.hpp>
 #include <ml.h>
 
@@ -50,11 +49,18 @@ namespace RAnimation
         glm::vec4 boneWeight = glm::vec4(0.0f);
     };
 
+    // Material texture slots a mesh can reference. First-party replacement for assimp's aiTextureType
+    // (the loader is now USD-based). Only Diffuse is currently consumed by the draw passes.
+    enum class TextureType : uint8_t
+    {
+        Diffuse
+    };
+
     struct RMesh
     {
         std::vector<RVertex> vertices{};
         std::vector<uint32_t> indices{};
-        std::unordered_map<aiTextureType, std::string> textures{};
+        std::unordered_map<TextureType, std::string> textures{};
         bool usesPBRColors = false;
     };
 
