@@ -1,0 +1,294 @@
+#usda 1.0
+(
+    defaultPrim = "Animated_Woman_AssetRoot"
+    endTimeCode = 0
+    framesPerSecond = 24
+    startTimeCode = 0
+    timeCodesPerSecond = 24
+)
+
+def SkelRoot "Animated_Woman_AssetRoot" (
+    kind = "component"
+)
+{
+    float3[] extent = [(-0.99432504, -0.76809806, -0.006257988), (1.0898361, 0.4258189, 5.2019854)] (
+        doc = """Extent is a three dimensional range measuring the geometric
+        extent of the authored gprim in its own local space (i.e. its own
+        transform not applied), without accounting for any shader-induced
+        displacement. If __any__ extent value has been authored for a given 
+        Boundable, then it should be authored at every timeSample at which 
+        geometry-affecting properties are authored, to ensure correct 
+        evaluation via ComputeExtent(). If __no__ extent value has been 
+        authored, then ComputeExtent() will call the Boundable's registered 
+        ComputeExtentFunction(), which may be expensive, which is why we 
+        strongly encourage proper authoring of extent.
+        \\sa ComputeExtent()
+        \\sa \\ref UsdGeom_Boundable_Extent.
+        
+        An authored extent on a prim which has children is expected to include
+        the extent of all children, as they will be pruned from BBox computation
+        during traversal."""
+    )
+    rel proxyPrim (
+        doc = '''The proxyPrim relationship allows us to link a
+        prim whose purpose is "render" to its (single target)
+        purpose="proxy" prim.  This is entirely optional, but can be
+        useful in several scenarios:
+        
+        - In a pipeline that does pruning (for complexity management)
+        by deactivating prims composed from asset references, when we
+        deactivate a purpose="render" prim, we will be able to discover
+        and additionally deactivate its associated purpose="proxy" prim,
+        so that preview renders reflect the pruning accurately.
+        
+        - DCC importers may be able to make more aggressive optimizations
+        for interactive processing and display if they can discover the proxy
+        for a given render prim.
+        
+        - With a little more work, a Hydra-based application will be able
+        to map a picked proxy prim back to its render geometry for selection.
+
+        \\note It is only valid to author the proxyPrim relationship on
+        prims whose purpose is "render".'''
+    )
+    uniform token purpose = "default" (
+        allowedTokens = ["default", "render", "proxy", "guide"]
+        doc = """Purpose is a classification of geometry into categories that 
+        can each be independently included or excluded from traversals of prims 
+        on a stage, such as rendering or bounding-box computation traversals.
+
+        See for more detail about how 
+        purpose is computed and used."""
+    )
+    token visibility = "inherited" (
+        allowedTokens = ["inherited", "invisible"]
+        doc = '''Visibility is meant to be the simplest form of "pruning" 
+        visibility that is supported by most DCC apps.  Visibility is 
+        animatable, allowing a sub-tree of geometry to be present for some 
+        segment of a shot, and absent from others; unlike the action of 
+        deactivating geometry prims, invisible geometry is still 
+        available for inspection, for positioning, for defining volumes, etc.'''
+    )
+    uniform token[] xformOpOrder (
+        doc = """Encodes the sequence of transformation operations in the
+        order in which they should be pushed onto a transform stack while
+        visiting a UsdStage's prims in a graph traversal that will effect
+        the desired positioning for this prim and its descendant prims.
+        
+        You should rarely, if ever, need to manipulate this attribute directly.
+        It is managed by the AddXformOp(), SetResetXformStack(), and
+        SetXformOpOrder(), and consulted by GetOrderedXformOps() and
+        GetLocalTransformation()."""
+    )
+
+    def Xform "Armature"
+    {
+        rel proxyPrim (
+            doc = '''The proxyPrim relationship allows us to link a
+        prim whose purpose is "render" to its (single target)
+        purpose="proxy" prim.  This is entirely optional, but can be
+        useful in several scenarios:
+        
+        - In a pipeline that does pruning (for complexity management)
+        by deactivating prims composed from asset references, when we
+        deactivate a purpose="render" prim, we will be able to discover
+        and additionally deactivate its associated purpose="proxy" prim,
+        so that preview renders reflect the pruning accurately.
+        
+        - DCC importers may be able to make more aggressive optimizations
+        for interactive processing and display if they can discover the proxy
+        for a given render prim.
+        
+        - With a little more work, a Hydra-based application will be able
+        to map a picked proxy prim back to its render geometry for selection.
+
+        \\note It is only valid to author the proxyPrim relationship on
+        prims whose purpose is "render".'''
+        )
+        uniform token purpose = "default" (
+            allowedTokens = ["default", "render", "proxy", "guide"]
+            doc = """Purpose is a classification of geometry into categories that 
+        can each be independently included or excluded from traversals of prims 
+        on a stage, such as rendering or bounding-box computation traversals.
+
+        See for more detail about how 
+        purpose is computed and used."""
+        )
+        token visibility = "inherited" (
+            allowedTokens = ["inherited", "invisible"]
+            doc = '''Visibility is meant to be the simplest form of "pruning" 
+        visibility that is supported by most DCC apps.  Visibility is 
+        animatable, allowing a sub-tree of geometry to be present for some 
+        segment of a shot, and absent from others; unlike the action of 
+        deactivating geometry prims, invisible geometry is still 
+        available for inspection, for positioning, for defining volumes, etc.'''
+        )
+        float3 xformOp:rotateXYZ = (-90.00001, 0, 0)
+        uniform token[] xformOpOrder = ["xformOp:rotateXYZ"] (
+            doc = """Encodes the sequence of transformation operations in the
+        order in which they should be pushed onto a transform stack while
+        visiting a UsdStage's prims in a graph traversal that will effect
+        the desired positioning for this prim and its descendant prims.
+        
+        You should rarely, if ever, need to manipulate this attribute directly.
+        It is managed by the AddXformOp(), SetResetXformStack(), and
+        SetXformOpOrder(), and consulted by GetOrderedXformOps() and
+        GetLocalTransformation()."""
+        )
+
+        def Xform "ArmatureShape"
+        {
+            rel proxyPrim (
+                doc = '''The proxyPrim relationship allows us to link a
+        prim whose purpose is "render" to its (single target)
+        purpose="proxy" prim.  This is entirely optional, but can be
+        useful in several scenarios:
+        
+        - In a pipeline that does pruning (for complexity management)
+        by deactivating prims composed from asset references, when we
+        deactivate a purpose="render" prim, we will be able to discover
+        and additionally deactivate its associated purpose="proxy" prim,
+        so that preview renders reflect the pruning accurately.
+        
+        - DCC importers may be able to make more aggressive optimizations
+        for interactive processing and display if they can discover the proxy
+        for a given render prim.
+        
+        - With a little more work, a Hydra-based application will be able
+        to map a picked proxy prim back to its render geometry for selection.
+
+        \\note It is only valid to author the proxyPrim relationship on
+        prims whose purpose is "render".'''
+            )
+            uniform token purpose = "default" (
+                allowedTokens = ["default", "render", "proxy", "guide"]
+                doc = """Purpose is a classification of geometry into categories that 
+        can each be independently included or excluded from traversals of prims 
+        on a stage, such as rendering or bounding-box computation traversals.
+
+        See for more detail about how 
+        purpose is computed and used."""
+            )
+            token visibility = "inherited" (
+                allowedTokens = ["inherited", "invisible"]
+                doc = '''Visibility is meant to be the simplest form of "pruning" 
+        visibility that is supported by most DCC apps.  Visibility is 
+        animatable, allowing a sub-tree of geometry to be present for some 
+        segment of a shot, and absent from others; unlike the action of 
+        deactivating geometry prims, invisible geometry is still 
+        available for inspection, for positioning, for defining volumes, etc.'''
+            )
+            uniform token[] xformOpOrder (
+                doc = """Encodes the sequence of transformation operations in the
+        order in which they should be pushed onto a transform stack while
+        visiting a UsdStage's prims in a graph traversal that will effect
+        the desired positioning for this prim and its descendant prims.
+        
+        You should rarely, if ever, need to manipulate this attribute directly.
+        It is managed by the AddXformOp(), SetResetXformStack(), and
+        SetXformOpOrder(), and consulted by GetOrderedXformOps() and
+        GetLocalTransformation()."""
+            )
+        }
+
+        def Skeleton "Hips" (
+            apiSchemas = ["SkelBindingAPI"]
+        )
+        {
+            uniform matrix4d[] bindTransforms = [( (4.371139999999929e-8, 5.210792282599915e-15, -0.9999999999999981, 0), (-1.1920899999767753e-7, 0.9999999999999858, -5.2108924813998314e-15, 0), (0.9999999999999838, 1.1920899999999807e-7, 4.371139999999929e-8, 0), (-9.145275858700018, 284.1609179098008, -0.3623503997528112, 1) ), ( (7.870031215563148e-10, -1.289748271219305e-11, -0.9999999999999999, 0), (0.016385891550208483, 0.9998654843945565, 1.289921923615378e-11, 0), (0.9998654843945564, -0.016385891550208486, 7.871091073027598e-10, 0), (-8.683586220028268, 312.32806133566174, -0.36233500683584946, 1) ), ( (1.0727737524013887e-7, 4.3853777530901e-15, -0.9999999999999885, 0), (0.01638579160395886, 0.9998654876712837, 1.7578349513838742e-9, 0), (0.9998654876712723, -0.01638579160395905, 1.0726356978640243e-7, 0), (-8.145034546601968, 345.18997236400736, -0.36233487378301615, 1) ), ( (1.0172063050327367e-7, -3.73573809819308e-15, -0.9999999999999897, 1.5407439555097887e-33), (0.016385691657708465, 0.9998654909479913, 1.6667525554181495e-9, -4.336808689942018e-19), (0.9998654909479808, -0.016385691657708635, 1.0170631773922869e-7, 6.776263578034403e-21), (-7.529552039663534, 382.7463509924932, -0.3623357659060335, 0.9999999999999999) ), ( (6.379594306099813e-8, -2.1251003257716453e-15, -0.9999999999999959, 0), (0.17074602633911057, 0.98531515199373, 1.0892913496337794e-8, 0), (0.985315151993726, -0.17074602633911123, 6.285916543657673e-8, 0), (-6.837406161601879, 424.99759950514857, -0.36232043619916343, 1) ), ( (2.4277819678210753e-7, -6.07700093719609e-15, -0.999999999999941, 0), (0.17074602633910116, 0.9853151519937299, 4.145337878264533e-8, 0), (0.9853151519936718, -0.17074602633911126, 2.3921284197074176e-7, 0), (-2.062328031281406, 452.5522774717207, -0.3623195006878748, 1) ), ( (4.371529999999954e-8, 4.071306434189957e-15, -0.9999999999999981, 0), (-9.313230000043693e-8, 0.9999999999999913, -4.071287577900318e-15, 0), (0.9999999999999895, 9.313229999999901e-8, 4.371529999999954e-8, 0), (10.750318982693996, 526.4891370012019, -0.36230453004658053, 1) ), ( (1, 0, 0, 0), (0, 1, 0, 0), (0, 0, 1, 0), (0, 0, 0, 1) ), ( (-0.9998299802052852, 0.01643872073239509, -0.008292153415478405, -6.776263578034403e-21), (0.0036574885821727843, -0.2640656884469849, -0.9644974408689484, 1.0842021724855044e-19), (-0.018044748073126525, -0.9643641139154313, 0.26396091624867, 4.336808689942018e-19), (-6.775743786056372, 420.4904535227931, -16.461078454628726, 0.9999999999999999) ), ( (-0.994165588224983, 0.0453813367369479, 0.09784632910499666, -1.3552527156068805e-20), (-0.09940398275564144, -0.033435073470376955, -0.9944855291665222, 1.3552527156068805e-20), (-0.04185960088705051, -0.9984100984365301, 0.03775115084572574, 4.336808689942018e-19), (-6.652495741112158, 411.59352843157257, -48.958257888065624, 0.9999999999999999) ), ( (-0.9991227340658465, 0.04184918034898866, -0.001068991874865241, 0), (-0.0037672753754908945, -0.11531442184197949, -0.9933217275228402, 0), (-0.04169297077077536, -0.9924471157926131, 0.11537155994680501, 0), (-13.714771346125781, 409.21793506587414, -119.61270128032676, 1) ), ( (-0.9900302104929796, -0.08418249431141701, 0.11293246785689744, 0), (-0.10515850681456879, -0.0916758156049573, -0.9902205310839566, 0), (0.093712442710654, -0.9922233633328925, 0.08190935386534576, 0), (-13.927754567116846, 402.6967487877791, -175.7841314205061, 1) ), ( (-0.8056581227502346, 0.145701914510574, -0.574182843785469, 0), (0.5788106451775722, -0.012657829963081508, -0.8153632168032727, 0), (-0.1260678347829405, -0.9892471067957073, -0.07413615923633027, 0), (-4.460755960483318, 402.48960213095773, -189.1197305818949, 1) ), ( (-0.9408146681320319, -0.14293092167875573, -0.30730794003051115, 0), (0.331542753056603, -0.1999618455271227, -0.9220054429885026, 0), (0.07033324221552166, -0.9693218564691415, 0.235514770171928, 0), (3.1126287957843193, 402.32397910564566, -199.7886209212089, 1) ), ( (-0.8975573481677409, -0.4371265281882352, 0.0575477861846391, 0), (0.023862672270230558, -0.17849567538758174, -0.9836517132648117, 0), (0.44025171091456383, -0.8815101855462594, 0.170640468032644, 0), (7.00451314428797, 399.97706742531466, -210.6115893291177, 1) ), ( (-0.9332536788913767, -0.11620714415384159, -0.33990321007140445, 5.421010862427522e-20), (0.3546880061448889, -0.14828619401933874, -0.9231508755448783, 5.421010862427522e-20), (0.05687372551276064, -0.9820924981040134, 0.17960549913126006, 4.336808689942018e-19), (7.2269694319634485, 398.3125747828395, -219.78194155708425, 0.9999999999999999) ), ( (1, 0, 0, 0), (0, 1, 0, 0), (0, 0, 1, 0), (0, 0, 0, 1) ), ( (-0.9897661977468091, -0.0901628285897007, 0.110601659153835, 0), (-0.0705369105626589, -0.36463222960010855, -0.928475942762463, 0), (0.12404289611530789, -0.9267759859720394, 0.3545418043666235, 0), (-16.64369758259147, 400.4297547294406, -201.28119583244546, 1) ), ( (-0.9913591123613396, -0.08359474842863351, 0.10108989266996776, 0), (-0.06929965379678986, -0.3205668989275561, -0.9446869226169905, 0), (0.11137658915470952, -0.9435299210760894, 0.3120037666080991, 0), (-17.948069837559558, 393.68634109936215, -218.45180000327224, 1) ), ( (-0.9929760996690974, -0.07565505949234698, 0.09096634503602366, 0), (-0.0691018213843412, -0.25325056058181566, -0.9649290436002176, 0), (0.09603905299031285, -0.9644376919575969, 0.24624411977451977, 0), (-18.989841129986694, 388.8673046389634, -232.65345834757545, 1) ), ( (-0.9910193247500303, -0.08508240472485638, 0.10316051421820142, 0), (-0.0785349733326177, -0.25406041948895125, -0.9639939835990342, 0), (0.10822748513215706, -0.9634384476914651, 0.24509717023749428, 0), (-19.516253632484354, 386.93756460997577, -240.00582867841263, 1) ), ( (1, 0, 0, 0), (0, 1, 0, 0), (0, 0, 1, 0), (0, 0, 0, 1) ), ( (0.999865096784571, -0.01641302164977419, -0.0007057494665271447, 0), (-0.003653861433573195, -0.26406250635560313, 0.96449816085817, 0), (-0.016016674397263616, -0.9643656821786362, -0.2640871768443691, 0), (-6.898783770362718, 420.4904321866043, 15.736706554839648, 1) ), ( (0.9949116801754571, -0.04162474852429729, 0.09174863290449689, 0), (-0.09316462597681685, -0.03345569195230199, 0.9950889482070646, 0), (-0.03835083857432033, -0.9985730583286123, -0.037163448059835597, 0), (-7.021875082992484, 411.5934984107241, 48.233693323025406, 1) ), ( (0.9992635333076276, -0.0383118799605319, -0.0022634101617272865, 0), (-0.0021717316890216254, -0.11532770279924379, 0.993325216094136, 0), (-0.03831719179791134, -0.9925877536197854, -0.11532617727773475, 0), (-13.636866134978126, 409.21769157943965, 118.88793732482549, 1) ), ( (0.9969694162431892, 0.00962846624327651, 0.07719254571707003, 0), (-0.07698850969335014, -0.020017927434864653, 0.9968310087167056, 0), (0.011143227214928064, -0.999752512463167, -0.019216041080234447, 0), (-13.759683777298763, 402.69602139526756, 175.05963352042812, 1) ), ( (0.8005274652446241, -0.21736862162702278, -0.5584851713171094, 0), (0.5704192336261058, -0.009420417510761487, 0.8212995043566641, 0), (-0.1837864716402876, -0.976044165877208, 0.11644970101901692, 0), (-4.232183904207285, 402.5389859460287, 188.77683853745742, 1) ), ( (0.952396246726136, 0.074044589631426, -0.2957332363645728, 0), (0.30465626373442256, -0.1955851490348498, 0.9321641718853219, 0), (0.011180737004867988, -0.9778869195746905, -0.20883245236487946, 0), (3.3890905370971027, 402.41274784761424, 199.75063441774282, 1) ), ( (0.959208746625996, 0.2799792668377055, -0.03911549661057678, 0), (0.09934947718713799, -0.20431636593787153, 0.9738497742398315, 0), (0.26466571631347197, -0.9380120747144854, -0.22379735877485368, 0), (6.949024140552592, 400.12764839315247, 210.64254237582904, 1) ), ( (0.9320601299172581, 0.017326617443997817, -0.36188790973833196, 0), (0.3574403341100013, -0.20706342608512363, 0.9106919546724275, 0), (-0.059154702839299494, -0.9781740338337606, -0.19918931188026234, 0), (7.879644358752006, 398.21363607656383, 219.76534614993298, 1) ), ( (1, 0, 0, 0), (0, 1, 0, 0), (0, 0, 1, 0), (0, 0, 0, 1) ), ( (0.9976705448877835, 0.014887316071220121, 0.06656869089893647, 0), (-0.0489891021541973, -0.5227105037025104, 0.8511007351349367, 0), (0.047466814424353666, -0.8523802036164748, -0.5207638474519565, 0), (-16.00335801795921, 402.14947344539655, 204.10575736849293, 1) ), ( (0.9984168473254544, 0.008362719413444665, 0.055612126684655594, 0), (-0.05035173048828722, -0.3074954091125795, 0.9502156785411311, 0), (0.02504692651846667, -0.9515124399394603, -0.30658798084748184, 0), (-16.74827461105085, 394.2010473927311, 217.04735812505405, 1) ), ( (0.9987118504211296, 0.003809723742945477, 0.050596219903370834, 0), (-0.049347116909366155, -0.15906897949819973, 0.9860338542293844, 0), (0.011804802230863554, -0.9872602379509582, -0.15867619647055864, 0), (-17.499980505602537, 389.6107037219465, 231.23317246211667, 1) ), ( (0.998274080321598, 0.010009828758269525, 0.05785972072188714, 0), (-0.05553458635947105, -0.15914854249503538, 0.98569184214, 0), (0.019074879937405635, -0.9872037311706124, -0.15831855092995678, 0), (-17.89726583681218, 388.32994850714454, 239.1718058454653, 1) ), ( (1, 0, 0, 0), (0, 1, 0, 0), (0, 0, 1, 0), (0, 0, 0, 1) ), ( (0.0006958672270452847, -0.014239201776955032, 0.999895749179483, 0), (0.05102099115866621, -0.998595646797626, -0.014256218387204325, 0), (0.9986686776716241, 0.051024262052696535, 0.00003160833247184587, 0), (-5.3964549599637905, 268.5174623958408, -25.858953097554114, 1) ), ( (-0.0002580176732703515, 0.004570839985388856, 0.9999870406532075, 0), (-0.07539969961519075, -0.997142118687069, 0.004538378776557189, 0), (0.9971257085278324, -0.07539567737152943, 0.0006019052793013058, 0), (1.2205219602781368, 141.705612603454, -27.669396953744585, 1) ), ( (-0.041860434790029655, 0.00785381176035449, 0.9990911912002379, 0), (0.8736088100637329, -0.48490511262710795, 0.04041476705420916, 0), (0.4847879178610811, 0.8745179784398114, 0.013437371838691481, 0), (-8.427590951975796, 19.584043434946544, -27.11340050251024, 1) ), ( (-0.018353545373730722, 0.05015269068965911, 0.9985708050505818, 0), (0.9995762498427146, -0.02038033285341683, 0.019395694276646447, 0), (0.021324608738353897, 0.9985331649849265, -0.04975885486695682, 0), (27.934236762552402, -0.6038417899749642, -25.431654088899393, 1) ), ( (-0.01835223340462806, 0.05015355917451621, 0.9985707710949278, 0), (0.9995763049704077, -0.02038028553482775, 0.019394307837004354, 0), (0.021324458566888613, 0.9985330841890506, -0.04975968343242648, 0), (44.154529994423285, -0.9388392350454464, -25.116934189060057, 1) ), ( (1, 0, 0, 0), (0, 1, 0, 0), (0, 0, 1, 0), (0, 0, 0, 1) ), ( (-0.0007226301821102851, 0.01424013264806447, 0.9999086895234769, 0), (0.04927197371301474, -0.9986832386050065, 0.014258351150568865, 0), (0.9988902843016361, 0.04928246354636082, 0.000020039992396520337, 0), (-5.615967236407946, 268.5174073128851, 25.134366827293434, 1) ), ( (0.00014210725523725254, -0.00457261956124767, 1.0000000714130939, 0), (-0.08672875797143195, -0.9962232384359603, -0.004543021582243678, 0), (0.9963349459689871, -0.08673595259734351, -0.0005381963612559708, 0), (0.03958655771185162, 141.70545442348876, 26.94467223716928, 1) ), ( (0.041789039525182925, -0.00757684086930599, 0.9991054812869257, 0), (0.8742135703422413, -0.4840299568964909, -0.040235960541999724, 0), (0.4838752523240032, 0.8750667129232599, -0.013602615509189814, 0), (-8.783973841892848, 19.583900773559595, 26.388608578970462, 1) ), ( (0.017991006384644917, -0.050547244019885355, 0.9985692802965642, 0), (0.9996925278659516, -0.02148764829708175, -0.019098882889133306, 0), (0.02241972713939769, 0.9984911241399177, 0.050139389680075586, 0), (27.71408151112562, -0.6040934016414358, 24.7068432816169, 1) ), ( (0.01799053497808027, -0.05054584132662864, 0.9985694396689405, -5.421010862427522e-20), (0.9996925441985887, -0.021487701939905762, -0.01909835520020975, -3.469446951953614e-18), (0.022419778522509662, 0.9984912627131111, 0.05013800707737231, -1.0842021724855044e-19), (44.182580269666936, -0.9390747253740316, 24.39211709439097, 0.9999999999999999) ), ( (1, 0, 0, 0), (0, 1, 0, 0), (0, 0, 1, 0), (0, 0, 0, 1) )] (
+                doc = """Specifies the bind-pose transforms of each joint in
+        **world space**, in the ordering imposed by *joints*."""
+            )
+            float3[] extent (
+                doc = """Extent is a three dimensional range measuring the geometric
+        extent of the authored gprim in its own local space (i.e. its own
+        transform not applied), without accounting for any shader-induced
+        displacement. If __any__ extent value has been authored for a given 
+        Boundable, then it should be authored at every timeSample at which 
+        geometry-affecting properties are authored, to ensure correct 
+        evaluation via ComputeExtent(). If __no__ extent value has been 
+        authored, then ComputeExtent() will call the Boundable's registered 
+        ComputeExtentFunction(), which may be expensive, which is why we 
+        strongly encourage proper authoring of extent.
+        \\sa ComputeExtent()
+        \\sa \\ref UsdGeom_Boundable_Extent.
+        
+        An authored extent on a prim which has children is expected to include
+        the extent of all children, as they will be pruned from BBox computation
+        during traversal."""
+            )
+            uniform token[] jointNames (
+                doc = """If authored, provides a unique name per joint. This may be
+        optionally set to provide better names when translating to DCC apps 
+        that require unique joint names."""
+            )
+            uniform token[] joints = ["Hips", "Hips/Spine", "Hips/Spine/Spine1", "Hips/Spine/Spine1/Spine2", "Hips/Spine/Spine1/Spine2/Neck", "Hips/Spine/Spine1/Spine2/Neck/Head", "Hips/Spine/Spine1/Spine2/Neck/Head/HeadTop_End", "Hips/Spine/Spine1/Spine2/Neck/Head/HeadTop_End/HeadTop_End_end", "Hips/Spine/Spine1/Spine2/LeftShoulder", "Hips/Spine/Spine1/Spine2/LeftShoulder/LeftArm", "Hips/Spine/Spine1/Spine2/LeftShoulder/LeftArm/LeftForeArm", "Hips/Spine/Spine1/Spine2/LeftShoulder/LeftArm/LeftForeArm/LeftHand", "Hips/Spine/Spine1/Spine2/LeftShoulder/LeftArm/LeftForeArm/LeftHand/LeftHandThumb1", "Hips/Spine/Spine1/Spine2/LeftShoulder/LeftArm/LeftForeArm/LeftHand/LeftHandThumb1/LeftHandThumb2", "Hips/Spine/Spine1/Spine2/LeftShoulder/LeftArm/LeftForeArm/LeftHand/LeftHandThumb1/LeftHandThumb2/LeftHandThumb3", "Hips/Spine/Spine1/Spine2/LeftShoulder/LeftArm/LeftForeArm/LeftHand/LeftHandThumb1/LeftHandThumb2/LeftHandThumb3/LeftHandThumb4", "Hips/Spine/Spine1/Spine2/LeftShoulder/LeftArm/LeftForeArm/LeftHand/LeftHandThumb1/LeftHandThumb2/LeftHandThumb3/LeftHandThumb4/LeftHandThumb4_end", "Hips/Spine/Spine1/Spine2/LeftShoulder/LeftArm/LeftForeArm/LeftHand/LeftHandIndex1", "Hips/Spine/Spine1/Spine2/LeftShoulder/LeftArm/LeftForeArm/LeftHand/LeftHandIndex1/LeftHandIndex2", "Hips/Spine/Spine1/Spine2/LeftShoulder/LeftArm/LeftForeArm/LeftHand/LeftHandIndex1/LeftHandIndex2/LeftHandIndex3", "Hips/Spine/Spine1/Spine2/LeftShoulder/LeftArm/LeftForeArm/LeftHand/LeftHandIndex1/LeftHandIndex2/LeftHandIndex3/LeftHandIndex4", "Hips/Spine/Spine1/Spine2/LeftShoulder/LeftArm/LeftForeArm/LeftHand/LeftHandIndex1/LeftHandIndex2/LeftHandIndex3/LeftHandIndex4/LeftHandIndex4_end", "Hips/Spine/Spine1/Spine2/RightShoulder", "Hips/Spine/Spine1/Spine2/RightShoulder/RightArm", "Hips/Spine/Spine1/Spine2/RightShoulder/RightArm/RightForeArm", "Hips/Spine/Spine1/Spine2/RightShoulder/RightArm/RightForeArm/RightHand", "Hips/Spine/Spine1/Spine2/RightShoulder/RightArm/RightForeArm/RightHand/RightHandThumb1", "Hips/Spine/Spine1/Spine2/RightShoulder/RightArm/RightForeArm/RightHand/RightHandThumb1/RightHandThumb2", "Hips/Spine/Spine1/Spine2/RightShoulder/RightArm/RightForeArm/RightHand/RightHandThumb1/RightHandThumb2/RightHandThumb3", "Hips/Spine/Spine1/Spine2/RightShoulder/RightArm/RightForeArm/RightHand/RightHandThumb1/RightHandThumb2/RightHandThumb3/RightHandThumb4", "Hips/Spine/Spine1/Spine2/RightShoulder/RightArm/RightForeArm/RightHand/RightHandThumb1/RightHandThumb2/RightHandThumb3/RightHandThumb4/RightHandThumb4_end", "Hips/Spine/Spine1/Spine2/RightShoulder/RightArm/RightForeArm/RightHand/RightHandIndex1", "Hips/Spine/Spine1/Spine2/RightShoulder/RightArm/RightForeArm/RightHand/RightHandIndex1/RightHandIndex2", "Hips/Spine/Spine1/Spine2/RightShoulder/RightArm/RightForeArm/RightHand/RightHandIndex1/RightHandIndex2/RightHandIndex3", "Hips/Spine/Spine1/Spine2/RightShoulder/RightArm/RightForeArm/RightHand/RightHandIndex1/RightHandIndex2/RightHandIndex3/RightHandIndex4", "Hips/Spine/Spine1/Spine2/RightShoulder/RightArm/RightForeArm/RightHand/RightHandIndex1/RightHandIndex2/RightHandIndex3/RightHandIndex4/RightHandIndex4_end", "Hips/LeftUpLeg", "Hips/LeftUpLeg/LeftLeg", "Hips/LeftUpLeg/LeftLeg/LeftFoot", "Hips/LeftUpLeg/LeftLeg/LeftFoot/LeftToeBase", "Hips/LeftUpLeg/LeftLeg/LeftFoot/LeftToeBase/LeftToe_End", "Hips/LeftUpLeg/LeftLeg/LeftFoot/LeftToeBase/LeftToe_End/LeftToe_End_end", "Hips/RightUpLeg", "Hips/RightUpLeg/RightLeg", "Hips/RightUpLeg/RightLeg/RightFoot", "Hips/RightUpLeg/RightLeg/RightFoot/RightToeBase", "Hips/RightUpLeg/RightLeg/RightFoot/RightToeBase/RightToe_End", "Hips/RightUpLeg/RightLeg/RightFoot/RightToeBase/RightToe_End/RightToe_End_end"] (
+                doc = """An array of path tokens identifying the set of joints that make
+        up the skeleton, and their order. Each token in the array must be valid
+        when parsed as an SdfPath. The parent-child relationships of the
+        corresponding paths determine the parent-child relationships of each
+        joint. It is not required that the name at the end of each path be
+        unique, but rather only that the paths themselves be unique."""
+            )
+            rel proxyPrim (
+                doc = '''The proxyPrim relationship allows us to link a
+        prim whose purpose is "render" to its (single target)
+        purpose="proxy" prim.  This is entirely optional, but can be
+        useful in several scenarios:
+        
+        - In a pipeline that does pruning (for complexity management)
+        by deactivating prims composed from asset references, when we
+        deactivate a purpose="render" prim, we will be able to discover
+        and additionally deactivate its associated purpose="proxy" prim,
+        so that preview renders reflect the pruning accurately.
+        
+        - DCC importers may be able to make more aggressive optimizations
+        for interactive processing and display if they can discover the proxy
+        for a given render prim.
+        
+        - With a little more work, a Hydra-based application will be able
+        to map a picked proxy prim back to its render geometry for selection.
+
+        \\note It is only valid to author the proxyPrim relationship on
+        prims whose purpose is "render".'''
+            )
+            uniform token purpose = "default" (
+                allowedTokens = ["default", "render", "proxy", "guide"]
+                doc = """Purpose is a classification of geometry into categories that 
+        can each be independently included or excluded from traversals of prims 
+        on a stage, such as rendering or bounding-box computation traversals.
+
+        See for more detail about how 
+        purpose is computed and used."""
+            )
+            uniform matrix4d[] restTransforms = [( (0.9985979014929162, 0.04862511159829297, 0.020898726580330693, 0), (-0.017948836821683724, -0.06033115697471537, 0.9980167903987084, 0), (0.049789545905503226, -0.9969930557833667, -0.059373830867726164, 0), (0.4973020553588867, 0.05558153986930847, 279.8046569824218, 1) ), ( (0.9997980468630113, 0.01845513153582764, 0.008014192626015978, 0), (-0.018735875940609395, 0.9991579645459466, 0.03649781388760208, 0), (-0.007333873309889237, -0.036640600326299386, 0.9993020736416725, 0), (-0.000015040859578263621, 28.167322158813477, 0.46160387992858887, 0.9999999999999999) ), ( (0.9998498482465668, -0.007874990998025352, 0.015401058235721934, 0), (0.007243988480683678, 0.9991490597426936, 0.04060688937576991, 0), (-0.015707728934794565, -0.04048921985164032, 0.9990559034583482, 0), (-8.493661916020301e-7, 32.866256713867244, 0.0000017285346984863281, 1) ), ( (0.9998539851888817, -0.00787282925849926, 0.015158774449582938, 0), (0.007250198494500901, 0.9991449399126302, 0.04069970566159184, 0), (-0.015466246604298257, -0.040583890224897085, 0.9990569036570102, 0), (2.0861625493751035e-7, 37.56147766113281, -0.000005144625895070476, 1) ), ( (0.999940974402936, 0.0061349654387256765, -0.008953853394368931, 0), (-0.003694714183446869, 0.9680635407413889, 0.25067869277535937, 0), (0.01020579866181482, -0.2506306799378914, 0.9680285478655535, 0), (-0.000013306736946994135, 42.25662231445307, 0.00000216066837310791, 1) ), ( (0.998803007028613, 0.004172312148210532, -0.048745242193293986, 0), (-0.018614992807243234, 0.953831062537702, -0.2997837164123124, 0), (0.04524348725523377, 0.30032929816098836, 0.9527575740419247, 0), (-2.980232238769531e-7, 27.965286254882812, -0.0000024959445568129013, 1) ), ( (0.9999999999999745, -2.0805668226805962e-7, 8.99015542704662e-8, 0), (2.2035173104142242e-7, 0.985315032993981, -0.17074626132370146, 0), (-5.305645227327016e-8, 0.17074626132371687, 0.9853150329940014, 0), (0.0000016689300572636512, 75.03878784179682, -0.0000022053718637948805, 1) ), ( (1, 7.37257477290143e-18, 6.938893903907228e-18, 0), (-9.974659986866641e-18, 1, 0, 0), (-6.938893903907228e-18, 6.938893903907228e-18, 0.9999999999999999, 0), (0, 7.61944580078125, -7.105427357601002e-15, 1) ), ( (-0.14116282475221062, -0.0034000153250354215, -0.989980674166097, 0), (0.8917933759357972, -0.4346380356874679, -0.12566941891570013, 0), (-0.42985641320224977, -0.9005989702426349, 0.06438690924922486, 0), (16.098968505859375, 37.75129699707031, 0.1354403793811727, 1) ), ( (0.27267904336465826, 0.8407066272364137, -0.46782315700541044, 0), (-0.3794719577147543, 0.5408100563975801, 0.750686542163002, 0), (0.8841059815641238, -0.02717057641483811, 0.46648971167873554, 0), (-0.000004291534423828125, 33.693302154541044, -0.00003212690342024871, 1.0000000000000002) ), ( (0.9358578231166444, 0.3523183034287083, -0.006449058276659703, 0), (-0.3523760432661972, 0.935751261673049, -0.014200495903314625, 0), (0.0010316191795922691, 0.015562129545821896, 0.9998780724865952, 0), (0, 71.04624176025396, 0.0000038146972372032906, 1.0000000000000002) ), ( (0.9715153099019438, 0.04303174408764096, 0.23304064142903522, 0), (-0.01160631885093212, 0.9908359006944834, -0.13457601328220842, 0), (-0.2366954677614295, 0.1280375850988509, 0.9631092188158277, 0), (-0.000003814697272730427, 56.54916763305664, -0.00001907348635654671, 1) ), ( (0.8019630973027072, 0.4986537929411343, -0.3289406778391523, 0), (-0.36885408397042674, 0.8464830286919255, 0.3839434213898226, 0), (0.46989586410518785, -0.1865766757498967, 0.8627755539838394, 0), (-10.861063003540032, 12.228842735290499, 0.000141143798828125, 0.9999999999999998) ), ( (0.9372362989626561, -0.1554037536681502, 0.31214855496912514, 0), (0.14535145601242044, 0.9878298353225821, 0.05537044281468906, 0), (-0.31695435473922545, -0.006523940383199284, 0.9484179146077243, 0), (0.000018119812054351314, 13.084566116333036, 0, 0.9999999999999999) ), ( (0.9303153141402567, -0.008835851461512612, 0.3666659611858329, 0), (0.027345384871065664, 0.9985971021479854, -0.04531747260748206, 0), (-0.36574922940660715, 0.052185886866427666, 0.9292469224434472, 0), (0.00000286102294921875, 11.738653182983398, 0.0000019073486328125, 1) ), ( (0.8688845953068499, 0.3328189648432594, -0.36642988177896735, 0), (-0.3066585744209135, 0.9429907263890995, 0.12934066908088815, 0), (0.38858700798505597, -0.000013249739502618763, 0.9214119049757832, 0), (-0.000003814697265625, 9.322834014892578, -0.0000019073486399179274, 1) ), ( (1, -2.7755575615628914e-17, 0, 0), (-2.0816681711721685e-17, 0.9999999999999999, 0, 0), (0, 0, 1, 0), (2.842170943040401e-14, 7.619419574737549, 0, 0.9999999999999999) ), ( (0.9999859310002733, 0.000016986639505556234, 0.005371477341984732, 0), (0.0000023350688800327646, 0.9999934709253203, -0.0035970671374752072, 0), (-0.005371500171626298, 0.0035970269291125123, 0.999978805943815, 0), (0.000017166137702417927, 25.74091720581052, -0.09331703186035156, 0.9999999999999998) ), ( (0.9999546512274141, 0.0000014057828692515262, -0.009504623025030301, 0), (-0.0000016638564792059718, 1.0000001188394945, -0.000027144473630780208, 0), (0.00950463374723215, 0.000027159084510619547, 0.9999557832970702, 0), (0.000005722045905542927, 18.493629455566463, 0.00000953674313564079, 1.0000000000000002) ), ( (0.9999441391486811, -6.179362364577834e-7, -0.010580973509764557, 0), (6.449370965055934e-7, 0.9999990463222284, 0.0000025484822006593966, 0), (0.010580972246803155, -0.0000025551660348122063, 0.9999440199430083, 0), (0, 15.033246994018555, 0.0000057220458984375, 1) ), ( (0.9998792443707941, -0.00951416641992267, 0.012282430725937932, 0), (0.009513595733901203, 0.999954679615398, 0.00010489133688301733, 0), (-0.012282872767204966, 0.000011971410606159694, 0.9999245029920929, 0), (-7.105427357601002e-15, 7.619420051574707, -0.0000076293945028282906, 0.9999999999999999) ), ( (0.9999999999999999, -5.551115123125783e-17, -5.551115123125783e-17, 0), (0, 0.9999999999999998, 0, 0), (0, -5.551115123125783e-17, 1, 0), (-7.105427357601002e-15, 7.619417667388916, 0, 1) ), ( (0.19197973472773242, -0.04892844336323468, 0.9801776569396777, 0), (-0.8886891160307469, -0.4324149521241672, 0.15247532852687773, 0), (0.41638366494553053, -0.9003466229125875, -0.1264972562981945, 0), (-16.098999023437507, 37.74932098388672, 0.012269645929343653, 1) ), ( (0.6687036228287202, -0.6115719023010773, 0.4228645630302135, 0), (0.16331103426758972, 0.6756487180074521, 0.7189088849583699, 0), (-0.7253724174930788, -0.4116785512499266, 0.5516852182681278, 0), (0.000004768371596242105, 33.69308853149417, -0.000013351440316000662, 0.9999999999999999) ), ( (0.943844099098893, -0.33034032941828156, 0.005784820371833366, 0), (0.3303877945524286, 0.9437666913977951, -0.012164694447651808, 0), (-0.0014410315256535577, 0.013392808318015287, 0.9999089758908759, 0), (-0.000008583068833445395, 71.00305938720703, 0.000003814697279835855, 1) ), ( (0.852850751113275, 0.13657759922884022, -0.5039733876747765, 0), (-0.1265596962089128, 0.9904744130706118, 0.054249065785955085, 0), (0.506583583038733, 0.017516418717890905, 0.8620148411331625, 0), (-0.0000028610229563241774, 56.54911422729492, 0, 1) ), ( (0.8155526345761429, -0.5034438120539035, 0.28532772430694364, 0), (0.4019474717320688, 0.8475468930008607, 0.34655909941689655, 0), (-0.41630431538952123, -0.1679515003056819, 0.8935827679086564, 0), (10.555543899536136, 12.943567276000977, -0.000003814697279835855, 1) ), ( (0.9345383490495005, 0.1693947484093462, -0.31296229919386537, 0), (-0.1535924729709302, 0.9853114659809433, 0.07466883975544664, 0), (0.321013085785028, -0.021712188984750386, 0.946826851622728, 0), (-0.000011444091796875, 13.361311912536593, -0.000003814697265625, 1) ), ( (0.9669972216905125, -0.015431638812430884, -0.25431635270943465, 0), (0.004741535077840739, 0.9990812026476755, -0.04259422920044944, 0), (0.2547399862784277, 0.0399826513896432, 0.9661819168602557, 0), (0.000009536743149851645, 11.684769630432129, -0.000002861022933453583, 1) ), ( (0.9130472283714515, -0.26336514978220843, 0.31142183071102275, 0), (0.2492647223205768, 0.9646962205171772, 0.08501941146773107, 0), (-0.32281861310905796, -2.618416350824715e-7, 0.9464608512930027, 0), (0, 9.36739730834961, 0.000010490417478692393, 0.9999999999999998) ), ( (0.9999999999999998, 8.326672684688674e-17, 5.551115123125783e-17, 0), (-1.1102230246251565e-16, 0.9999999999999999, 5.551115123125783e-17, 0), (5.551115123125783e-17, -5.551115123125783e-17, 0.9999999999999998, 0), (0, 7.619403362274227, -8.881784197001252e-15, 0.9999999999999998) ), ( (0.9999974092899686, -2.4820998162367047e-7, -0.002141346989710413, 0), (-0.0000023585873726861273, 0.9999990801997124, -0.0012173603942417233, 0), (0.002141345960430585, 0.0012173626537702667, 0.9999967875137451, 0), (0.000012636184691938723, 29.137596130371094, -0.03616523742677202, 1) ), ( (0.9999438941204724, -0.000006023715861898371, 0.010592854898505588, 0), (0.0000063777753232657775, 1.0000002378407802, -0.00003339045058037282, 0), (-0.01059286479338395, 0.000033456159958068776, 0.999944847201933, 0), (0.000005245208738902107, 15.205923080444336, -1.4210854715202004e-14, 1) ), ( (0.9999837930292775, 0.0000033570847943545368, 0.005619537583824996, 0), (-0.000003406180626108757, 1.0000008344211515, 0.000008726309937111265, 0), (-0.005619537219332726, -0.000008745301851222076, 0.9999837333931344, 0), (0.00000262260436301176, 14.928714752197294, -0.000003814697279835855, 1) ), ( (0.9999541854786925, 0.006197414431076492, -0.00727877595819415, 0), (-0.006197141529543794, 0.9999806765196597, 0.0000600464957180441, 0), (0.007279008307654544, -0.000014936141722335372, 0.999973388344112, 0), (-4.768371577590358e-7, 8.051050186157227, 9.536743306171047e-7, 1) ), ( (1, 0, 5.551115123125783e-17, 0), (6.938893903907228e-18, 1, -6.938893903907228e-18, 0), (0, 6.938893903907228e-18, 1, 0), (6.217248937900877e-15, 7.6193985939025595, 0, 1) ), ( (-0.9688010031973964, -0.1532650149640714, 0.19475666833759864, 0), (0.18322862100965862, -0.9720991993147117, 0.14645595328042066, 0), (0.16687182112603927, 0.17756698146678299, 0.9698276079384475, 0), (25.496740341186523, -15.643489837646541, 3.7489056587219256, 0.9999999999999999) ), ( (0.987204689932315, 0.03638699800449999, 0.1552756128983093, 0), (0.011130336242059898, 0.9555307149598287, -0.29468126709075215, 0), (-0.15909175220495358, 0.2926363648597164, 0.9428909173133869, 0), (-0.000010728836059570312, 126.99725341796878, -0.00000286102294921875, 1) ), ( (0.9492793303694446, -0.16364071515991754, 0.2685246538070119, 0), (-0.1820158275240207, 0.41039525275760136, 0.8935538399411809, 0), (-0.25642072470397004, -0.8970998537156091, 0.3597912923011836, 0), (0.00001096725465288273, 122.50347900390626, -2.384185826542762e-7, 1) ), ( (0.9988229187516269, -0.00007551427394730803, 0.04850783125093136, 0), (-0.0226117304026483, 0.8839823376782638, 0.46697341973570905, 0), (-0.0429153496872632, -0.4675208230136473, 0.8829405321548263, 0), (8.046627186786282e-7, 41.62490081787108, 2.3841857554884882e-7, 0.9999999999999999) ), ( (0.9999999999987419, 0.0000013163954045714021, 8.849893077950144e-7, 0), (-0.000001316395494832534, 0.9999999999991285, 1.0209565745947224e-7, 0), (-8.849891733990478e-7, -1.02096822447717e-7, 0.9999999999996031, 0), (6.705522608285719e-7, 16.227262496948256, 0, 0.9999999999999999) ), ( (1, -1.1102230246251565e-16, 3.469446951953614e-18, 0), (-5.551115123125783e-17, 1, 3.469446951953614e-18, 0), (-6.938893903907228e-18, -3.469446951953614e-18, 1, 0), (-7.105427357601002e-15, 7.619421005249023, 0, 0.9999999999999999) ), ( (-0.9748053344978084, 0.1567415099587582, -0.15876538580694632, 0), (-0.17847141968069394, -0.9748657814883818, 0.1333600347135458, 0), (-0.13388468750625931, 0.158350294664237, 0.9783717722050491, 0), (-25.496746063232422, -15.643457412719783, 3.5291986465454137, 0.9999999999999999) ), ( (0.986693595927519, -0.0516516406032959, -0.15409054109497938, 0), (-0.0028671463695557724, 0.9424588696274933, -0.33427452076416636, 0), (0.16249767940909277, 0.3302842943501562, 0.9298149837051595, 0), (0.0000029802322387695312, 126.95088195800784, 4.768371617558387e-7, 1) ), ( (0.8871074457546761, 0.24312703600985786, -0.39221984212405264, 0), (0.291396521231154, 0.3639633057838116, 0.8846807482345272, 0), (0.35786186765886396, -0.8991446806346952, 0.2520411656630126, 0), (-0.0000023841857839101976, 122.44097137451172, -0.0000011920929035014183, 1.0000000000000002) ), ( (0.9987946898824177, 0.0000016736568189124057, -0.04910512425650457, 0), (0.02290201165511918, 0.8845649681876165, 0.46585541597359703, 0), (0.04343739022019757, -0.46641785463919005, 0.8834974908980933, 0), (0.000006504356854009075, 41.739955902099595, 0.000002682209014892578, 0.9999999999999998) ), ( (1.0000001192081402, -5.530891996619047e-7, 0.000001411652239096707, 0), (5.5308915314356e-7, 1.000000119209136, 3.2829512261467464e-8, 0), (-0.0000014116522572514556, -3.2828731501462205e-8, 1.0000001192082926, 0), (0.000004093162715435028, 16.473165512084947, 1.4901161149438735e-7, 1.0000000000000002) ), ( (0.9999999999999999, 0, -2.6020852139652106e-18, 0), (-5.551115123125783e-17, 1, 0, 0), (2.6020852139652106e-18, 6.071532165918825e-18, 1, 0), (-7.105427357601002e-15, 7.619421005249038, 0, 1) )] (
+                doc = """Specifies the rest-pose transforms of each joint in
+        **local space**, in the ordering imposed by *joints*. This provides
+        fallback values for joint transforms when a Skeleton either has no
+        bound animation source, or when that animation source only contains
+        animation for a subset of a Skeleton's joints."""
+            )
+            token visibility = "inherited" (
+                allowedTokens = ["inherited", "invisible"]
+                doc = '''Visibility is meant to be the simplest form of "pruning" 
+        visibility that is supported by most DCC apps.  Visibility is 
+        animatable, allowing a sub-tree of geometry to be present for some 
+        segment of a shot, and absent from others; unlike the action of 
+        deactivating geometry prims, invisible geometry is still 
+        available for inspection, for positioning, for defining volumes, etc.'''
+            )
+            uniform token[] xformOpOrder (
+                doc = """Encodes the sequence of transformation operations in the
+        order in which they should be pushed onto a transform stack while
+        visiting a UsdStage's prims in a graph traversal that will effect
+        the desired positioning for this prim and its descendant prims.
+        
+        You should rarely, if ever, need to manipulate this attribute directly.
+        It is managed by the AddXformOp(), SetResetXformStack(), and
+        SetXformOpOrder(), and consulted by GetOrderedXformOps() and
+        GetLocalTransformation()."""
+            )
+        }
+    }
+}
+

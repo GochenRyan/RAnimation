@@ -1,0 +1,1725 @@
+#usda 1.0
+(
+    defaultPrim = "Scene"
+)
+
+def Xform "Scene"
+{
+    def Xform "Instance_0" (
+        customData = {
+            dictionary ranim = {
+                string animClip = "Armature|Death"
+                int animClipNr = 0
+                bool swapYZAxis = 0
+            }
+        }
+        prepend references = @animated_woman/Animated_Woman.asset.usda@
+    )
+    {
+        float3 xformOp:rotateXYZ = (0, 0, 0)
+        float3 xformOp:scale = (1, 1, 1)
+        double3 xformOp:translate = (0, 0, 0)
+        uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateXYZ", "xformOp:scale"]
+    }
+
+    def Xform "Instance_1" (
+        customData = {
+            dictionary ranim = {
+                string animClip = "Armature|Death"
+                int animClipNr = 0
+                bool swapYZAxis = 0
+            }
+        }
+        prepend references = @animated_woman/Animated_Woman.asset.usda@
+    )
+    {
+        float3 xformOp:rotateXYZ = (0, 34, 0)
+        float3 xformOp:scale = (1, 1, 1)
+        double3 xformOp:translate = (16, 0, -8)
+        uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateXYZ", "xformOp:scale"]
+    }
+
+    def Xform "Instance_2" (
+        customData = {
+            dictionary ranim = {
+                string animClip = "Armature|Sitting"
+                int animClipNr = 8
+                bool swapYZAxis = 0
+            }
+        }
+        prepend references = @animated_woman/Animated_Woman.asset.usda@
+    )
+    {
+        float3 xformOp:rotateXYZ = (0, 138, 0)
+        float3 xformOp:scale = (1, 1, 1)
+        double3 xformOp:translate = (-6, 0, -1)
+        uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateXYZ", "xformOp:scale"]
+    }
+
+    def Xform "Instance_3" (
+        customData = {
+            dictionary ranim = {
+                string animClip = "Armature|Punch"
+                int animClipNr = 5
+                bool swapYZAxis = 0
+            }
+        }
+        prepend references = @animated_woman/Animated_Woman.asset.usda@
+    )
+    {
+        float3 xformOp:rotateXYZ = (0, 125, 0)
+        float3 xformOp:scale = (1, 1, 1)
+        double3 xformOp:translate = (-13, 0, -11)
+        uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateXYZ", "xformOp:scale"]
+    }
+
+    def Xform "Instance_4" (
+        customData = {
+            dictionary ranim = {
+                string animClip = "Armature|Idle"
+                int animClipNr = 1
+                bool swapYZAxis = 0
+            }
+        }
+        prepend references = @animated_woman/Animated_Woman.asset.usda@
+    )
+    {
+        float3 xformOp:rotateXYZ = (0, 61, 0)
+        float3 xformOp:scale = (1, 1, 1)
+        double3 xformOp:translate = (6, 0, 2)
+        uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateXYZ", "xformOp:scale"]
+    }
+
+    def Xform "Instance_5" (
+        customData = {
+            dictionary ranim = {
+                string animClip = "Armature|Running"
+                int animClipNr = 6
+                bool swapYZAxis = 0
+            }
+        }
+        prepend references = @animated_woman/Animated_Woman.asset.usda@
+    )
+    {
+        float3 xformOp:rotateXYZ = (0, -33, 0)
+        float3 xformOp:scale = (1, 1, 1)
+        double3 xformOp:translate = (20, 0, 17)
+        uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateXYZ", "xformOp:scale"]
+    }
+
+    def Xform "Instance_6" (
+        customData = {
+            dictionary ranim = {
+                string animClip = "Armature|Jump2"
+                int animClipNr = 3
+                bool swapYZAxis = 0
+            }
+        }
+        prepend references = @animated_woman/Animated_Woman.asset.usda@
+    )
+    {
+        float3 xformOp:rotateXYZ = (0, 122, 0)
+        float3 xformOp:scale = (1, 1, 1)
+        double3 xformOp:translate = (16, 0, -21)
+        uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateXYZ", "xformOp:scale"]
+    }
+
+    def Xform "Instance_7" (
+        customData = {
+            dictionary ranim = {
+                string animClip = "Armature|Running"
+                int animClipNr = 6
+                bool swapYZAxis = 0
+            }
+        }
+        prepend references = @animated_woman/Animated_Woman.asset.usda@
+    )
+    {
+        float3 xformOp:rotateXYZ = (0, -39, 0)
+        float3 xformOp:scale = (1, 1, 1)
+        double3 xformOp:translate = (17, 0, 7)
+        uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateXYZ", "xformOp:scale"]
+    }
+
+    def Xform "Instance_8" (
+        customData = {
+            dictionary ranim = {
+                string animClip = "Armature|Running"
+                int animClipNr = 6
+                bool swapYZAxis = 0
+            }
+        }
+        prepend references = @animated_woman/Animated_Woman.asset.usda@
+    )
+    {
+        float3 xformOp:rotateXYZ = (0, -133, 0)
+        float3 xformOp:scale = (1, 1, 1)
+        double3 xformOp:translate = (-7, 0, 20)
+        uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateXYZ", "xformOp:scale"]
+    }
+
+    def Xform "Instance_9" (
+        customData = {
+            dictionary ranim = {
+                string animClip = "Armature|Jump"
+                int animClipNr = 2
+                bool swapYZAxis = 0
+            }
+        }
+        prepend references = @animated_woman/Animated_Woman.asset.usda@
+    )
+    {
+        float3 xformOp:rotateXYZ = (0, -111, 0)
+        float3 xformOp:scale = (1, 1, 1)
+        double3 xformOp:translate = (-4, 0, 13)
+        uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateXYZ", "xformOp:scale"]
+    }
+
+    def Xform "Instance_10" (
+        customData = {
+            dictionary ranim = {
+                string animClip = "Armature|PickUp"
+                int animClipNr = 4
+                bool swapYZAxis = 0
+            }
+        }
+        prepend references = @animated_woman/Animated_Woman.asset.usda@
+    )
+    {
+        float3 xformOp:rotateXYZ = (0, -65, 0)
+        float3 xformOp:scale = (1, 1, 1)
+        double3 xformOp:translate = (-8, 0, 24)
+        uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateXYZ", "xformOp:scale"]
+    }
+
+    def Xform "Instance_11" (
+        customData = {
+            dictionary ranim = {
+                string animClip = "Armature|Jump2"
+                int animClipNr = 3
+                bool swapYZAxis = 0
+            }
+        }
+        prepend references = @animated_woman/Animated_Woman.asset.usda@
+    )
+    {
+        float3 xformOp:rotateXYZ = (0, -178, 0)
+        float3 xformOp:scale = (1, 1, 1)
+        double3 xformOp:translate = (-22, 0, -14)
+        uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateXYZ", "xformOp:scale"]
+    }
+
+    def Xform "Instance_12" (
+        customData = {
+            dictionary ranim = {
+                string animClip = "Armature|Idle"
+                int animClipNr = 1
+                bool swapYZAxis = 0
+            }
+        }
+        prepend references = @animated_woman/Animated_Woman.asset.usda@
+    )
+    {
+        float3 xformOp:rotateXYZ = (0, -159, 0)
+        float3 xformOp:scale = (1, 1, 1)
+        double3 xformOp:translate = (-2, 0, -11)
+        uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateXYZ", "xformOp:scale"]
+    }
+
+    def Xform "Instance_13" (
+        customData = {
+            dictionary ranim = {
+                string animClip = "Armature|PickUp"
+                int animClipNr = 4
+                bool swapYZAxis = 0
+            }
+        }
+        prepend references = @animated_woman/Animated_Woman.asset.usda@
+    )
+    {
+        float3 xformOp:rotateXYZ = (0, 167, 0)
+        float3 xformOp:scale = (1, 1, 1)
+        double3 xformOp:translate = (-22, 0, -7)
+        uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateXYZ", "xformOp:scale"]
+    }
+
+    def Xform "Instance_14" (
+        customData = {
+            dictionary ranim = {
+                string animClip = "Armature|Walking"
+                int animClipNr = 9
+                bool swapYZAxis = 0
+            }
+        }
+        prepend references = @animated_woman/Animated_Woman.asset.usda@
+    )
+    {
+        float3 xformOp:rotateXYZ = (0, 57, 0)
+        float3 xformOp:scale = (1, 1, 1)
+        double3 xformOp:translate = (-13, 0, -18)
+        uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateXYZ", "xformOp:scale"]
+    }
+
+    def Xform "Instance_15" (
+        customData = {
+            dictionary ranim = {
+                string animClip = "Armature|Sitting"
+                int animClipNr = 8
+                bool swapYZAxis = 0
+            }
+        }
+        prepend references = @animated_woman/Animated_Woman.asset.usda@
+    )
+    {
+        float3 xformOp:rotateXYZ = (0, -11, 0)
+        float3 xformOp:scale = (1, 1, 1)
+        double3 xformOp:translate = (-2, 0, 16)
+        uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateXYZ", "xformOp:scale"]
+    }
+
+    def Xform "Instance_16" (
+        customData = {
+            dictionary ranim = {
+                string animClip = "Armature|Jump"
+                int animClipNr = 2
+                bool swapYZAxis = 0
+            }
+        }
+        prepend references = @animated_woman/Animated_Woman.asset.usda@
+    )
+    {
+        float3 xformOp:rotateXYZ = (0, 50, 0)
+        float3 xformOp:scale = (1, 1, 1)
+        double3 xformOp:translate = (-9, 0, 10)
+        uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateXYZ", "xformOp:scale"]
+    }
+
+    def Xform "Instance_17" (
+        customData = {
+            dictionary ranim = {
+                string animClip = "Armature|Jump"
+                int animClipNr = 2
+                bool swapYZAxis = 0
+            }
+        }
+        prepend references = @animated_woman/Animated_Woman.asset.usda@
+    )
+    {
+        float3 xformOp:rotateXYZ = (0, -140, 0)
+        float3 xformOp:scale = (1, 1, 1)
+        double3 xformOp:translate = (13, 0, -19)
+        uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateXYZ", "xformOp:scale"]
+    }
+
+    def Xform "Instance_18" (
+        customData = {
+            dictionary ranim = {
+                string animClip = "Armature|Punch"
+                int animClipNr = 5
+                bool swapYZAxis = 0
+            }
+        }
+        prepend references = @animated_woman/Animated_Woman.asset.usda@
+    )
+    {
+        float3 xformOp:rotateXYZ = (0, -94, 0)
+        float3 xformOp:scale = (1, 1, 1)
+        double3 xformOp:translate = (-11, 0, 23)
+        uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateXYZ", "xformOp:scale"]
+    }
+
+    def Xform "Instance_19" (
+        customData = {
+            dictionary ranim = {
+                string animClip = "Armature|Death"
+                int animClipNr = 0
+                bool swapYZAxis = 0
+            }
+        }
+        prepend references = @animated_woman/Animated_Woman.asset.usda@
+    )
+    {
+        float3 xformOp:rotateXYZ = (0, 70, 0)
+        float3 xformOp:scale = (1, 1, 1)
+        double3 xformOp:translate = (15, 0, 4)
+        uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateXYZ", "xformOp:scale"]
+    }
+
+    def Xform "Instance_20" (
+        customData = {
+            dictionary ranim = {
+                string animClip = "Armature|Sitting"
+                int animClipNr = 8
+                bool swapYZAxis = 0
+            }
+        }
+        prepend references = @animated_woman/Animated_Woman.asset.usda@
+    )
+    {
+        float3 xformOp:rotateXYZ = (0, 93, 0)
+        float3 xformOp:scale = (1, 1, 1)
+        double3 xformOp:translate = (-19, 0, -24)
+        uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateXYZ", "xformOp:scale"]
+    }
+
+    def Xform "Instance_21" (
+        customData = {
+            dictionary ranim = {
+                string animClip = "Armature|PickUp"
+                int animClipNr = 4
+                bool swapYZAxis = 0
+            }
+        }
+        prepend references = @animated_woman/Animated_Woman.asset.usda@
+    )
+    {
+        float3 xformOp:rotateXYZ = (0, 144, 0)
+        float3 xformOp:scale = (1, 1, 1)
+        double3 xformOp:translate = (4, 0, -2)
+        uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateXYZ", "xformOp:scale"]
+    }
+
+    def Xform "Instance_22" (
+        customData = {
+            dictionary ranim = {
+                string animClip = "Armature|Running"
+                int animClipNr = 6
+                bool swapYZAxis = 0
+            }
+        }
+        prepend references = @animated_woman/Animated_Woman.asset.usda@
+    )
+    {
+        float3 xformOp:rotateXYZ = (0, 106, 0)
+        float3 xformOp:scale = (1, 1, 1)
+        double3 xformOp:translate = (-19, 0, 15)
+        uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateXYZ", "xformOp:scale"]
+    }
+
+    def Xform "Instance_23" (
+        customData = {
+            dictionary ranim = {
+                string animClip = "Armature|Walking"
+                int animClipNr = 9
+                bool swapYZAxis = 0
+            }
+        }
+        prepend references = @animated_woman/Animated_Woman.asset.usda@
+    )
+    {
+        float3 xformOp:rotateXYZ = (0, -156, 0)
+        float3 xformOp:scale = (1, 1, 1)
+        double3 xformOp:translate = (6, 0, -17)
+        uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateXYZ", "xformOp:scale"]
+    }
+
+    def Xform "Instance_24" (
+        customData = {
+            dictionary ranim = {
+                string animClip = "Armature|Sitting"
+                int animClipNr = 8
+                bool swapYZAxis = 0
+            }
+        }
+        prepend references = @animated_woman/Animated_Woman.asset.usda@
+    )
+    {
+        float3 xformOp:rotateXYZ = (0, -43, 0)
+        float3 xformOp:scale = (1, 1, 1)
+        double3 xformOp:translate = (1, 0, -2)
+        uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateXYZ", "xformOp:scale"]
+    }
+
+    def Xform "Instance_25" (
+        customData = {
+            dictionary ranim = {
+                string animClip = "Armature|Idle"
+                int animClipNr = 1
+                bool swapYZAxis = 0
+            }
+        }
+        prepend references = @animated_woman/Animated_Woman.asset.usda@
+    )
+    {
+        float3 xformOp:rotateXYZ = (0, 69, 0)
+        float3 xformOp:scale = (1, 1, 1)
+        double3 xformOp:translate = (-7, 0, 7)
+        uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateXYZ", "xformOp:scale"]
+    }
+
+    def Xform "Instance_26" (
+        customData = {
+            dictionary ranim = {
+                string animClip = "Armature|Sitting"
+                int animClipNr = 8
+                bool swapYZAxis = 0
+            }
+        }
+        prepend references = @animated_woman/Animated_Woman.asset.usda@
+    )
+    {
+        float3 xformOp:rotateXYZ = (0, 139, 0)
+        float3 xformOp:scale = (1, 1, 1)
+        double3 xformOp:translate = (8, 0, -10)
+        uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateXYZ", "xformOp:scale"]
+    }
+
+    def Xform "Instance_27" (
+        customData = {
+            dictionary ranim = {
+                string animClip = "Armature|Running"
+                int animClipNr = 6
+                bool swapYZAxis = 0
+            }
+        }
+        prepend references = @animated_woman/Animated_Woman.asset.usda@
+    )
+    {
+        float3 xformOp:rotateXYZ = (0, 117, 0)
+        float3 xformOp:scale = (1, 1, 1)
+        double3 xformOp:translate = (-21, 0, 5)
+        uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateXYZ", "xformOp:scale"]
+    }
+
+    def Xform "Instance_28" (
+        customData = {
+            dictionary ranim = {
+                string animClip = "Armature|Punch"
+                int animClipNr = 5
+                bool swapYZAxis = 0
+            }
+        }
+        prepend references = @animated_woman/Animated_Woman.asset.usda@
+    )
+    {
+        float3 xformOp:rotateXYZ = (0, 161, 0)
+        float3 xformOp:scale = (1, 1, 1)
+        double3 xformOp:translate = (-2, 0, 11)
+        uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateXYZ", "xformOp:scale"]
+    }
+
+    def Xform "Instance_29" (
+        customData = {
+            dictionary ranim = {
+                string animClip = "Armature|Walking"
+                int animClipNr = 9
+                bool swapYZAxis = 0
+            }
+        }
+        prepend references = @animated_woman/Animated_Woman.asset.usda@
+    )
+    {
+        float3 xformOp:rotateXYZ = (0, -30, 0)
+        float3 xformOp:scale = (1, 1, 1)
+        double3 xformOp:translate = (-1, 0, -3)
+        uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateXYZ", "xformOp:scale"]
+    }
+
+    def Xform "Instance_30" (
+        customData = {
+            dictionary ranim = {
+                string animClip = "Armature|Jump"
+                int animClipNr = 2
+                bool swapYZAxis = 0
+            }
+        }
+        prepend references = @animated_woman/Animated_Woman.asset.usda@
+    )
+    {
+        float3 xformOp:rotateXYZ = (0, -123, 0)
+        float3 xformOp:scale = (1, 1, 1)
+        double3 xformOp:translate = (2, 0, -2)
+        uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateXYZ", "xformOp:scale"]
+    }
+
+    def Xform "Instance_31" (
+        customData = {
+            dictionary ranim = {
+                string animClip = "Armature|Running"
+                int animClipNr = 6
+                bool swapYZAxis = 0
+            }
+        }
+        prepend references = @animated_woman/Animated_Woman.asset.usda@
+    )
+    {
+        float3 xformOp:rotateXYZ = (0, -19, 0)
+        float3 xformOp:scale = (1, 1, 1)
+        double3 xformOp:translate = (11, 0, 15)
+        uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateXYZ", "xformOp:scale"]
+    }
+
+    def Xform "Instance_32" (
+        customData = {
+            dictionary ranim = {
+                string animClip = "Armature|PickUp"
+                int animClipNr = 4
+                bool swapYZAxis = 0
+            }
+        }
+        prepend references = @animated_woman/Animated_Woman.asset.usda@
+    )
+    {
+        float3 xformOp:rotateXYZ = (0, 75, 0)
+        float3 xformOp:scale = (1, 1, 1)
+        double3 xformOp:translate = (-20, 0, -8)
+        uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateXYZ", "xformOp:scale"]
+    }
+
+    def Xform "Instance_33" (
+        customData = {
+            dictionary ranim = {
+                string animClip = "Armature|Death"
+                int animClipNr = 0
+                bool swapYZAxis = 0
+            }
+        }
+        prepend references = @animated_woman/Animated_Woman.asset.usda@
+    )
+    {
+        float3 xformOp:rotateXYZ = (0, 170, 0)
+        float3 xformOp:scale = (1, 1, 1)
+        double3 xformOp:translate = (6, 0, -23)
+        uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateXYZ", "xformOp:scale"]
+    }
+
+    def Xform "Instance_34" (
+        customData = {
+            dictionary ranim = {
+                string animClip = "Armature|Death"
+                int animClipNr = 0
+                bool swapYZAxis = 0
+            }
+        }
+        prepend references = @animated_woman/Animated_Woman.asset.usda@
+    )
+    {
+        float3 xformOp:rotateXYZ = (0, 106, 0)
+        float3 xformOp:scale = (1, 1, 1)
+        double3 xformOp:translate = (16, 0, -1)
+        uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateXYZ", "xformOp:scale"]
+    }
+
+    def Xform "Instance_35" (
+        customData = {
+            dictionary ranim = {
+                string animClip = "Armature|SitIdle"
+                int animClipNr = 7
+                bool swapYZAxis = 0
+            }
+        }
+        prepend references = @animated_woman/Animated_Woman.asset.usda@
+    )
+    {
+        float3 xformOp:rotateXYZ = (0, -173, 0)
+        float3 xformOp:scale = (1, 1, 1)
+        double3 xformOp:translate = (-18, 0, 16)
+        uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateXYZ", "xformOp:scale"]
+    }
+
+    def Xform "Instance_36" (
+        customData = {
+            dictionary ranim = {
+                string animClip = "Armature|Jump2"
+                int animClipNr = 3
+                bool swapYZAxis = 0
+            }
+        }
+        prepend references = @animated_woman/Animated_Woman.asset.usda@
+    )
+    {
+        float3 xformOp:rotateXYZ = (0, -147, 0)
+        float3 xformOp:scale = (1, 1, 1)
+        double3 xformOp:translate = (-18, 0, 12)
+        uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateXYZ", "xformOp:scale"]
+    }
+
+    def Xform "Instance_37" (
+        customData = {
+            dictionary ranim = {
+                string animClip = "Armature|Sitting"
+                int animClipNr = 8
+                bool swapYZAxis = 0
+            }
+        }
+        prepend references = @animated_woman/Animated_Woman.asset.usda@
+    )
+    {
+        float3 xformOp:rotateXYZ = (0, -11, 0)
+        float3 xformOp:scale = (1, 1, 1)
+        double3 xformOp:translate = (20, 0, -16)
+        uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateXYZ", "xformOp:scale"]
+    }
+
+    def Xform "Instance_38" (
+        customData = {
+            dictionary ranim = {
+                string animClip = "Armature|Running"
+                int animClipNr = 6
+                bool swapYZAxis = 0
+            }
+        }
+        prepend references = @animated_woman/Animated_Woman.asset.usda@
+    )
+    {
+        float3 xformOp:rotateXYZ = (0, 122, 0)
+        float3 xformOp:scale = (1, 1, 1)
+        double3 xformOp:translate = (-4, 0, 13)
+        uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateXYZ", "xformOp:scale"]
+    }
+
+    def Xform "Instance_39" (
+        customData = {
+            dictionary ranim = {
+                string animClip = "Armature|Sitting"
+                int animClipNr = 8
+                bool swapYZAxis = 0
+            }
+        }
+        prepend references = @animated_woman/Animated_Woman.asset.usda@
+    )
+    {
+        float3 xformOp:rotateXYZ = (0, 33, 0)
+        float3 xformOp:scale = (1, 1, 1)
+        double3 xformOp:translate = (-19, 0, 5)
+        uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateXYZ", "xformOp:scale"]
+    }
+
+    def Xform "Instance_40" (
+        customData = {
+            dictionary ranim = {
+                string animClip = "Armature|Punch"
+                int animClipNr = 5
+                bool swapYZAxis = 0
+            }
+        }
+        prepend references = @animated_woman/Animated_Woman.asset.usda@
+    )
+    {
+        float3 xformOp:rotateXYZ = (0, -138, 0)
+        float3 xformOp:scale = (1, 1, 1)
+        double3 xformOp:translate = (-25, 0, 16)
+        uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateXYZ", "xformOp:scale"]
+    }
+
+    def Xform "Instance_41" (
+        customData = {
+            dictionary ranim = {
+                string animClip = "Armature|SitIdle"
+                int animClipNr = 7
+                bool swapYZAxis = 0
+            }
+        }
+        prepend references = @animated_woman/Animated_Woman.asset.usda@
+    )
+    {
+        float3 xformOp:rotateXYZ = (0, 84, 0)
+        float3 xformOp:scale = (1, 1, 1)
+        double3 xformOp:translate = (-15, 0, -16)
+        uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateXYZ", "xformOp:scale"]
+    }
+
+    def Xform "Instance_42" (
+        customData = {
+            dictionary ranim = {
+                string animClip = "Armature|Idle"
+                int animClipNr = 1
+                bool swapYZAxis = 0
+            }
+        }
+        prepend references = @animated_woman/Animated_Woman.asset.usda@
+    )
+    {
+        float3 xformOp:rotateXYZ = (0, 55, 0)
+        float3 xformOp:scale = (1, 1, 1)
+        double3 xformOp:translate = (23, 0, 8)
+        uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateXYZ", "xformOp:scale"]
+    }
+
+    def Xform "Instance_43" (
+        customData = {
+            dictionary ranim = {
+                string animClip = "Armature|Running"
+                int animClipNr = 6
+                bool swapYZAxis = 0
+            }
+        }
+        prepend references = @animated_woman/Animated_Woman.asset.usda@
+    )
+    {
+        float3 xformOp:rotateXYZ = (0, 31, 0)
+        float3 xformOp:scale = (1, 1, 1)
+        double3 xformOp:translate = (-23, 0, -25)
+        uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateXYZ", "xformOp:scale"]
+    }
+
+    def Xform "Instance_44" (
+        customData = {
+            dictionary ranim = {
+                string animClip = "Armature|Idle"
+                int animClipNr = 1
+                bool swapYZAxis = 0
+            }
+        }
+        prepend references = @animated_woman/Animated_Woman.asset.usda@
+    )
+    {
+        float3 xformOp:rotateXYZ = (0, 96, 0)
+        float3 xformOp:scale = (1, 1, 1)
+        double3 xformOp:translate = (-1, 0, -5)
+        uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateXYZ", "xformOp:scale"]
+    }
+
+    def Xform "Instance_45" (
+        customData = {
+            dictionary ranim = {
+                string animClip = "Armature|PickUp"
+                int animClipNr = 4
+                bool swapYZAxis = 0
+            }
+        }
+        prepend references = @animated_woman/Animated_Woman.asset.usda@
+    )
+    {
+        float3 xformOp:rotateXYZ = (0, 48, 0)
+        float3 xformOp:scale = (1, 1, 1)
+        double3 xformOp:translate = (23, 0, 24)
+        uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateXYZ", "xformOp:scale"]
+    }
+
+    def Xform "Instance_46" (
+        customData = {
+            dictionary ranim = {
+                string animClip = "Armature|Walking"
+                int animClipNr = 9
+                bool swapYZAxis = 0
+            }
+        }
+        prepend references = @animated_woman/Animated_Woman.asset.usda@
+    )
+    {
+        float3 xformOp:rotateXYZ = (0, -127, 0)
+        float3 xformOp:scale = (1, 1, 1)
+        double3 xformOp:translate = (6, 0, 9)
+        uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateXYZ", "xformOp:scale"]
+    }
+
+    def Xform "Instance_47" (
+        customData = {
+            dictionary ranim = {
+                string animClip = "Armature|Sitting"
+                int animClipNr = 8
+                bool swapYZAxis = 0
+            }
+        }
+        prepend references = @animated_woman/Animated_Woman.asset.usda@
+    )
+    {
+        float3 xformOp:rotateXYZ = (0, -120, 0)
+        float3 xformOp:scale = (1, 1, 1)
+        double3 xformOp:translate = (-7, 0, 13)
+        uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateXYZ", "xformOp:scale"]
+    }
+
+    def Xform "Instance_48" (
+        customData = {
+            dictionary ranim = {
+                string animClip = "Armature|Jump2"
+                int animClipNr = 3
+                bool swapYZAxis = 0
+            }
+        }
+        prepend references = @animated_woman/Animated_Woman.asset.usda@
+    )
+    {
+        float3 xformOp:rotateXYZ = (0, -52, 0)
+        float3 xformOp:scale = (1, 1, 1)
+        double3 xformOp:translate = (2, 0, -8)
+        uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateXYZ", "xformOp:scale"]
+    }
+
+    def Xform "Instance_49" (
+        customData = {
+            dictionary ranim = {
+                string animClip = "Armature|Idle"
+                int animClipNr = 1
+                bool swapYZAxis = 0
+            }
+        }
+        prepend references = @animated_woman/Animated_Woman.asset.usda@
+    )
+    {
+        float3 xformOp:rotateXYZ = (0, -13, 0)
+        float3 xformOp:scale = (1, 1, 1)
+        double3 xformOp:translate = (23, 0, 8)
+        uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateXYZ", "xformOp:scale"]
+    }
+
+    def Xform "Instance_50" (
+        customData = {
+            dictionary ranim = {
+                string animClip = "Armature|PickUp"
+                int animClipNr = 4
+                bool swapYZAxis = 0
+            }
+        }
+        prepend references = @animated_woman/Animated_Woman.asset.usda@
+    )
+    {
+        float3 xformOp:rotateXYZ = (0, -47, 0)
+        float3 xformOp:scale = (1, 1, 1)
+        double3 xformOp:translate = (-15, 0, -8)
+        uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateXYZ", "xformOp:scale"]
+    }
+
+    def Xform "Instance_51" (
+        customData = {
+            dictionary ranim = {
+                string animClip = "Armature|Idle"
+                int animClipNr = 1
+                bool swapYZAxis = 0
+            }
+        }
+        prepend references = @animated_woman/Animated_Woman.asset.usda@
+    )
+    {
+        float3 xformOp:rotateXYZ = (0, 35, 0)
+        float3 xformOp:scale = (1, 1, 1)
+        double3 xformOp:translate = (-16, 0, -9)
+        uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateXYZ", "xformOp:scale"]
+    }
+
+    def Xform "Instance_52" (
+        customData = {
+            dictionary ranim = {
+                string animClip = "Armature|Running"
+                int animClipNr = 6
+                bool swapYZAxis = 0
+            }
+        }
+        prepend references = @animated_woman/Animated_Woman.asset.usda@
+    )
+    {
+        float3 xformOp:rotateXYZ = (0, 139, 0)
+        float3 xformOp:scale = (1, 1, 1)
+        double3 xformOp:translate = (-25, 0, 24)
+        uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateXYZ", "xformOp:scale"]
+    }
+
+    def Xform "Instance_53" (
+        customData = {
+            dictionary ranim = {
+                string animClip = "Armature|Sitting"
+                int animClipNr = 8
+                bool swapYZAxis = 0
+            }
+        }
+        prepend references = @animated_woman/Animated_Woman.asset.usda@
+    )
+    {
+        float3 xformOp:rotateXYZ = (0, -76, 0)
+        float3 xformOp:scale = (1, 1, 1)
+        double3 xformOp:translate = (23, 0, -22)
+        uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateXYZ", "xformOp:scale"]
+    }
+
+    def Xform "Instance_54" (
+        customData = {
+            dictionary ranim = {
+                string animClip = "Armature|Jump"
+                int animClipNr = 2
+                bool swapYZAxis = 0
+            }
+        }
+        prepend references = @animated_woman/Animated_Woman.asset.usda@
+    )
+    {
+        float3 xformOp:rotateXYZ = (0, 49, 0)
+        float3 xformOp:scale = (1, 1, 1)
+        double3 xformOp:translate = (19, 0, -16)
+        uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateXYZ", "xformOp:scale"]
+    }
+
+    def Xform "Instance_55" (
+        customData = {
+            dictionary ranim = {
+                string animClip = "Armature|Jump2"
+                int animClipNr = 3
+                bool swapYZAxis = 0
+            }
+        }
+        prepend references = @animated_woman/Animated_Woman.asset.usda@
+    )
+    {
+        float3 xformOp:rotateXYZ = (0, 33, 0)
+        float3 xformOp:scale = (1, 1, 1)
+        double3 xformOp:translate = (20, 0, 10)
+        uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateXYZ", "xformOp:scale"]
+    }
+
+    def Xform "Instance_56" (
+        customData = {
+            dictionary ranim = {
+                string animClip = "Armature|Jump2"
+                int animClipNr = 3
+                bool swapYZAxis = 0
+            }
+        }
+        prepend references = @animated_woman/Animated_Woman.asset.usda@
+    )
+    {
+        float3 xformOp:rotateXYZ = (0, -26, 0)
+        float3 xformOp:scale = (1, 1, 1)
+        double3 xformOp:translate = (-2, 0, 12)
+        uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateXYZ", "xformOp:scale"]
+    }
+
+    def Xform "Instance_57" (
+        customData = {
+            dictionary ranim = {
+                string animClip = "Armature|Sitting"
+                int animClipNr = 8
+                bool swapYZAxis = 0
+            }
+        }
+        prepend references = @animated_woman/Animated_Woman.asset.usda@
+    )
+    {
+        float3 xformOp:rotateXYZ = (0, -42, 0)
+        float3 xformOp:scale = (1, 1, 1)
+        double3 xformOp:translate = (23, 0, -25)
+        uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateXYZ", "xformOp:scale"]
+    }
+
+    def Xform "Instance_58" (
+        customData = {
+            dictionary ranim = {
+                string animClip = "Armature|Idle"
+                int animClipNr = 1
+                bool swapYZAxis = 0
+            }
+        }
+        prepend references = @animated_woman/Animated_Woman.asset.usda@
+    )
+    {
+        float3 xformOp:rotateXYZ = (0, -142, 0)
+        float3 xformOp:scale = (1, 1, 1)
+        double3 xformOp:translate = (5, 0, 21)
+        uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateXYZ", "xformOp:scale"]
+    }
+
+    def Xform "Instance_59" (
+        customData = {
+            dictionary ranim = {
+                string animClip = "Armature|SitIdle"
+                int animClipNr = 7
+                bool swapYZAxis = 0
+            }
+        }
+        prepend references = @animated_woman/Animated_Woman.asset.usda@
+    )
+    {
+        float3 xformOp:rotateXYZ = (0, 109, 0)
+        float3 xformOp:scale = (1, 1, 1)
+        double3 xformOp:translate = (14, 0, 23)
+        uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateXYZ", "xformOp:scale"]
+    }
+
+    def Xform "Instance_60" (
+        customData = {
+            dictionary ranim = {
+                string animClip = "Armature|Jump"
+                int animClipNr = 2
+                bool swapYZAxis = 0
+            }
+        }
+        prepend references = @animated_woman/Animated_Woman.asset.usda@
+    )
+    {
+        float3 xformOp:rotateXYZ = (0, -2, 0)
+        float3 xformOp:scale = (1, 1, 1)
+        double3 xformOp:translate = (-3, 0, -3)
+        uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateXYZ", "xformOp:scale"]
+    }
+
+    def Xform "Instance_61" (
+        customData = {
+            dictionary ranim = {
+                string animClip = "Armature|SitIdle"
+                int animClipNr = 7
+                bool swapYZAxis = 0
+            }
+        }
+        prepend references = @animated_woman/Animated_Woman.asset.usda@
+    )
+    {
+        float3 xformOp:rotateXYZ = (0, 10, 0)
+        float3 xformOp:scale = (1, 1, 1)
+        double3 xformOp:translate = (13, 0, 4)
+        uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateXYZ", "xformOp:scale"]
+    }
+
+    def Xform "Instance_62" (
+        customData = {
+            dictionary ranim = {
+                string animClip = "Armature|Sitting"
+                int animClipNr = 8
+                bool swapYZAxis = 0
+            }
+        }
+        prepend references = @animated_woman/Animated_Woman.asset.usda@
+    )
+    {
+        float3 xformOp:rotateXYZ = (0, -165, 0)
+        float3 xformOp:scale = (1, 1, 1)
+        double3 xformOp:translate = (-17, 0, 16)
+        uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateXYZ", "xformOp:scale"]
+    }
+
+    def Xform "Instance_63" (
+        customData = {
+            dictionary ranim = {
+                string animClip = "Armature|PickUp"
+                int animClipNr = 4
+                bool swapYZAxis = 0
+            }
+        }
+        prepend references = @animated_woman/Animated_Woman.asset.usda@
+    )
+    {
+        float3 xformOp:rotateXYZ = (0, -178, 0)
+        float3 xformOp:scale = (1, 1, 1)
+        double3 xformOp:translate = (-19, 0, -14)
+        uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateXYZ", "xformOp:scale"]
+    }
+
+    def Xform "Instance_64" (
+        customData = {
+            dictionary ranim = {
+                string animClip = "Armature|Running"
+                int animClipNr = 6
+                bool swapYZAxis = 0
+            }
+        }
+        prepend references = @animated_woman/Animated_Woman.asset.usda@
+    )
+    {
+        float3 xformOp:rotateXYZ = (0, -12, 0)
+        float3 xformOp:scale = (1, 1, 1)
+        double3 xformOp:translate = (-3, 0, -20)
+        uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateXYZ", "xformOp:scale"]
+    }
+
+    def Xform "Instance_65" (
+        customData = {
+            dictionary ranim = {
+                string animClip = "Armature|Jump2"
+                int animClipNr = 3
+                bool swapYZAxis = 0
+            }
+        }
+        prepend references = @animated_woman/Animated_Woman.asset.usda@
+    )
+    {
+        float3 xformOp:rotateXYZ = (0, -25, 0)
+        float3 xformOp:scale = (1, 1, 1)
+        double3 xformOp:translate = (-13, 0, 11)
+        uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateXYZ", "xformOp:scale"]
+    }
+
+    def Xform "Instance_66" (
+        customData = {
+            dictionary ranim = {
+                string animClip = "Armature|Running"
+                int animClipNr = 6
+                bool swapYZAxis = 0
+            }
+        }
+        prepend references = @animated_woman/Animated_Woman.asset.usda@
+    )
+    {
+        float3 xformOp:rotateXYZ = (0, -96, 0)
+        float3 xformOp:scale = (1, 1, 1)
+        double3 xformOp:translate = (-6, 0, 17)
+        uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateXYZ", "xformOp:scale"]
+    }
+
+    def Xform "Instance_67" (
+        customData = {
+            dictionary ranim = {
+                string animClip = "Armature|Idle"
+                int animClipNr = 1
+                bool swapYZAxis = 0
+            }
+        }
+        prepend references = @animated_woman/Animated_Woman.asset.usda@
+    )
+    {
+        float3 xformOp:rotateXYZ = (0, 62, 0)
+        float3 xformOp:scale = (1, 1, 1)
+        double3 xformOp:translate = (6, 0, 23)
+        uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateXYZ", "xformOp:scale"]
+    }
+
+    def Xform "Instance_68" (
+        customData = {
+            dictionary ranim = {
+                string animClip = "Armature|Running"
+                int animClipNr = 6
+                bool swapYZAxis = 0
+            }
+        }
+        prepend references = @animated_woman/Animated_Woman.asset.usda@
+    )
+    {
+        float3 xformOp:rotateXYZ = (0, 137, 0)
+        float3 xformOp:scale = (1, 1, 1)
+        double3 xformOp:translate = (-4, 0, 24)
+        uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateXYZ", "xformOp:scale"]
+    }
+
+    def Xform "Instance_69" (
+        customData = {
+            dictionary ranim = {
+                string animClip = "Armature|Jump"
+                int animClipNr = 2
+                bool swapYZAxis = 0
+            }
+        }
+        prepend references = @animated_woman/Animated_Woman.asset.usda@
+    )
+    {
+        float3 xformOp:rotateXYZ = (0, -145, 0)
+        float3 xformOp:scale = (1, 1, 1)
+        double3 xformOp:translate = (17, 0, 14)
+        uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateXYZ", "xformOp:scale"]
+    }
+
+    def Xform "Instance_70" (
+        customData = {
+            dictionary ranim = {
+                string animClip = "Armature|Walking"
+                int animClipNr = 9
+                bool swapYZAxis = 0
+            }
+        }
+        prepend references = @animated_woman/Animated_Woman.asset.usda@
+    )
+    {
+        float3 xformOp:rotateXYZ = (0, -57, 0)
+        float3 xformOp:scale = (1, 1, 1)
+        double3 xformOp:translate = (-25, 0, -15)
+        uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateXYZ", "xformOp:scale"]
+    }
+
+    def Xform "Instance_71" (
+        customData = {
+            dictionary ranim = {
+                string animClip = "Armature|Walking"
+                int animClipNr = 9
+                bool swapYZAxis = 0
+            }
+        }
+        prepend references = @animated_woman/Animated_Woman.asset.usda@
+    )
+    {
+        float3 xformOp:rotateXYZ = (0, -99, 0)
+        float3 xformOp:scale = (1, 1, 1)
+        double3 xformOp:translate = (-14, 0, 13)
+        uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateXYZ", "xformOp:scale"]
+    }
+
+    def Xform "Instance_72" (
+        customData = {
+            dictionary ranim = {
+                string animClip = "Armature|Punch"
+                int animClipNr = 5
+                bool swapYZAxis = 0
+            }
+        }
+        prepend references = @animated_woman/Animated_Woman.asset.usda@
+    )
+    {
+        float3 xformOp:rotateXYZ = (0, 142, 0)
+        float3 xformOp:scale = (1, 1, 1)
+        double3 xformOp:translate = (-20, 0, -2)
+        uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateXYZ", "xformOp:scale"]
+    }
+
+    def Xform "Instance_73" (
+        customData = {
+            dictionary ranim = {
+                string animClip = "Armature|Running"
+                int animClipNr = 6
+                bool swapYZAxis = 0
+            }
+        }
+        prepend references = @animated_woman/Animated_Woman.asset.usda@
+    )
+    {
+        float3 xformOp:rotateXYZ = (0, -92, 0)
+        float3 xformOp:scale = (1, 1, 1)
+        double3 xformOp:translate = (7, 0, 10)
+        uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateXYZ", "xformOp:scale"]
+    }
+
+    def Xform "Instance_74" (
+        customData = {
+            dictionary ranim = {
+                string animClip = "Armature|Jump"
+                int animClipNr = 2
+                bool swapYZAxis = 0
+            }
+        }
+        prepend references = @animated_woman/Animated_Woman.asset.usda@
+    )
+    {
+        float3 xformOp:rotateXYZ = (0, -68, 0)
+        float3 xformOp:scale = (1, 1, 1)
+        double3 xformOp:translate = (-8, 0, -18)
+        uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateXYZ", "xformOp:scale"]
+    }
+
+    def Xform "Instance_75" (
+        customData = {
+            dictionary ranim = {
+                string animClip = "Armature|Walking"
+                int animClipNr = 9
+                bool swapYZAxis = 0
+            }
+        }
+        prepend references = @animated_woman/Animated_Woman.asset.usda@
+    )
+    {
+        float3 xformOp:rotateXYZ = (0, -19, 0)
+        float3 xformOp:scale = (1, 1, 1)
+        double3 xformOp:translate = (-6, 0, -21)
+        uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateXYZ", "xformOp:scale"]
+    }
+
+    def Xform "Instance_76" (
+        customData = {
+            dictionary ranim = {
+                string animClip = "Armature|Jump"
+                int animClipNr = 2
+                bool swapYZAxis = 0
+            }
+        }
+        prepend references = @animated_woman/Animated_Woman.asset.usda@
+    )
+    {
+        float3 xformOp:rotateXYZ = (0, 28, 0)
+        float3 xformOp:scale = (1, 1, 1)
+        double3 xformOp:translate = (1, 0, 4)
+        uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateXYZ", "xformOp:scale"]
+    }
+
+    def Xform "Instance_77" (
+        customData = {
+            dictionary ranim = {
+                string animClip = "Armature|Walking"
+                int animClipNr = 9
+                bool swapYZAxis = 0
+            }
+        }
+        prepend references = @animated_woman/Animated_Woman.asset.usda@
+    )
+    {
+        float3 xformOp:rotateXYZ = (0, 14, 0)
+        float3 xformOp:scale = (1, 1, 1)
+        double3 xformOp:translate = (0, 0, -20)
+        uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateXYZ", "xformOp:scale"]
+    }
+
+    def Xform "Instance_78" (
+        customData = {
+            dictionary ranim = {
+                string animClip = "Armature|Death"
+                int animClipNr = 0
+                bool swapYZAxis = 0
+            }
+        }
+        prepend references = @animated_woman/Animated_Woman.asset.usda@
+    )
+    {
+        float3 xformOp:rotateXYZ = (0, 85, 0)
+        float3 xformOp:scale = (1, 1, 1)
+        double3 xformOp:translate = (16, 0, -13)
+        uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateXYZ", "xformOp:scale"]
+    }
+
+    def Xform "Instance_79" (
+        customData = {
+            dictionary ranim = {
+                string animClip = "Armature|Jump2"
+                int animClipNr = 3
+                bool swapYZAxis = 0
+            }
+        }
+        prepend references = @animated_woman/Animated_Woman.asset.usda@
+    )
+    {
+        float3 xformOp:rotateXYZ = (0, 119, 0)
+        float3 xformOp:scale = (1, 1, 1)
+        double3 xformOp:translate = (-7, 0, -22)
+        uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateXYZ", "xformOp:scale"]
+    }
+
+    def Xform "Instance_80" (
+        customData = {
+            dictionary ranim = {
+                string animClip = "Armature|Walking"
+                int animClipNr = 9
+                bool swapYZAxis = 0
+            }
+        }
+        prepend references = @animated_woman/Animated_Woman.asset.usda@
+    )
+    {
+        float3 xformOp:rotateXYZ = (0, -53, 0)
+        float3 xformOp:scale = (1, 1, 1)
+        double3 xformOp:translate = (4, 0, 21)
+        uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateXYZ", "xformOp:scale"]
+    }
+
+    def Xform "Instance_81" (
+        customData = {
+            dictionary ranim = {
+                string animClip = "Armature|Walking"
+                int animClipNr = 9
+                bool swapYZAxis = 0
+            }
+        }
+        prepend references = @animated_woman/Animated_Woman.asset.usda@
+    )
+    {
+        float3 xformOp:rotateXYZ = (0, -114, 0)
+        float3 xformOp:scale = (1, 1, 1)
+        double3 xformOp:translate = (24, 0, 12)
+        uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateXYZ", "xformOp:scale"]
+    }
+
+    def Xform "Instance_82" (
+        customData = {
+            dictionary ranim = {
+                string animClip = "Armature|Running"
+                int animClipNr = 6
+                bool swapYZAxis = 0
+            }
+        }
+        prepend references = @animated_woman/Animated_Woman.asset.usda@
+    )
+    {
+        float3 xformOp:rotateXYZ = (0, -123, 0)
+        float3 xformOp:scale = (1, 1, 1)
+        double3 xformOp:translate = (18, 0, 20)
+        uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateXYZ", "xformOp:scale"]
+    }
+
+    def Xform "Instance_83" (
+        customData = {
+            dictionary ranim = {
+                string animClip = "Armature|Jump"
+                int animClipNr = 2
+                bool swapYZAxis = 0
+            }
+        }
+        prepend references = @animated_woman/Animated_Woman.asset.usda@
+    )
+    {
+        float3 xformOp:rotateXYZ = (0, -172, 0)
+        float3 xformOp:scale = (1, 1, 1)
+        double3 xformOp:translate = (11, 0, -20)
+        uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateXYZ", "xformOp:scale"]
+    }
+
+    def Xform "Instance_84" (
+        customData = {
+            dictionary ranim = {
+                string animClip = "Armature|Idle"
+                int animClipNr = 1
+                bool swapYZAxis = 0
+            }
+        }
+        prepend references = @animated_woman/Animated_Woman.asset.usda@
+    )
+    {
+        float3 xformOp:rotateXYZ = (0, -66, 0)
+        float3 xformOp:scale = (1, 1, 1)
+        double3 xformOp:translate = (-20, 0, 9)
+        uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateXYZ", "xformOp:scale"]
+    }
+
+    def Xform "Instance_85" (
+        customData = {
+            dictionary ranim = {
+                string animClip = "Armature|Jump2"
+                int animClipNr = 3
+                bool swapYZAxis = 0
+            }
+        }
+        prepend references = @animated_woman/Animated_Woman.asset.usda@
+    )
+    {
+        float3 xformOp:rotateXYZ = (0, -154, 0)
+        float3 xformOp:scale = (1, 1, 1)
+        double3 xformOp:translate = (-9, 0, -4)
+        uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateXYZ", "xformOp:scale"]
+    }
+
+    def Xform "Instance_86" (
+        customData = {
+            dictionary ranim = {
+                string animClip = "Armature|Jump2"
+                int animClipNr = 3
+                bool swapYZAxis = 0
+            }
+        }
+        prepend references = @animated_woman/Animated_Woman.asset.usda@
+    )
+    {
+        float3 xformOp:rotateXYZ = (0, 45, 0)
+        float3 xformOp:scale = (1, 1, 1)
+        double3 xformOp:translate = (-12, 0, -20)
+        uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateXYZ", "xformOp:scale"]
+    }
+
+    def Xform "Instance_87" (
+        customData = {
+            dictionary ranim = {
+                string animClip = "Armature|Punch"
+                int animClipNr = 5
+                bool swapYZAxis = 0
+            }
+        }
+        prepend references = @animated_woman/Animated_Woman.asset.usda@
+    )
+    {
+        float3 xformOp:rotateXYZ = (0, -148, 0)
+        float3 xformOp:scale = (1, 1, 1)
+        double3 xformOp:translate = (-13, 0, -17)
+        uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateXYZ", "xformOp:scale"]
+    }
+
+    def Xform "Instance_88" (
+        customData = {
+            dictionary ranim = {
+                string animClip = "Armature|Sitting"
+                int animClipNr = 8
+                bool swapYZAxis = 0
+            }
+        }
+        prepend references = @animated_woman/Animated_Woman.asset.usda@
+    )
+    {
+        float3 xformOp:rotateXYZ = (0, 61, 0)
+        float3 xformOp:scale = (1, 1, 1)
+        double3 xformOp:translate = (-12, 0, -19)
+        uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateXYZ", "xformOp:scale"]
+    }
+
+    def Xform "Instance_89" (
+        customData = {
+            dictionary ranim = {
+                string animClip = "Armature|PickUp"
+                int animClipNr = 4
+                bool swapYZAxis = 0
+            }
+        }
+        prepend references = @animated_woman/Animated_Woman.asset.usda@
+    )
+    {
+        float3 xformOp:rotateXYZ = (0, -59, 0)
+        float3 xformOp:scale = (1, 1, 1)
+        double3 xformOp:translate = (21, 0, 7)
+        uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateXYZ", "xformOp:scale"]
+    }
+
+    def Xform "Instance_90" (
+        customData = {
+            dictionary ranim = {
+                string animClip = "Armature|Idle"
+                int animClipNr = 1
+                bool swapYZAxis = 0
+            }
+        }
+        prepend references = @animated_woman/Animated_Woman.asset.usda@
+    )
+    {
+        float3 xformOp:rotateXYZ = (0, 109, 0)
+        float3 xformOp:scale = (1, 1, 1)
+        double3 xformOp:translate = (21, 0, -3)
+        uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateXYZ", "xformOp:scale"]
+    }
+
+    def Xform "Instance_91" (
+        customData = {
+            dictionary ranim = {
+                string animClip = "Armature|Running"
+                int animClipNr = 6
+                bool swapYZAxis = 0
+            }
+        }
+        prepend references = @animated_woman/Animated_Woman.asset.usda@
+    )
+    {
+        float3 xformOp:rotateXYZ = (0, -167, 0)
+        float3 xformOp:scale = (1, 1, 1)
+        double3 xformOp:translate = (10, 0, -25)
+        uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateXYZ", "xformOp:scale"]
+    }
+
+    def Xform "Instance_92" (
+        customData = {
+            dictionary ranim = {
+                string animClip = "Armature|Walking"
+                int animClipNr = 9
+                bool swapYZAxis = 0
+            }
+        }
+        prepend references = @animated_woman/Animated_Woman.asset.usda@
+    )
+    {
+        float3 xformOp:rotateXYZ = (0, -168, 0)
+        float3 xformOp:scale = (1, 1, 1)
+        double3 xformOp:translate = (19, 0, -16)
+        uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateXYZ", "xformOp:scale"]
+    }
+
+    def Xform "Instance_93" (
+        customData = {
+            dictionary ranim = {
+                string animClip = "Armature|Death"
+                int animClipNr = 0
+                bool swapYZAxis = 0
+            }
+        }
+        prepend references = @animated_woman/Animated_Woman.asset.usda@
+    )
+    {
+        float3 xformOp:rotateXYZ = (0, 54, 0)
+        float3 xformOp:scale = (1, 1, 1)
+        double3 xformOp:translate = (-22, 0, -1)
+        uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateXYZ", "xformOp:scale"]
+    }
+
+    def Xform "Instance_94" (
+        customData = {
+            dictionary ranim = {
+                string animClip = "Armature|Jump2"
+                int animClipNr = 3
+                bool swapYZAxis = 0
+            }
+        }
+        prepend references = @animated_woman/Animated_Woman.asset.usda@
+    )
+    {
+        float3 xformOp:rotateXYZ = (0, 46, 0)
+        float3 xformOp:scale = (1, 1, 1)
+        double3 xformOp:translate = (20, 0, 24)
+        uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateXYZ", "xformOp:scale"]
+    }
+
+    def Xform "Instance_95" (
+        customData = {
+            dictionary ranim = {
+                string animClip = "Armature|Sitting"
+                int animClipNr = 8
+                bool swapYZAxis = 0
+            }
+        }
+        prepend references = @animated_woman/Animated_Woman.asset.usda@
+    )
+    {
+        float3 xformOp:rotateXYZ = (0, -172, 0)
+        float3 xformOp:scale = (1, 1, 1)
+        double3 xformOp:translate = (-1, 0, -3)
+        uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateXYZ", "xformOp:scale"]
+    }
+
+    def Xform "Instance_96" (
+        customData = {
+            dictionary ranim = {
+                string animClip = "Armature|Idle"
+                int animClipNr = 1
+                bool swapYZAxis = 0
+            }
+        }
+        prepend references = @animated_woman/Animated_Woman.asset.usda@
+    )
+    {
+        float3 xformOp:rotateXYZ = (0, 138, 0)
+        float3 xformOp:scale = (1, 1, 1)
+        double3 xformOp:translate = (12, 0, -20)
+        uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateXYZ", "xformOp:scale"]
+    }
+
+    def Xform "Instance_97" (
+        customData = {
+            dictionary ranim = {
+                string animClip = "Armature|PickUp"
+                int animClipNr = 4
+                bool swapYZAxis = 0
+            }
+        }
+        prepend references = @animated_woman/Animated_Woman.asset.usda@
+    )
+    {
+        float3 xformOp:rotateXYZ = (0, 17, 0)
+        float3 xformOp:scale = (1, 1, 1)
+        double3 xformOp:translate = (-23, 0, 0)
+        uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateXYZ", "xformOp:scale"]
+    }
+
+    def Xform "Instance_98" (
+        customData = {
+            dictionary ranim = {
+                string animClip = "Armature|PickUp"
+                int animClipNr = 4
+                bool swapYZAxis = 0
+            }
+        }
+        prepend references = @animated_woman/Animated_Woman.asset.usda@
+    )
+    {
+        float3 xformOp:rotateXYZ = (0, -6, 0)
+        float3 xformOp:scale = (1, 1, 1)
+        double3 xformOp:translate = (-11, 0, -1)
+        uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateXYZ", "xformOp:scale"]
+    }
+
+    def Xform "Instance_99" (
+        customData = {
+            dictionary ranim = {
+                string animClip = "Armature|Death"
+                int animClipNr = 0
+                bool swapYZAxis = 0
+            }
+        }
+        prepend references = @animated_woman/Animated_Woman.asset.usda@
+    )
+    {
+        float3 xformOp:rotateXYZ = (0, 133, 0)
+        float3 xformOp:scale = (1, 1, 1)
+        double3 xformOp:translate = (-3, 0, -16)
+        uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateXYZ", "xformOp:scale"]
+    }
+
+    def Xform "Instance_100" (
+        customData = {
+            dictionary ranim = {
+                string animClip = "Armature|SitIdle"
+                int animClipNr = 7
+                bool swapYZAxis = 0
+            }
+        }
+        prepend references = @animated_woman/Animated_Woman.asset.usda@
+    )
+    {
+        float3 xformOp:rotateXYZ = (0, 138, 0)
+        float3 xformOp:scale = (1, 1, 1)
+        double3 xformOp:translate = (12, 0, 22)
+        uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateXYZ", "xformOp:scale"]
+    }
+}
+

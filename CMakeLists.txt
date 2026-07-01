@@ -59,6 +59,11 @@ include(CMake/imgui_options.cmake)
 
 include(CMake/imgui_file_dialog_options.cmake)
 
+# vcpkg-delivered dependencies (OpenUSD + Vulkan validation layer). Probed here; samples opt in per
+# target via ranim_target_use_usd() / ranim_target_use_vulkan_validation_layer(). Not linked globally.
+include(CMake/usd_options.cmake)
+include(CMake/vulkan_validation_options.cmake)
+
 # Assets
 set(ASSETS_SRC_DIR "${CMAKE_SOURCE_DIR}/Assets")
 add_compile_definitions(ASSETS_SRC_DIR="${ASSETS_SRC_DIR}")
@@ -67,6 +72,14 @@ add_compile_definitions(SHADER_SRC_DIR="${SHADER_SRC_DIR}")
 
 add_subdirectory(Samples/SkeletalAnimation)
 add_subdirectory(Samples/SkeletalAnimCompute)
+
+# Samples that load OpenUSD assets are only added when USD is available (see CMake/usd_options.cmake).
+# Future USD-dependent samples go under the same guard.
+if(RANIM_HAS_USD)
+    add_subdirectory(Samples/SkeletalAnimHelper)
+else()
+    message(STATUS "Skipping USD-dependent samples (OpenUSD not found): SkeletalAnimHelper.")
+endif()
 
 function(get_all_targets result dir)
     get_property(subdirs DIRECTORY ${dir} PROPERTY SUBDIRECTORIES)
