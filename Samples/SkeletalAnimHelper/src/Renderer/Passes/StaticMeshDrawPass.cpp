@@ -220,6 +220,9 @@ namespace RAnimation
     void StaticMeshDrawPass::Upload(FrameContext& context)
     {
         // ---- Camera upload (always runs) ----
+        // Canonical engine space: Y-up world, right-handed view (lookAtRH), RH_ZO clip (z in [0,1]).
+        // Azimuth is measured from +X toward +Z; Renderer::FocusCameraOnPoint mirrors this with
+        // atan2(dir.z, dir.x) / asin(dir.y) - keep both in sync.
         mMatrixGenerateTimer.Start();
         const RRenderData& rd = context.renderData;
         glm::vec3 forward = glm::normalize(glm::vec3(

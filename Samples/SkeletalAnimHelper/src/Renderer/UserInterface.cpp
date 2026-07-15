@@ -706,15 +706,6 @@ void UserInterface::CreateFrame(RRenderData& renderData, SceneEditor& sceneEdito
 
             ImGui::BeginDisabled(!editMode);
 
-            const bool swapBefore = settings.mSwapYZAxis;
-            if (ImGui::Checkbox("Swap Y/Z", &settings.mSwapYZAxis))
-            {
-                // Discrete toggle: record immediately with the pre-toggle value as "before".
-                InstanceSettings before = settings;
-                before.mSwapYZAxis = swapBefore;
-                sceneEditor.RecordInstanceEdit(instance, before, settings, "Toggle Swap Y/Z");
-            }
-
             ImGui::SliderFloat3(
                     "World Position", glm::value_ptr(settings.mWorldPosition), -25.0f, 25.0f, "%.2f", sliderFlags);
             trackSettingsEdit(sceneEditor, instance, settings, "Move Instance");

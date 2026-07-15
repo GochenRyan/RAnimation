@@ -10,7 +10,6 @@
 #include <Renderer/RenderResourceRegistry.h>
 #include <Renderer/SceneFrameData.h>
 #include <Tools/Timer.h>
-#include <Tools/Camera.h>
 
 struct SDL_Window;
 
@@ -87,8 +86,6 @@ namespace RAnimation
         Timer mFrameTimer{};
 
         uint32_t mFrameIndex = 0;
-
-        Camera mCamera;
 
         // Per-frame scene state. Filled by Renderer::Draw (modelInstData/hasSceneGeometry) and
         // by AnimationTransformComputePass::Upload (animatedDispatches/uploadedBoneOffsetMatrixCount).

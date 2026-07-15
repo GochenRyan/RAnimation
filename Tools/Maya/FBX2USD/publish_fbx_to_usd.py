@@ -13,9 +13,12 @@ import maya.cmds as cmds
 import maya.mel as mel
 
 
-# Stage metrics (metersPerUnit / upAxis) captured from the live Maya session and authored onto the
-# composed layers, so a runtime that opens the asset gets correct units/orientation instead of the USD
-# fallback (0.01 m/unit, Y-up). Populated by _capture_stage_metrics() while a scene is loaded.
+# Canonical output space contract: every published layer is Y-up, right-handed, METRES
+# (metersPerUnit = 1.0, values themselves in metres), rightHanded winding. Up-axis is enforced at FBX
+# import (Maya prefs forced to Y + FBX axis conversion); unit conversion happens as a deterministic
+# USD-side pass (canonicalize_usd_layer) because mayaUSDExport always writes Maya-internal centimetre
+# values regardless of UI unit. _STAGE_METRICS therefore always holds the canonical values; the Maya
+# session units are only printed for the audit trail.
 _STAGE_METRICS: Dict[str, Any] = {"metersPerUnit": None, "upAxis": None}
 
 _LINEAR_UNIT_TO_METERS = {
@@ -30,18 +33,18 @@ _LINEAR_UNIT_TO_METERS = {
 
 
 def _capture_stage_metrics() -> None:
-    """Record Maya's working linear unit and up axis for later authoring onto USD stages."""
+    """Force canonical stage metrics ({1.0, Y}); print what Maya reports for the audit trail."""
     try:
         linear = cmds.currentUnit(query=True, linear=True)
         up = cmds.upAxis(query=True, axis=True)
     except Exception as exc:
+        linear, up = "?", "?"
         print("Warning: could not query Maya units:", exc)
-        return
 
-    _STAGE_METRICS["metersPerUnit"] = _LINEAR_UNIT_TO_METERS.get(str(linear), 0.01)
-    _STAGE_METRICS["upAxis"] = "Z" if str(up).lower() == "z" else "Y"
-    print("Stage metrics: metersPerUnit={} upAxis={} (Maya linear='{}')".format(
-        _STAGE_METRICS["metersPerUnit"], _STAGE_METRICS["upAxis"], linear))
+    _STAGE_METRICS["metersPerUnit"] = 1.0
+    _STAGE_METRICS["upAxis"] = "Y"
+    print("Stage metrics: canonical metersPerUnit=1.0 upAxis=Y (Maya session reported linear='{}' up='{}')".format(
+        linear, up))
 
 
 def _apply_stage_metrics(stage) -> None:
@@ -52,6 +55,88 @@ def _apply_stage_metrics(stage) -> None:
         UsdGeom.SetStageMetersPerUnit(stage, float(_STAGE_METRICS["metersPerUnit"]))
     if _STAGE_METRICS["upAxis"] is not None:
         UsdGeom.SetStageUpAxis(stage, _STAGE_METRICS["upAxis"])
+
+
+def canonicalize_usd_layer(usd_path: str) -> None:
+    """Convert a freshly exported layer to canonical space: values in METRES, metersPerUnit = 1.0.
+
+    mayaUSDExport writes Maya-internal centimetre values and stamps the layer's metersPerUnit
+    accordingly, so the layer is self-describing: multiplying every linear value by the layer's own
+    declared metersPerUnit yields metres regardless of what the Maya session reported. Rotations,
+    scales and normals (directions) are untouched; matrices keep their linear part and scale only the
+    translation (uniform-scale conjugation S*M*S^-1). Idempotent: a layer already at 1.0 is a no-op.
+    """
+    from pxr import Gf, Usd, UsdGeom, Vt
+
+    stage = _open_stage(usd_path)
+
+    up_axis = UsdGeom.GetStageUpAxis(stage)
+    if str(up_axis) != "Y":
+        raise RuntimeError(
+            "{}: exported with upAxis={} - unexpected, the FBX import path forces Y-up".format(usd_path, up_axis))
+
+    scale = float(UsdGeom.GetStageMetersPerUnit(stage))
+    if scale <= 0.0:
+        scale = 0.01  # USD fallback
+    if abs(scale - 1.0) > 1e-9:
+        def scale_vec_attr(attr) -> None:
+            """Scale a vec3-array or vec3 attribute (default value + every time sample)."""
+            def scaled(value):
+                if value is None:
+                    return None
+                if isinstance(value, (Vt.Vec3fArray, Vt.Vec3dArray, Vt.Vec3hArray)):
+                    return type(value)([v * scale for v in value])
+                return value * scale
+
+            times = attr.GetTimeSamples()
+            if times:
+                for t in times:
+                    attr.Set(scaled(attr.Get(t)), t)
+            if attr.HasAuthoredValueOpinion() and attr.Get() is not None:
+                attr.Set(scaled(attr.Get()))
+
+        def scale_matrix_translation(matrix):
+            matrix = Gf.Matrix4d(matrix)
+            matrix.SetTranslateOnly(matrix.ExtractTranslation() * scale)
+            return matrix
+
+        def scale_matrix_attr(attr) -> None:
+            """Scale the translation of a Matrix4d / Matrix4dArray attribute (default + samples)."""
+            def scaled(value):
+                if value is None:
+                    return None
+                if isinstance(value, Vt.Matrix4dArray):
+                    return Vt.Matrix4dArray([scale_matrix_translation(m) for m in value])
+                return scale_matrix_translation(value)
+
+            times = attr.GetTimeSamples()
+            if times:
+                for t in times:
+                    attr.Set(scaled(attr.Get(t)), t)
+            if attr.HasAuthoredValueOpinion() and attr.Get() is not None:
+                attr.Set(scaled(attr.Get()))
+
+        for prim in stage.Traverse():
+            type_name = str(prim.GetTypeName())
+
+            for attr in prim.GetAttributes():
+                name = attr.GetName()
+
+                if name.startswith("xformOp:translate"):
+                    scale_vec_attr(attr)
+                elif name.endswith("skel:geomBindTransform"):
+                    scale_matrix_attr(attr)
+                elif type_name == "Mesh" and name in ("points", "extent"):
+                    scale_vec_attr(attr)
+                elif type_name == "Skeleton" and name in ("bindTransforms", "restTransforms"):
+                    scale_matrix_attr(attr)
+                elif type_name == "SkelAnimation" and name == "translations":
+                    scale_vec_attr(attr)
+
+    UsdGeom.SetStageMetersPerUnit(stage, 1.0)
+    UsdGeom.SetStageUpAxis(stage, UsdGeom.Tokens.y)
+    stage.GetRootLayer().Save()
+    print("Canonicalized {} (linear scale applied: {})".format(usd_path, scale))
 
 
 def _mel_path(path: str) -> str:
@@ -137,11 +222,24 @@ def get_fbx_takes(fbx_path: str) -> List[Dict[str, Any]]:
 
 
 def import_fbx(fbx_path: str, take_index: Optional[int] = None) -> None:
-    """Import an FBX file into a clean Maya scene."""
+    """Import an FBX file into a clean Maya scene, normalized to Y-up.
+
+    This is the single choke point every export path goes through (the model export and each per-take
+    anim export all re-import), so scene-level normalization lives here. Handedness needs no branch:
+    Maya is right-handed and the FBX importer converts every source axis system into Maya's space, so a
+    left-handed source cannot reach the USD export - the mirror conversion (winding flip, tangent-w
+    rederivation) is intentionally not implemented.
+    """
     cmds.file(new=True, force=True)
     ensure_plugins()
 
+    # Canonical output is Y-up; force the session preference before import so the FBX axis conversion
+    # below targets Y-up regardless of how the user's Maya is configured.
+    if str(cmds.upAxis(query=True, axis=True)).lower() != "y":
+        cmds.upAxis(ax="y")
+
     mel.eval("FBXImportShowUI -v false;")
+    mel.eval("FBXImportAxisConversionEnable -v true;")
     mel.eval("FBXImportMode -v add;")
     mel.eval("FBXImportSkins -v true;")
     mel.eval("FBXImportShapes -v true;")
@@ -1237,7 +1335,9 @@ def validate_model_layers(paths: Dict[str, str]) -> None:
 
 
 def validate_asset_usd(asset_usd: str) -> None:
-    """Validate that asset.usda is referenceable."""
+    """Validate that asset.usda is referenceable and in canonical space (Y-up, metres, rightHanded)."""
+    from pxr import UsdGeom, UsdSkel
+
     stage = _open_stage(asset_usd)
     default_prim = stage.GetDefaultPrim()
 
@@ -1245,6 +1345,33 @@ def validate_asset_usd(asset_usd: str) -> None:
         raise RuntimeError("asset.usda has no defaultPrim: {}".format(asset_usd))
 
     print("Asset USD defaultPrim:", default_prim.GetPath())
+
+    # Canonical-space tripwires (hard failures). These catch any regression where exported data is
+    # still centimetre-scale or mis-oriented, independent of what the canonicalize pass believed.
+    meters_per_unit = float(UsdGeom.GetStageMetersPerUnit(stage))
+    up_axis = str(UsdGeom.GetStageUpAxis(stage))
+    if meters_per_unit != 1.0 or up_axis != "Y":
+        raise RuntimeError(
+            "asset.usda is not canonical: metersPerUnit={} upAxis={} (expected 1.0 / Y): {}".format(
+                meters_per_unit, up_axis, asset_usd))
+
+    for prim in stage.Traverse():
+        if prim.IsA(UsdSkel.Skeleton):
+            bind_transforms = UsdSkel.Skeleton(prim).GetBindTransformsAttr().Get()
+            if bind_transforms:
+                root_translation = bind_transforms[0].ExtractTranslation()
+                if root_translation.GetLength() >= 10.0:
+                    raise RuntimeError(
+                        "Skeleton {} root-joint bind translation |{}| >= 10 - data looks centimetre-scale, "
+                        "not metres: {}".format(prim.GetPath(), root_translation, asset_usd))
+        if prim.IsA(UsdGeom.Mesh):
+            orientation = UsdGeom.Mesh(prim).GetOrientationAttr().Get()
+            if orientation is not None and str(orientation) == "leftHanded":
+                raise RuntimeError(
+                    "Mesh {} authors orientation=leftHanded (canonical is rightHanded): {}".format(
+                        prim.GetPath(), asset_usd))
+
+    print("Canonical-space validation passed: metersPerUnit=1.0 upAxis=Y winding=rightHanded")
 
 
 def _export_model_layers(
@@ -1274,6 +1401,9 @@ def _export_model_layers(
         mesh_roots=mesh_roots,
     )
 
+    # Convert to metres BEFORE splitting so every derived sublayer is canonical.
+    canonicalize_usd_layer(full_model_usd)
+
     model_layers = split_full_model_usd(
         full_model_usd=full_model_usd,
         model_dir=model_dir,
@@ -1283,6 +1413,33 @@ def _export_model_layers(
     validate_model_layers(model_layers)
 
     return model_layers
+
+
+def _validate_canonical_anim(anim_usd: str) -> None:
+    """Hard-fail if an anim layer is not canonical (metadata {1.0, Y}, metre-scale translations)."""
+    from pxr import UsdGeom, UsdSkel
+
+    stage = _open_stage(anim_usd)
+
+    meters_per_unit = float(UsdGeom.GetStageMetersPerUnit(stage))
+    up_axis = str(UsdGeom.GetStageUpAxis(stage))
+    if meters_per_unit != 1.0 or up_axis != "Y":
+        raise RuntimeError(
+            "Anim layer is not canonical: metersPerUnit={} upAxis={} (expected 1.0 / Y): {}".format(
+                meters_per_unit, up_axis, anim_usd))
+
+    for prim in stage.Traverse():
+        if not prim.IsA(UsdSkel.Animation):
+            continue
+        translations_attr = UsdSkel.Animation(prim).GetTranslationsAttr()
+        times = translations_attr.GetTimeSamples() or [None]
+        translations = translations_attr.Get(times[0]) if times[0] is not None else translations_attr.Get()
+        if translations:
+            max_norm = max(t.GetLength() for t in translations)
+            if max_norm >= 10.0:
+                raise RuntimeError(
+                    "SkelAnimation {} max joint translation {} >= 10 - data looks centimetre-scale, "
+                    "not metres: {}".format(prim.GetPath(), max_norm, anim_usd))
 
 
 def _export_one_anim_from_current_scene(
@@ -1305,8 +1462,12 @@ def _export_one_anim_from_current_scene(
         end_frame=end_frame,
     )
 
+    canonicalize_usd_layer(anim_usd)
+
     if clean_anim:
         clean_anim_usd(anim_usd)
+
+    _validate_canonical_anim(anim_usd)
 
     inspect_usd_anim(anim_usd)
 

@@ -4,6 +4,7 @@
 #include <Model/UsdSceneExporter.h>
 
 #include "UsdPluginRegistration.h"
+#include "UsdConversion.h"
 
 #include <algorithm>
 #include <filesystem>
@@ -70,6 +71,10 @@ namespace RAnimation
             return false;
         }
 
+        // Instance transforms below are already in canonical engine space (Y-up, metres) - declare it
+        // so external DCCs interpret the file correctly.
+        detail::usdconv::AuthorCanonicalStageMetadata(stage);
+
         UsdGeomXform sceneRoot = UsdGeomXform::Define(stage, SdfPath("/Scene"));
         stage->SetDefaultPrim(sceneRoot.GetPrim());
 
@@ -104,7 +109,6 @@ namespace RAnimation
 
             // editor state that is not part of the xform itself
             const InstanceSettings settings = instance->GetInstanceSettings();
-            prim.SetCustomDataByKey(TfToken("ranim:swapYZAxis"), VtValue(instance->GetSwapYZAxis()));
             // authoritative round-trip value; the clip name is written too for human readability
             prim.SetCustomDataByKey(TfToken("ranim:animClipNr"), VtValue(static_cast<int>(settings.mAnimClipNr)));
 
@@ -137,6 +141,24 @@ namespace RAnimation
         {
             fmt::print(stderr, fg(fmt::color::red), "UsdSceneExporter: could not open scene '{}'\n", scenePath);
             return false;
+        }
+
+        // Instance transforms are applied verbatim, so a non-canonical scene would silently misplace
+        // instances. Warn only when the metadata is actually authored - legacy engine exports carry none.
+        if (stage->HasAuthoredMetadata(UsdGeomTokens->upAxis) &&
+            UsdGeomGetStageUpAxis(stage) != UsdGeomTokens->y)
+        {
+            fmt::print(stderr, fg(fmt::color::yellow),
+                       "UsdSceneExporter: scene '{}' is not Y-up; instance transforms are applied verbatim\n",
+                       scenePath);
+        }
+        if (stage->HasAuthoredMetadata(UsdGeomTokens->metersPerUnit) &&
+            UsdGeomGetStageMetersPerUnit(stage) != detail::usdconv::kCanonicalMetersPerUnit)
+        {
+            fmt::print(stderr, fg(fmt::color::yellow),
+                       "UsdSceneExporter: scene '{}' has metersPerUnit != 1; instance transforms are applied "
+                       "verbatim\n",
+                       scenePath);
         }
 
         const SdfLayerHandle rootLayer = stage->GetRootLayer();
@@ -207,10 +229,15 @@ namespace RAnimation
             }
 
             // editor-only state stored as customData
+            // ranim:swapYZAxis was retired with the canonical-space contract; a legacy 'true' meant the
+            // scene relied on the removed per-instance axis flip, so tell the user to re-export.
             const VtValue swap = prim.GetCustomDataByKey(TfToken("ranim:swapYZAxis"));
-            if (swap.IsHolding<bool>())
+            if (swap.IsHolding<bool>() && swap.Get<bool>())
             {
-                imported.settings.mSwapYZAxis = swap.Get<bool>();
+                fmt::print(stderr, fg(fmt::color::yellow),
+                           "UsdSceneExporter: '{}' authors legacy ranim:swapYZAxis=1 - ignored; re-export the "
+                           "scene\n",
+                           prim.GetPath().GetString());
             }
             const VtValue clipNr = prim.GetCustomDataByKey(TfToken("ranim:animClipNr"));
             if (clipNr.IsHolding<int>())

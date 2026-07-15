@@ -68,12 +68,6 @@ void ModelInstance::SetScale(float scale)
     UpdateModelRootMatrix();
 }
 
-void ModelInstance::SetSwapYZAxis(bool value)
-{
-    mInstanceSettings.mSwapYZAxis = value;
-    UpdateModelRootMatrix();
-}
-
 glm::vec3 ModelInstance::GetTranslation()
 {
     return mInstanceSettings.mWorldPosition;
@@ -87,11 +81,6 @@ glm::vec3 ModelInstance::GetRotation()
 float ModelInstance::GetScale()
 {
     return mInstanceSettings.mScale;
-}
-
-bool ModelInstance::GetSwapYZAxis()
-{
-    return mInstanceSettings.mSwapYZAxis;
 }
 
 std::vector<glm::mat4> ModelInstance::GetBoneMatrices()
@@ -120,22 +109,12 @@ void ModelInstance::UpdateModelRootMatrix()
 
     mLocalScaleMatrix = glm::scale(glm::mat4(1.0f), glm::vec3(mInstanceSettings.mScale));
 
-    if (mInstanceSettings.mSwapYZAxis)
-    {
-        glm::mat4 flipMatrix = glm::rotate(glm::mat4(1.0f), glm::radians(-90.0f), glm::vec3(0.0f, 0.0f, 1.0f));
-        mLocalSwapAxisMatrix = glm::rotate(flipMatrix, glm::radians(-90.0f), glm::vec3(0.0f, 1.0f, 0.0f));
-    }
-    else
-    {
-        mLocalSwapAxisMatrix = glm::mat4(1.0f);
-    }
-
     glm::vec3 radians = glm::radians(mInstanceSettings.mWorldRotation);
     glm::quat q = glm::quat(radians);
     mLocalRotationMatrix = glm::mat4_cast(q);
 
     mLocalTranslationMatrix = glm::translate(glm::mat4(1.0f), mInstanceSettings.mWorldPosition);
-    mLocalTransformMatrix = mLocalTranslationMatrix * mLocalRotationMatrix * mLocalSwapAxisMatrix * mLocalScaleMatrix;
+    mLocalTransformMatrix = mLocalTranslationMatrix * mLocalRotationMatrix * mLocalScaleMatrix;
     mInstanceRootMatrix = mLocalTransformMatrix * mModelRootMatrix;
 }
 
