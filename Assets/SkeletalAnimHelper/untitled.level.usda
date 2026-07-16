@@ -1,16 +1,72 @@
 #usda 1.0
 (
     defaultPrim = "Scene"
+    metersPerUnit = 1
+    upAxis = "Y"
 )
 
-def Xform "Scene"
+def Xform "Scene" (
+    customData = {
+        dictionary ranim = {
+            int activeCamera = 3
+            dictionary cam0 = {
+                float far = 500
+                float fov = 60
+                float mouseSensitivity = 0.15
+                float moveSpeed = 5
+                float near = 0.1
+                float orthoHalfHeight = 5
+                float pitch = -34.481396
+                float3 position = (2.050069, 7.6334867, 7.293683)
+                int projection = 0
+                float yaw = 254.0546
+            }
+            dictionary cam1 = {
+                float3 eyeOffset = (0, 0.05, 0)
+                float far = 500
+                float forwardPush = 0.3
+                float fov = 60
+                string headBoneName = "Head"
+                float mouseSensitivity = 0.15
+                float near = 0.1
+                float orthoHalfHeight = 5
+                float pitch = -11.100001
+                int projection = 0
+                float roll = 0
+                float yaw = 15.900046
+            }
+            dictionary cam2 = {
+                float damping = 8
+                float distance = 5
+                float far = 500
+                float fov = 60
+                string headBoneName = "Head"
+                float mouseSensitivity = 0.15
+                float near = 0.1
+                float orthoHalfHeight = 5
+                float pitch = -28.199991
+                int projection = 0
+                float scrollSpeed = 1
+                float yaw = 263.84985
+            }
+            dictionary cam3 = {
+                float damping = 5
+                float far = 500
+                float fov = 83.8
+                float near = 0.1
+                float orthoHalfHeight = 5
+                float3 position = (33.08, 50, -50)
+                int projection = 0
+            }
+        }
+    }
+)
 {
     def Xform "Instance_0" (
         customData = {
             dictionary ranim = {
                 string animClip = "Armature|Death"
                 int animClipNr = 0
-                bool swapYZAxis = 0
             }
         }
         prepend references = @animated_woman/Animated_Woman.asset.usda@
@@ -27,7 +83,6 @@ def Xform "Scene"
             dictionary ranim = {
                 string animClip = "Armature|Death"
                 int animClipNr = 0
-                bool swapYZAxis = 0
             }
         }
         prepend references = @animated_woman/Animated_Woman.asset.usda@
@@ -44,7 +99,6 @@ def Xform "Scene"
             dictionary ranim = {
                 string animClip = "Armature|Sitting"
                 int animClipNr = 8
-                bool swapYZAxis = 0
             }
         }
         prepend references = @animated_woman/Animated_Woman.asset.usda@
@@ -61,7 +115,6 @@ def Xform "Scene"
             dictionary ranim = {
                 string animClip = "Armature|Punch"
                 int animClipNr = 5
-                bool swapYZAxis = 0
             }
         }
         prepend references = @animated_woman/Animated_Woman.asset.usda@
@@ -78,7 +131,6 @@ def Xform "Scene"
             dictionary ranim = {
                 string animClip = "Armature|Idle"
                 int animClipNr = 1
-                bool swapYZAxis = 0
             }
         }
         prepend references = @animated_woman/Animated_Woman.asset.usda@
@@ -95,7 +147,6 @@ def Xform "Scene"
             dictionary ranim = {
                 string animClip = "Armature|Running"
                 int animClipNr = 6
-                bool swapYZAxis = 0
             }
         }
         prepend references = @animated_woman/Animated_Woman.asset.usda@
@@ -112,7 +163,6 @@ def Xform "Scene"
             dictionary ranim = {
                 string animClip = "Armature|Jump2"
                 int animClipNr = 3
-                bool swapYZAxis = 0
             }
         }
         prepend references = @animated_woman/Animated_Woman.asset.usda@
@@ -129,7 +179,6 @@ def Xform "Scene"
             dictionary ranim = {
                 string animClip = "Armature|Running"
                 int animClipNr = 6
-                bool swapYZAxis = 0
             }
         }
         prepend references = @animated_woman/Animated_Woman.asset.usda@
@@ -146,7 +195,6 @@ def Xform "Scene"
             dictionary ranim = {
                 string animClip = "Armature|Running"
                 int animClipNr = 6
-                bool swapYZAxis = 0
             }
         }
         prepend references = @animated_woman/Animated_Woman.asset.usda@
@@ -163,7 +211,6 @@ def Xform "Scene"
             dictionary ranim = {
                 string animClip = "Armature|Jump"
                 int animClipNr = 2
-                bool swapYZAxis = 0
             }
         }
         prepend references = @animated_woman/Animated_Woman.asset.usda@
@@ -180,7 +227,6 @@ def Xform "Scene"
             dictionary ranim = {
                 string animClip = "Armature|PickUp"
                 int animClipNr = 4
-                bool swapYZAxis = 0
             }
         }
         prepend references = @animated_woman/Animated_Woman.asset.usda@
@@ -197,7 +243,6 @@ def Xform "Scene"
             dictionary ranim = {
                 string animClip = "Armature|Jump2"
                 int animClipNr = 3
-                bool swapYZAxis = 0
             }
         }
         prepend references = @animated_woman/Animated_Woman.asset.usda@
@@ -214,7 +259,6 @@ def Xform "Scene"
             dictionary ranim = {
                 string animClip = "Armature|Idle"
                 int animClipNr = 1
-                bool swapYZAxis = 0
             }
         }
         prepend references = @animated_woman/Animated_Woman.asset.usda@
@@ -231,7 +275,6 @@ def Xform "Scene"
             dictionary ranim = {
                 string animClip = "Armature|PickUp"
                 int animClipNr = 4
-                bool swapYZAxis = 0
             }
         }
         prepend references = @animated_woman/Animated_Woman.asset.usda@
@@ -248,7 +291,6 @@ def Xform "Scene"
             dictionary ranim = {
                 string animClip = "Armature|Walking"
                 int animClipNr = 9
-                bool swapYZAxis = 0
             }
         }
         prepend references = @animated_woman/Animated_Woman.asset.usda@
@@ -265,7 +307,6 @@ def Xform "Scene"
             dictionary ranim = {
                 string animClip = "Armature|Sitting"
                 int animClipNr = 8
-                bool swapYZAxis = 0
             }
         }
         prepend references = @animated_woman/Animated_Woman.asset.usda@
@@ -282,7 +323,6 @@ def Xform "Scene"
             dictionary ranim = {
                 string animClip = "Armature|Jump"
                 int animClipNr = 2
-                bool swapYZAxis = 0
             }
         }
         prepend references = @animated_woman/Animated_Woman.asset.usda@
@@ -299,7 +339,6 @@ def Xform "Scene"
             dictionary ranim = {
                 string animClip = "Armature|Jump"
                 int animClipNr = 2
-                bool swapYZAxis = 0
             }
         }
         prepend references = @animated_woman/Animated_Woman.asset.usda@
@@ -316,7 +355,6 @@ def Xform "Scene"
             dictionary ranim = {
                 string animClip = "Armature|Punch"
                 int animClipNr = 5
-                bool swapYZAxis = 0
             }
         }
         prepend references = @animated_woman/Animated_Woman.asset.usda@
@@ -333,7 +371,6 @@ def Xform "Scene"
             dictionary ranim = {
                 string animClip = "Armature|Death"
                 int animClipNr = 0
-                bool swapYZAxis = 0
             }
         }
         prepend references = @animated_woman/Animated_Woman.asset.usda@
@@ -350,7 +387,6 @@ def Xform "Scene"
             dictionary ranim = {
                 string animClip = "Armature|Sitting"
                 int animClipNr = 8
-                bool swapYZAxis = 0
             }
         }
         prepend references = @animated_woman/Animated_Woman.asset.usda@
@@ -367,7 +403,6 @@ def Xform "Scene"
             dictionary ranim = {
                 string animClip = "Armature|PickUp"
                 int animClipNr = 4
-                bool swapYZAxis = 0
             }
         }
         prepend references = @animated_woman/Animated_Woman.asset.usda@
@@ -384,7 +419,6 @@ def Xform "Scene"
             dictionary ranim = {
                 string animClip = "Armature|Running"
                 int animClipNr = 6
-                bool swapYZAxis = 0
             }
         }
         prepend references = @animated_woman/Animated_Woman.asset.usda@
@@ -401,7 +435,6 @@ def Xform "Scene"
             dictionary ranim = {
                 string animClip = "Armature|Walking"
                 int animClipNr = 9
-                bool swapYZAxis = 0
             }
         }
         prepend references = @animated_woman/Animated_Woman.asset.usda@
@@ -418,7 +451,6 @@ def Xform "Scene"
             dictionary ranim = {
                 string animClip = "Armature|Sitting"
                 int animClipNr = 8
-                bool swapYZAxis = 0
             }
         }
         prepend references = @animated_woman/Animated_Woman.asset.usda@
@@ -435,7 +467,6 @@ def Xform "Scene"
             dictionary ranim = {
                 string animClip = "Armature|Idle"
                 int animClipNr = 1
-                bool swapYZAxis = 0
             }
         }
         prepend references = @animated_woman/Animated_Woman.asset.usda@
@@ -452,7 +483,6 @@ def Xform "Scene"
             dictionary ranim = {
                 string animClip = "Armature|Sitting"
                 int animClipNr = 8
-                bool swapYZAxis = 0
             }
         }
         prepend references = @animated_woman/Animated_Woman.asset.usda@
@@ -469,7 +499,6 @@ def Xform "Scene"
             dictionary ranim = {
                 string animClip = "Armature|Running"
                 int animClipNr = 6
-                bool swapYZAxis = 0
             }
         }
         prepend references = @animated_woman/Animated_Woman.asset.usda@
@@ -486,7 +515,6 @@ def Xform "Scene"
             dictionary ranim = {
                 string animClip = "Armature|Punch"
                 int animClipNr = 5
-                bool swapYZAxis = 0
             }
         }
         prepend references = @animated_woman/Animated_Woman.asset.usda@
@@ -503,7 +531,6 @@ def Xform "Scene"
             dictionary ranim = {
                 string animClip = "Armature|Walking"
                 int animClipNr = 9
-                bool swapYZAxis = 0
             }
         }
         prepend references = @animated_woman/Animated_Woman.asset.usda@
@@ -520,7 +547,6 @@ def Xform "Scene"
             dictionary ranim = {
                 string animClip = "Armature|Jump"
                 int animClipNr = 2
-                bool swapYZAxis = 0
             }
         }
         prepend references = @animated_woman/Animated_Woman.asset.usda@
@@ -537,7 +563,6 @@ def Xform "Scene"
             dictionary ranim = {
                 string animClip = "Armature|Running"
                 int animClipNr = 6
-                bool swapYZAxis = 0
             }
         }
         prepend references = @animated_woman/Animated_Woman.asset.usda@
@@ -554,7 +579,6 @@ def Xform "Scene"
             dictionary ranim = {
                 string animClip = "Armature|PickUp"
                 int animClipNr = 4
-                bool swapYZAxis = 0
             }
         }
         prepend references = @animated_woman/Animated_Woman.asset.usda@
@@ -571,7 +595,6 @@ def Xform "Scene"
             dictionary ranim = {
                 string animClip = "Armature|Death"
                 int animClipNr = 0
-                bool swapYZAxis = 0
             }
         }
         prepend references = @animated_woman/Animated_Woman.asset.usda@
@@ -588,7 +611,6 @@ def Xform "Scene"
             dictionary ranim = {
                 string animClip = "Armature|Death"
                 int animClipNr = 0
-                bool swapYZAxis = 0
             }
         }
         prepend references = @animated_woman/Animated_Woman.asset.usda@
@@ -605,7 +627,6 @@ def Xform "Scene"
             dictionary ranim = {
                 string animClip = "Armature|SitIdle"
                 int animClipNr = 7
-                bool swapYZAxis = 0
             }
         }
         prepend references = @animated_woman/Animated_Woman.asset.usda@
@@ -622,7 +643,6 @@ def Xform "Scene"
             dictionary ranim = {
                 string animClip = "Armature|Jump2"
                 int animClipNr = 3
-                bool swapYZAxis = 0
             }
         }
         prepend references = @animated_woman/Animated_Woman.asset.usda@
@@ -639,7 +659,6 @@ def Xform "Scene"
             dictionary ranim = {
                 string animClip = "Armature|Sitting"
                 int animClipNr = 8
-                bool swapYZAxis = 0
             }
         }
         prepend references = @animated_woman/Animated_Woman.asset.usda@
@@ -656,7 +675,6 @@ def Xform "Scene"
             dictionary ranim = {
                 string animClip = "Armature|Running"
                 int animClipNr = 6
-                bool swapYZAxis = 0
             }
         }
         prepend references = @animated_woman/Animated_Woman.asset.usda@
@@ -673,7 +691,6 @@ def Xform "Scene"
             dictionary ranim = {
                 string animClip = "Armature|Sitting"
                 int animClipNr = 8
-                bool swapYZAxis = 0
             }
         }
         prepend references = @animated_woman/Animated_Woman.asset.usda@
@@ -690,7 +707,6 @@ def Xform "Scene"
             dictionary ranim = {
                 string animClip = "Armature|Punch"
                 int animClipNr = 5
-                bool swapYZAxis = 0
             }
         }
         prepend references = @animated_woman/Animated_Woman.asset.usda@
@@ -707,7 +723,6 @@ def Xform "Scene"
             dictionary ranim = {
                 string animClip = "Armature|SitIdle"
                 int animClipNr = 7
-                bool swapYZAxis = 0
             }
         }
         prepend references = @animated_woman/Animated_Woman.asset.usda@
@@ -724,7 +739,6 @@ def Xform "Scene"
             dictionary ranim = {
                 string animClip = "Armature|Idle"
                 int animClipNr = 1
-                bool swapYZAxis = 0
             }
         }
         prepend references = @animated_woman/Animated_Woman.asset.usda@
@@ -741,7 +755,6 @@ def Xform "Scene"
             dictionary ranim = {
                 string animClip = "Armature|Running"
                 int animClipNr = 6
-                bool swapYZAxis = 0
             }
         }
         prepend references = @animated_woman/Animated_Woman.asset.usda@
@@ -758,7 +771,6 @@ def Xform "Scene"
             dictionary ranim = {
                 string animClip = "Armature|Idle"
                 int animClipNr = 1
-                bool swapYZAxis = 0
             }
         }
         prepend references = @animated_woman/Animated_Woman.asset.usda@
@@ -775,7 +787,6 @@ def Xform "Scene"
             dictionary ranim = {
                 string animClip = "Armature|PickUp"
                 int animClipNr = 4
-                bool swapYZAxis = 0
             }
         }
         prepend references = @animated_woman/Animated_Woman.asset.usda@
@@ -792,7 +803,6 @@ def Xform "Scene"
             dictionary ranim = {
                 string animClip = "Armature|Walking"
                 int animClipNr = 9
-                bool swapYZAxis = 0
             }
         }
         prepend references = @animated_woman/Animated_Woman.asset.usda@
@@ -809,7 +819,6 @@ def Xform "Scene"
             dictionary ranim = {
                 string animClip = "Armature|Sitting"
                 int animClipNr = 8
-                bool swapYZAxis = 0
             }
         }
         prepend references = @animated_woman/Animated_Woman.asset.usda@
@@ -826,7 +835,6 @@ def Xform "Scene"
             dictionary ranim = {
                 string animClip = "Armature|Jump2"
                 int animClipNr = 3
-                bool swapYZAxis = 0
             }
         }
         prepend references = @animated_woman/Animated_Woman.asset.usda@
@@ -843,7 +851,6 @@ def Xform "Scene"
             dictionary ranim = {
                 string animClip = "Armature|Idle"
                 int animClipNr = 1
-                bool swapYZAxis = 0
             }
         }
         prepend references = @animated_woman/Animated_Woman.asset.usda@
@@ -860,7 +867,6 @@ def Xform "Scene"
             dictionary ranim = {
                 string animClip = "Armature|PickUp"
                 int animClipNr = 4
-                bool swapYZAxis = 0
             }
         }
         prepend references = @animated_woman/Animated_Woman.asset.usda@
@@ -877,7 +883,6 @@ def Xform "Scene"
             dictionary ranim = {
                 string animClip = "Armature|Idle"
                 int animClipNr = 1
-                bool swapYZAxis = 0
             }
         }
         prepend references = @animated_woman/Animated_Woman.asset.usda@
@@ -894,7 +899,6 @@ def Xform "Scene"
             dictionary ranim = {
                 string animClip = "Armature|Running"
                 int animClipNr = 6
-                bool swapYZAxis = 0
             }
         }
         prepend references = @animated_woman/Animated_Woman.asset.usda@
@@ -911,7 +915,6 @@ def Xform "Scene"
             dictionary ranim = {
                 string animClip = "Armature|Sitting"
                 int animClipNr = 8
-                bool swapYZAxis = 0
             }
         }
         prepend references = @animated_woman/Animated_Woman.asset.usda@
@@ -928,7 +931,6 @@ def Xform "Scene"
             dictionary ranim = {
                 string animClip = "Armature|Jump"
                 int animClipNr = 2
-                bool swapYZAxis = 0
             }
         }
         prepend references = @animated_woman/Animated_Woman.asset.usda@
@@ -945,7 +947,6 @@ def Xform "Scene"
             dictionary ranim = {
                 string animClip = "Armature|Jump2"
                 int animClipNr = 3
-                bool swapYZAxis = 0
             }
         }
         prepend references = @animated_woman/Animated_Woman.asset.usda@
@@ -962,7 +963,6 @@ def Xform "Scene"
             dictionary ranim = {
                 string animClip = "Armature|Jump2"
                 int animClipNr = 3
-                bool swapYZAxis = 0
             }
         }
         prepend references = @animated_woman/Animated_Woman.asset.usda@
@@ -979,7 +979,6 @@ def Xform "Scene"
             dictionary ranim = {
                 string animClip = "Armature|Sitting"
                 int animClipNr = 8
-                bool swapYZAxis = 0
             }
         }
         prepend references = @animated_woman/Animated_Woman.asset.usda@
@@ -996,7 +995,6 @@ def Xform "Scene"
             dictionary ranim = {
                 string animClip = "Armature|Idle"
                 int animClipNr = 1
-                bool swapYZAxis = 0
             }
         }
         prepend references = @animated_woman/Animated_Woman.asset.usda@
@@ -1013,7 +1011,6 @@ def Xform "Scene"
             dictionary ranim = {
                 string animClip = "Armature|SitIdle"
                 int animClipNr = 7
-                bool swapYZAxis = 0
             }
         }
         prepend references = @animated_woman/Animated_Woman.asset.usda@
@@ -1030,7 +1027,6 @@ def Xform "Scene"
             dictionary ranim = {
                 string animClip = "Armature|Jump"
                 int animClipNr = 2
-                bool swapYZAxis = 0
             }
         }
         prepend references = @animated_woman/Animated_Woman.asset.usda@
@@ -1047,7 +1043,6 @@ def Xform "Scene"
             dictionary ranim = {
                 string animClip = "Armature|SitIdle"
                 int animClipNr = 7
-                bool swapYZAxis = 0
             }
         }
         prepend references = @animated_woman/Animated_Woman.asset.usda@
@@ -1064,7 +1059,6 @@ def Xform "Scene"
             dictionary ranim = {
                 string animClip = "Armature|Sitting"
                 int animClipNr = 8
-                bool swapYZAxis = 0
             }
         }
         prepend references = @animated_woman/Animated_Woman.asset.usda@
@@ -1081,7 +1075,6 @@ def Xform "Scene"
             dictionary ranim = {
                 string animClip = "Armature|PickUp"
                 int animClipNr = 4
-                bool swapYZAxis = 0
             }
         }
         prepend references = @animated_woman/Animated_Woman.asset.usda@
@@ -1098,7 +1091,6 @@ def Xform "Scene"
             dictionary ranim = {
                 string animClip = "Armature|Running"
                 int animClipNr = 6
-                bool swapYZAxis = 0
             }
         }
         prepend references = @animated_woman/Animated_Woman.asset.usda@
@@ -1115,7 +1107,6 @@ def Xform "Scene"
             dictionary ranim = {
                 string animClip = "Armature|Jump2"
                 int animClipNr = 3
-                bool swapYZAxis = 0
             }
         }
         prepend references = @animated_woman/Animated_Woman.asset.usda@
@@ -1132,7 +1123,6 @@ def Xform "Scene"
             dictionary ranim = {
                 string animClip = "Armature|Running"
                 int animClipNr = 6
-                bool swapYZAxis = 0
             }
         }
         prepend references = @animated_woman/Animated_Woman.asset.usda@
@@ -1149,7 +1139,6 @@ def Xform "Scene"
             dictionary ranim = {
                 string animClip = "Armature|Idle"
                 int animClipNr = 1
-                bool swapYZAxis = 0
             }
         }
         prepend references = @animated_woman/Animated_Woman.asset.usda@
@@ -1166,7 +1155,6 @@ def Xform "Scene"
             dictionary ranim = {
                 string animClip = "Armature|Running"
                 int animClipNr = 6
-                bool swapYZAxis = 0
             }
         }
         prepend references = @animated_woman/Animated_Woman.asset.usda@
@@ -1183,7 +1171,6 @@ def Xform "Scene"
             dictionary ranim = {
                 string animClip = "Armature|Jump"
                 int animClipNr = 2
-                bool swapYZAxis = 0
             }
         }
         prepend references = @animated_woman/Animated_Woman.asset.usda@
@@ -1200,7 +1187,6 @@ def Xform "Scene"
             dictionary ranim = {
                 string animClip = "Armature|Walking"
                 int animClipNr = 9
-                bool swapYZAxis = 0
             }
         }
         prepend references = @animated_woman/Animated_Woman.asset.usda@
@@ -1217,7 +1203,6 @@ def Xform "Scene"
             dictionary ranim = {
                 string animClip = "Armature|Walking"
                 int animClipNr = 9
-                bool swapYZAxis = 0
             }
         }
         prepend references = @animated_woman/Animated_Woman.asset.usda@
@@ -1234,7 +1219,6 @@ def Xform "Scene"
             dictionary ranim = {
                 string animClip = "Armature|Punch"
                 int animClipNr = 5
-                bool swapYZAxis = 0
             }
         }
         prepend references = @animated_woman/Animated_Woman.asset.usda@
@@ -1251,7 +1235,6 @@ def Xform "Scene"
             dictionary ranim = {
                 string animClip = "Armature|Running"
                 int animClipNr = 6
-                bool swapYZAxis = 0
             }
         }
         prepend references = @animated_woman/Animated_Woman.asset.usda@
@@ -1268,7 +1251,6 @@ def Xform "Scene"
             dictionary ranim = {
                 string animClip = "Armature|Jump"
                 int animClipNr = 2
-                bool swapYZAxis = 0
             }
         }
         prepend references = @animated_woman/Animated_Woman.asset.usda@
@@ -1285,7 +1267,6 @@ def Xform "Scene"
             dictionary ranim = {
                 string animClip = "Armature|Walking"
                 int animClipNr = 9
-                bool swapYZAxis = 0
             }
         }
         prepend references = @animated_woman/Animated_Woman.asset.usda@
@@ -1302,7 +1283,6 @@ def Xform "Scene"
             dictionary ranim = {
                 string animClip = "Armature|Jump"
                 int animClipNr = 2
-                bool swapYZAxis = 0
             }
         }
         prepend references = @animated_woman/Animated_Woman.asset.usda@
@@ -1319,7 +1299,6 @@ def Xform "Scene"
             dictionary ranim = {
                 string animClip = "Armature|Walking"
                 int animClipNr = 9
-                bool swapYZAxis = 0
             }
         }
         prepend references = @animated_woman/Animated_Woman.asset.usda@
@@ -1336,7 +1315,6 @@ def Xform "Scene"
             dictionary ranim = {
                 string animClip = "Armature|Death"
                 int animClipNr = 0
-                bool swapYZAxis = 0
             }
         }
         prepend references = @animated_woman/Animated_Woman.asset.usda@
@@ -1353,7 +1331,6 @@ def Xform "Scene"
             dictionary ranim = {
                 string animClip = "Armature|Jump2"
                 int animClipNr = 3
-                bool swapYZAxis = 0
             }
         }
         prepend references = @animated_woman/Animated_Woman.asset.usda@
@@ -1370,7 +1347,6 @@ def Xform "Scene"
             dictionary ranim = {
                 string animClip = "Armature|Walking"
                 int animClipNr = 9
-                bool swapYZAxis = 0
             }
         }
         prepend references = @animated_woman/Animated_Woman.asset.usda@
@@ -1387,7 +1363,6 @@ def Xform "Scene"
             dictionary ranim = {
                 string animClip = "Armature|Walking"
                 int animClipNr = 9
-                bool swapYZAxis = 0
             }
         }
         prepend references = @animated_woman/Animated_Woman.asset.usda@
@@ -1404,7 +1379,6 @@ def Xform "Scene"
             dictionary ranim = {
                 string animClip = "Armature|Running"
                 int animClipNr = 6
-                bool swapYZAxis = 0
             }
         }
         prepend references = @animated_woman/Animated_Woman.asset.usda@
@@ -1421,7 +1395,6 @@ def Xform "Scene"
             dictionary ranim = {
                 string animClip = "Armature|Jump"
                 int animClipNr = 2
-                bool swapYZAxis = 0
             }
         }
         prepend references = @animated_woman/Animated_Woman.asset.usda@
@@ -1438,7 +1411,6 @@ def Xform "Scene"
             dictionary ranim = {
                 string animClip = "Armature|Idle"
                 int animClipNr = 1
-                bool swapYZAxis = 0
             }
         }
         prepend references = @animated_woman/Animated_Woman.asset.usda@
@@ -1455,7 +1427,6 @@ def Xform "Scene"
             dictionary ranim = {
                 string animClip = "Armature|Jump2"
                 int animClipNr = 3
-                bool swapYZAxis = 0
             }
         }
         prepend references = @animated_woman/Animated_Woman.asset.usda@
@@ -1472,7 +1443,6 @@ def Xform "Scene"
             dictionary ranim = {
                 string animClip = "Armature|Jump2"
                 int animClipNr = 3
-                bool swapYZAxis = 0
             }
         }
         prepend references = @animated_woman/Animated_Woman.asset.usda@
@@ -1489,7 +1459,6 @@ def Xform "Scene"
             dictionary ranim = {
                 string animClip = "Armature|Punch"
                 int animClipNr = 5
-                bool swapYZAxis = 0
             }
         }
         prepend references = @animated_woman/Animated_Woman.asset.usda@
@@ -1506,7 +1475,6 @@ def Xform "Scene"
             dictionary ranim = {
                 string animClip = "Armature|Sitting"
                 int animClipNr = 8
-                bool swapYZAxis = 0
             }
         }
         prepend references = @animated_woman/Animated_Woman.asset.usda@
@@ -1523,7 +1491,6 @@ def Xform "Scene"
             dictionary ranim = {
                 string animClip = "Armature|PickUp"
                 int animClipNr = 4
-                bool swapYZAxis = 0
             }
         }
         prepend references = @animated_woman/Animated_Woman.asset.usda@
@@ -1540,7 +1507,6 @@ def Xform "Scene"
             dictionary ranim = {
                 string animClip = "Armature|Idle"
                 int animClipNr = 1
-                bool swapYZAxis = 0
             }
         }
         prepend references = @animated_woman/Animated_Woman.asset.usda@
@@ -1557,7 +1523,6 @@ def Xform "Scene"
             dictionary ranim = {
                 string animClip = "Armature|Running"
                 int animClipNr = 6
-                bool swapYZAxis = 0
             }
         }
         prepend references = @animated_woman/Animated_Woman.asset.usda@
@@ -1574,7 +1539,6 @@ def Xform "Scene"
             dictionary ranim = {
                 string animClip = "Armature|Walking"
                 int animClipNr = 9
-                bool swapYZAxis = 0
             }
         }
         prepend references = @animated_woman/Animated_Woman.asset.usda@
@@ -1591,7 +1555,6 @@ def Xform "Scene"
             dictionary ranim = {
                 string animClip = "Armature|Death"
                 int animClipNr = 0
-                bool swapYZAxis = 0
             }
         }
         prepend references = @animated_woman/Animated_Woman.asset.usda@
@@ -1608,7 +1571,6 @@ def Xform "Scene"
             dictionary ranim = {
                 string animClip = "Armature|Jump2"
                 int animClipNr = 3
-                bool swapYZAxis = 0
             }
         }
         prepend references = @animated_woman/Animated_Woman.asset.usda@
@@ -1625,7 +1587,6 @@ def Xform "Scene"
             dictionary ranim = {
                 string animClip = "Armature|Sitting"
                 int animClipNr = 8
-                bool swapYZAxis = 0
             }
         }
         prepend references = @animated_woman/Animated_Woman.asset.usda@
@@ -1642,7 +1603,6 @@ def Xform "Scene"
             dictionary ranim = {
                 string animClip = "Armature|Idle"
                 int animClipNr = 1
-                bool swapYZAxis = 0
             }
         }
         prepend references = @animated_woman/Animated_Woman.asset.usda@
@@ -1659,7 +1619,6 @@ def Xform "Scene"
             dictionary ranim = {
                 string animClip = "Armature|PickUp"
                 int animClipNr = 4
-                bool swapYZAxis = 0
             }
         }
         prepend references = @animated_woman/Animated_Woman.asset.usda@
@@ -1676,7 +1635,6 @@ def Xform "Scene"
             dictionary ranim = {
                 string animClip = "Armature|PickUp"
                 int animClipNr = 4
-                bool swapYZAxis = 0
             }
         }
         prepend references = @animated_woman/Animated_Woman.asset.usda@
@@ -1693,7 +1651,6 @@ def Xform "Scene"
             dictionary ranim = {
                 string animClip = "Armature|Death"
                 int animClipNr = 0
-                bool swapYZAxis = 0
             }
         }
         prepend references = @animated_woman/Animated_Woman.asset.usda@
@@ -1710,7 +1667,6 @@ def Xform "Scene"
             dictionary ranim = {
                 string animClip = "Armature|SitIdle"
                 int animClipNr = 7
-                bool swapYZAxis = 0
             }
         }
         prepend references = @animated_woman/Animated_Woman.asset.usda@

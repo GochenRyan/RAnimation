@@ -31,6 +31,10 @@ namespace RAnimation
         bool Init(unsigned int width, unsigned int height);
         void SetSize(unsigned int width, unsigned int height);
 
+        // Updates the active camera's view/projection from this frame's ImGui input and the selected
+        // instance (follow target / head joint). Call after the ImGui frame is built and before Draw.
+        void UpdateActiveCamera(float deltaTime, ModelAndInstanceData& modInstData);
+
         // Renders one frame of the given scene. The Renderer holds no scene/editor state of its own;
         // the caller (Application) owns the scene data and the UI build.
         bool Draw(float deltaTime, ModelAndInstanceData& modInstData);

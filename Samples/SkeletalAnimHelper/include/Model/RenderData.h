@@ -1,4 +1,5 @@
 #pragma once
+#include <array>
 #include <cstdint>
 #include <memory>
 #include <string>
@@ -7,6 +8,8 @@
 
 #include <glm/glm.hpp>
 #include <ml.h>
+
+#include <Tools/Camera.h>
 
 #include <Renderer/PassRegistry.h>
 #include <Renderer/RenderResourceBudget.h>
@@ -112,8 +115,6 @@ namespace RAnimation
         RenderResourceBudget rdResourceBudget{};
         RenderResourceBudgetUsage rdResourceBudgetUsage{};
 
-        int rdFieldOfView = 60;
-
         float rdFrameTime = 0.0f;
         float rdMatrixGenerateTime = 0.0f;
         float rdUploadToVBOTime = 0.0f;
@@ -125,9 +126,9 @@ namespace RAnimation
         int rdMoveRight = 0;
         int rdMoveUp = 0;
 
-        float rdViewAzimuth = 330.0f;
-        float rdViewElevation = -20.0f;
-        glm::vec3 rdCameraWorldPosition = glm::vec3(2.0f, 5.0f, 7.0f);
+        // The camera rig: one camera of each fixed type + the active slot. The active camera's view/
+        // projection is uploaded each frame (see StaticMeshDrawPass::Upload).
+        CameraRig rdCameraRig{};
 
         uint32_t rdRngState = 0;
         uint32_t rdAdapterIndex = 0;

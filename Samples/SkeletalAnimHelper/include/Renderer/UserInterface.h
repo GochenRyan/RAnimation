@@ -25,7 +25,7 @@ namespace RAnimation
 
     private:
         // Builds the top menu bar (Edit menu: undo/redo + mode toggle) and processes editor hotkeys.
-        void drawMenuBarAndHotkeys(SceneEditor& sceneEditor);
+        void drawMenuBarAndHotkeys(RRenderData& renderData, SceneEditor& sceneEditor);
 
         // Helper invoked right after a slider widget: coalesces a drag into one settings-edit command.
         // `edited` is the live working copy (the value being applied this frame), used as the "after".

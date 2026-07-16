@@ -78,6 +78,10 @@ void Application::MainLoop()
         mUserInterface.CreateFrame(mRenderer->GetRenderData(), mSceneEditor);
         mUserInterface.Render(mRenderer->GetRenderData());
 
+        // Drive the active camera from this frame's ImGui input + the selected instance, after the UI
+        // frame is built (so IO is populated) and before Draw uploads the camera matrices.
+        mRenderer->UpdateActiveCamera(deltaTime, mSceneEditor.ModelData());
+
         if (!mRenderer->Draw(deltaTime, mSceneEditor.ModelData()))
         {
             break;

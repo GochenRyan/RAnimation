@@ -21,6 +21,7 @@
 #include <Renderer/Renderer.h>
 #include <Renderer/SceneResourceNames.h>
 #include <RHIWrap/Helper.h>
+#include <Model/Node.h>
 
 using namespace RAnimation;
 
@@ -417,7 +418,7 @@ bool Renderer::recordCommandBuffer()
         depthAttachment.descriptor = mRenderData.rdDepthAttachment;
         depthAttachment.loadOp = nri::LoadOp::CLEAR;
         depthAttachment.storeOp = nri::StoreOp::STORE;
-        depthAttachment.clearValue.depthStencil = {1.0f, 0};
+        depthAttachment.clearValue.depthStencil = {0.0f, 0}; // reversed-Z: far plane is 0
 
         // MRT: slot 0 = swapchain color, slot 1 = R32_UINT pick ID (cleared to 0 = "nothing").
         nri::AttachmentDesc sceneColorAttachments[2] = {};
@@ -1292,16 +1293,116 @@ void Renderer::updateTriangleCount(const ModelAndInstanceData& modInstData)
     }
 }
 
+void Renderer::UpdateActiveCamera(float deltaTime, ModelAndInstanceData& modInstData)
+{
+    CameraRig& rig = mRenderData.rdCameraRig;
+    rig.active = std::clamp(rig.active, 0, 3);
+    const CameraType activeType = rig.ActiveType();
+
+    // Gather input from ImGui IO. Guard against stealing input while a panel is hovered or a text field
+    // (e.g. the import file dialog) has focus - mirrors the pick-click guard and the editor hotkeys.
+    const ImGuiIO& io = ImGui::GetIO();
+    const bool mouseFree = !io.WantCaptureMouse;
+    const bool keysFree = !io.WantCaptureKeyboard && !io.WantTextInput;
+
+    CameraInput input;
+    input.mouseDelta = glm::vec2(io.MouseDelta.x, io.MouseDelta.y);
+    input.lookActive = mouseFree && io.MouseDown[1]; // RMB drag
+    input.scroll = mouseFree ? io.MouseWheel : 0.0f;
+    if (keysFree)
+    {
+        const float fwd = (ImGui::IsKeyDown(ImGuiKey_W) ? 1.0f : 0.0f) - (ImGui::IsKeyDown(ImGuiKey_S) ? 1.0f : 0.0f);
+        const float rgt = (ImGui::IsKeyDown(ImGuiKey_D) ? 1.0f : 0.0f) - (ImGui::IsKeyDown(ImGuiKey_A) ? 1.0f : 0.0f);
+        const float eq = (ImGui::IsKeyDown(ImGuiKey_E) ? 1.0f : 0.0f) - (ImGui::IsKeyDown(ImGuiKey_Q) ? 1.0f : 0.0f);
+        input.moveForward = fwd;
+        input.moveRight = rgt;
+        input.moveUp = eq;   // Free: up/down
+        input.roll = eq;     // FirstPerson: head roll
+    }
+
+    // Follow target = the currently selected instance (if any). FirstPerson rides the head joint,
+    // ThirdPerson orbits the head, Stationary looks at the joint-AABB centre (roughly mid-body). All
+    // fall back to the feet origin if joint data is unavailable.
+    CameraTarget target;
+    const int selectedIndex = modInstData.miSelectedInstance;
+    if (selectedIndex >= 0 && selectedIndex < static_cast<int>(modInstData.miModelInstances.size()))
+    {
+        const std::shared_ptr<ModelInstance>& selected = modInstData.miModelInstances[selectedIndex];
+        if (selected)
+        {
+            target.hasTarget = true;
+            target.targetWorldPos = selected->GetWorldPosition(); // feet-origin fallback
+
+            const bool needsPose = activeType == CameraType::FirstPerson ||
+                                   activeType == CameraType::ThirdPerson ||
+                                   activeType == CameraType::Stationary;
+            if (needsPose)
+            {
+                // Refresh the shared node tree to this instance's current pose (advance by 0 so play time
+                // does not double-step) before reading joint world transforms.
+                selected->UpdateAnimation(0.0f);
+                const auto& nodeMap = selected->GetModel()->GetNodeMap();
+
+                if (activeType == CameraType::Stationary)
+                {
+                    glm::vec3 mn(std::numeric_limits<float>::max());
+                    glm::vec3 mx(std::numeric_limits<float>::lowest());
+                    bool any = false;
+                    for (const auto& [name, node] : nodeMap)
+                    {
+                        if (!node)
+                        {
+                            continue;
+                        }
+                        const glm::vec3 p = glm::vec3(node->GetTRSMatrix()[3]);
+                        mn = glm::min(mn, p);
+                        mx = glm::max(mx, p);
+                        any = true;
+                    }
+                    if (any)
+                    {
+                        target.targetWorldPos = (mn + mx) * 0.5f;
+                    }
+                }
+                else
+                {
+                    // FirstPerson / ThirdPerson: follow the named head joint.
+                    const std::string& headBoneName = (activeType == CameraType::FirstPerson)
+                                                              ? rig.firstPerson.headBoneName
+                                                              : rig.thirdPerson.headBoneName;
+                    const auto it = nodeMap.find(headBoneName);
+                    if (it != nodeMap.end() && it->second)
+                    {
+                        const glm::mat4 headWorld = it->second->GetTRSMatrix();
+                        target.targetWorldPos = glm::vec3(headWorld[3]);
+                        if (activeType == CameraType::FirstPerson)
+                        {
+                            target.hasHead = true;
+                            target.headWorld = headWorld;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    const float aspect = static_cast<float>(mRenderData.rdOutputResolution.x) /
+                         static_cast<float>(mRenderData.rdOutputResolution.y);
+    rig.Update(deltaTime, input, target, aspect);
+}
+
 void Renderer::FocusCameraOnPoint(const glm::vec3& focusPoint)
 {
+    // Double-click focus is meaningful for the free-fly camera; reposition and re-aim it.
+    FreeCamera& freeCamera = mRenderData.rdCameraRig.free;
     const glm::vec3 defaultViewOffset(2.0f, 5.0f, 7.0f);
-    mRenderData.rdCameraWorldPosition = focusPoint + defaultViewOffset;
+    freeCamera.position = focusPoint + defaultViewOffset;
 
-    const glm::vec3 viewDirection = glm::normalize(focusPoint - mRenderData.rdCameraWorldPosition);
-    mRenderData.rdViewElevation = glm::degrees(std::asin(glm::clamp(viewDirection.y, -1.0f, 1.0f)));
-    mRenderData.rdViewAzimuth = glm::degrees(std::atan2(viewDirection.z, viewDirection.x));
-    if (mRenderData.rdViewAzimuth < 0.0f)
+    const glm::vec3 viewDirection = glm::normalize(focusPoint - freeCamera.position);
+    freeCamera.pitchDeg = glm::degrees(std::asin(glm::clamp(viewDirection.y, -1.0f, 1.0f)));
+    freeCamera.yawDeg = glm::degrees(std::atan2(viewDirection.z, viewDirection.x));
+    if (freeCamera.yawDeg < 0.0f)
     {
-        mRenderData.rdViewAzimuth += 360.0f;
+        freeCamera.yawDeg += 360.0f;
     }
 }

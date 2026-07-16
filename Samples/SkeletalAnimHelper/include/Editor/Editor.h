@@ -66,7 +66,7 @@ namespace RAnimation
         // Drops the redo stack, notifying each entry it was discarded in the reverted state.
         void clearRedo();
 
-        Mode mMode = Mode::View;
+        Mode mMode = Mode::Edit;
 
         std::vector<std::unique_ptr<ICommand>> mUndoStack;
         std::vector<std::unique_ptr<ICommand>> mRedoStack;

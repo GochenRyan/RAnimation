@@ -1,5 +1,6 @@
 #include <algorithm>
 #include <filesystem>
+#include <limits>
 
 #include <fmt/base.h>
 #include <fmt/color.h>
@@ -100,10 +101,11 @@ bool SceneEditor::AddModel(const std::string& modelFileName)
                 }
             }));
 
-    if (shouldFocusImportedModel && instance != nullptr && mFocusCamera)
+    if (shouldFocusImportedModel && instance != nullptr)
     {
-        const glm::mat4 worldTransform = instance->GetWorldTransformMatrix();
-        mFocusCamera(glm::vec3(worldTransform[3]));
+        // Reuse the Center-button path so an imported model frames on its joint AABB centre, not the
+        // feet origin (which sat the model too high in view).
+        FocusCameraOn(instance);
     }
 
     return true;
@@ -268,7 +270,30 @@ void SceneEditor::FocusCameraOn(std::shared_ptr<ModelInstance> instance)
         return;
     }
 
-    mFocusCamera(instance->GetWorldPosition());
+    // The instance origin sits at the feet, so focusing on it frames the model too high. Aim at the
+    // centre of the joint AABB instead (roughly mid-body). Refresh the pose first (advance by 0 so the
+    // play time does not step) so the joint world matrices reflect this instance.
+    glm::vec3 focus = instance->GetWorldPosition();
+    instance->UpdateAnimation(0.0f);
+    const auto& nodeMap = instance->GetModel()->GetNodeMap();
+    if (!nodeMap.empty())
+    {
+        glm::vec3 mn(std::numeric_limits<float>::max());
+        glm::vec3 mx(std::numeric_limits<float>::lowest());
+        for (const auto& [name, node] : nodeMap)
+        {
+            if (!node)
+            {
+                continue;
+            }
+            const glm::vec3 p = glm::vec3(node->GetTRSMatrix()[3]);
+            mn = glm::min(mn, p);
+            mx = glm::max(mx, p);
+        }
+        focus = (mn + mx) * 0.5f;
+    }
+
+    mFocusCamera(focus);
 }
 
 void SceneEditor::ReleaseAllGpuResources()

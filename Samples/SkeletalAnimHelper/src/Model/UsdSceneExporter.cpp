@@ -56,11 +56,149 @@ namespace
         }
         return absSource.generic_string();
     }
+
+    // ---- Camera rig serialization: ranim:cam<i>:<field> customData on the /Scene root prim ----
+    // Slot indices match CameraType: 0 Free, 1 FirstPerson, 2 ThirdPerson, 3 Stationary.
+    std::string CamKey(int i, const char* field)
+    {
+        return "ranim:cam" + std::to_string(i) + ":" + field;
+    }
+
+    void SetF(const UsdPrim& p, int i, const char* f, float v) { p.SetCustomDataByKey(TfToken(CamKey(i, f)), VtValue(v)); }
+    void SetI(const UsdPrim& p, int i, const char* f, int v) { p.SetCustomDataByKey(TfToken(CamKey(i, f)), VtValue(v)); }
+    void SetStr(const UsdPrim& p, int i, const char* f, const std::string& v)
+    {
+        p.SetCustomDataByKey(TfToken(CamKey(i, f)), VtValue(v));
+    }
+    void SetVec3(const UsdPrim& p, int i, const char* f, const glm::vec3& v)
+    {
+        p.SetCustomDataByKey(TfToken(CamKey(i, f)), VtValue(GfVec3f(v.x, v.y, v.z)));
+    }
+
+    void GetF(const UsdPrim& p, int i, const char* f, float& v)
+    {
+        const VtValue x = p.GetCustomDataByKey(TfToken(CamKey(i, f)));
+        if (x.IsHolding<float>())
+        {
+            v = x.Get<float>();
+        }
+    }
+    void GetStr(const UsdPrim& p, int i, const char* f, std::string& v)
+    {
+        const VtValue x = p.GetCustomDataByKey(TfToken(CamKey(i, f)));
+        if (x.IsHolding<std::string>())
+        {
+            v = x.Get<std::string>();
+        }
+    }
+    void GetVec3(const UsdPrim& p, int i, const char* f, glm::vec3& v)
+    {
+        const VtValue x = p.GetCustomDataByKey(TfToken(CamKey(i, f)));
+        if (x.IsHolding<GfVec3f>())
+        {
+            const GfVec3f g = x.Get<GfVec3f>();
+            v = glm::vec3(g[0], g[1], g[2]);
+        }
+    }
+
+    void WriteCommon(const UsdPrim& p, int i, const CameraCommon& c)
+    {
+        SetI(p, i, "projection", static_cast<int>(c.projection));
+        SetF(p, i, "fov", c.fovDeg);
+        SetF(p, i, "near", c.nearZ);
+        SetF(p, i, "far", c.farZ);
+        SetF(p, i, "orthoHalfHeight", c.orthoHalfHeight);
+    }
+    void ReadCommon(const UsdPrim& p, int i, CameraCommon& c)
+    {
+        const VtValue proj = p.GetCustomDataByKey(TfToken(CamKey(i, "projection")));
+        if (proj.IsHolding<int>())
+        {
+            c.projection = static_cast<ProjectionType>(std::clamp(proj.Get<int>(), 0, 1));
+        }
+        GetF(p, i, "fov", c.fovDeg);
+        GetF(p, i, "near", c.nearZ);
+        GetF(p, i, "far", c.farZ);
+        GetF(p, i, "orthoHalfHeight", c.orthoHalfHeight);
+    }
+
+    void WriteRig(const UsdPrim& p, const CameraRig& rig)
+    {
+        p.SetCustomDataByKey(TfToken("ranim:activeCamera"), VtValue(rig.active));
+
+        WriteCommon(p, 0, rig.free.common);
+        SetVec3(p, 0, "position", rig.free.position);
+        SetF(p, 0, "yaw", rig.free.yawDeg);
+        SetF(p, 0, "pitch", rig.free.pitchDeg);
+        SetF(p, 0, "moveSpeed", rig.free.moveSpeed);
+        SetF(p, 0, "mouseSensitivity", rig.free.mouseSensitivity);
+
+        WriteCommon(p, 1, rig.firstPerson.common);
+        SetStr(p, 1, "headBoneName", rig.firstPerson.headBoneName);
+        SetVec3(p, 1, "eyeOffset", rig.firstPerson.eyeOffset);
+        SetF(p, 1, "forwardPush", rig.firstPerson.forwardPush);
+        SetF(p, 1, "yaw", rig.firstPerson.yawDeg);
+        SetF(p, 1, "pitch", rig.firstPerson.pitchDeg);
+        SetF(p, 1, "roll", rig.firstPerson.rollDeg);
+        SetF(p, 1, "mouseSensitivity", rig.firstPerson.mouseSensitivity);
+
+        WriteCommon(p, 2, rig.thirdPerson.common);
+        SetStr(p, 2, "headBoneName", rig.thirdPerson.headBoneName);
+        SetF(p, 2, "distance", rig.thirdPerson.distance);
+        SetF(p, 2, "pitch", rig.thirdPerson.pitchDeg);
+        SetF(p, 2, "yaw", rig.thirdPerson.yawDeg);
+        SetF(p, 2, "damping", rig.thirdPerson.damping);
+        SetF(p, 2, "mouseSensitivity", rig.thirdPerson.mouseSensitivity);
+        SetF(p, 2, "scrollSpeed", rig.thirdPerson.scrollSpeed);
+
+        WriteCommon(p, 3, rig.stationary.common);
+        SetVec3(p, 3, "position", rig.stationary.position);
+        SetF(p, 3, "damping", rig.stationary.damping);
+    }
+
+    void ReadRig(const UsdPrim& p, CameraRig& rig)
+    {
+        const VtValue active = p.GetCustomDataByKey(TfToken("ranim:activeCamera"));
+        if (active.IsHolding<int>())
+        {
+            rig.active = std::clamp(active.Get<int>(), 0, 3);
+        }
+
+        ReadCommon(p, 0, rig.free.common);
+        GetVec3(p, 0, "position", rig.free.position);
+        GetF(p, 0, "yaw", rig.free.yawDeg);
+        GetF(p, 0, "pitch", rig.free.pitchDeg);
+        GetF(p, 0, "moveSpeed", rig.free.moveSpeed);
+        GetF(p, 0, "mouseSensitivity", rig.free.mouseSensitivity);
+
+        ReadCommon(p, 1, rig.firstPerson.common);
+        GetStr(p, 1, "headBoneName", rig.firstPerson.headBoneName);
+        GetVec3(p, 1, "eyeOffset", rig.firstPerson.eyeOffset);
+        GetF(p, 1, "forwardPush", rig.firstPerson.forwardPush);
+        GetF(p, 1, "yaw", rig.firstPerson.yawDeg);
+        GetF(p, 1, "pitch", rig.firstPerson.pitchDeg);
+        GetF(p, 1, "roll", rig.firstPerson.rollDeg);
+        GetF(p, 1, "mouseSensitivity", rig.firstPerson.mouseSensitivity);
+
+        ReadCommon(p, 2, rig.thirdPerson.common);
+        GetStr(p, 2, "headBoneName", rig.thirdPerson.headBoneName);
+        GetF(p, 2, "distance", rig.thirdPerson.distance);
+        GetF(p, 2, "pitch", rig.thirdPerson.pitchDeg);
+        GetF(p, 2, "yaw", rig.thirdPerson.yawDeg);
+        GetF(p, 2, "damping", rig.thirdPerson.damping);
+        GetF(p, 2, "mouseSensitivity", rig.thirdPerson.mouseSensitivity);
+        GetF(p, 2, "scrollSpeed", rig.thirdPerson.scrollSpeed);
+
+        ReadCommon(p, 3, rig.stationary.common);
+        GetVec3(p, 3, "position", rig.stationary.position);
+        GetF(p, 3, "damping", rig.stationary.damping);
+    }
 } // namespace
 
 namespace RAnimation
 {
-    bool ExportSceneToUsd(const ModelAndInstanceData& modInstData, const std::string& outPath)
+    bool ExportSceneToUsd(const ModelAndInstanceData& modInstData, const CameraRig& cameraRig,
+                          const std::string& outPath)
     {
         detail::RegisterUsdPluginsOnce();
 
@@ -77,6 +215,9 @@ namespace RAnimation
 
         UsdGeomXform sceneRoot = UsdGeomXform::Define(stage, SdfPath("/Scene"));
         stage->SetDefaultPrim(sceneRoot.GetPrim());
+
+        // Camera rig (all four slots + active index) as customData on the scene root.
+        WriteRig(sceneRoot.GetPrim(), cameraRig);
 
         int index = 0;
         for (const auto& instance : modInstData.miModelInstances)
@@ -132,7 +273,8 @@ namespace RAnimation
         return true;
     }
 
-    bool ImportSceneFromUsd(const std::string& scenePath, std::vector<ImportedSceneInstance>& out)
+    bool ImportSceneFromUsd(const std::string& scenePath, std::vector<ImportedSceneInstance>& out,
+                            CameraRig& cameraOut)
     {
         detail::RegisterUsdPluginsOnce();
 
@@ -141,6 +283,17 @@ namespace RAnimation
         {
             fmt::print(stderr, fg(fmt::color::red), "UsdSceneExporter: could not open scene '{}'\n", scenePath);
             return false;
+        }
+
+        // Camera rig from the /Scene root (default prim). Missing keys leave a slot at its default.
+        UsdPrim scenePrim = stage->GetDefaultPrim();
+        if (!scenePrim)
+        {
+            scenePrim = stage->GetPrimAtPath(SdfPath("/Scene"));
+        }
+        if (scenePrim)
+        {
+            ReadRig(scenePrim, cameraOut);
         }
 
         // Instance transforms are applied verbatim, so a non-canonical scene would silently misplace
