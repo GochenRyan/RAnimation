@@ -116,7 +116,7 @@ namespace RAnimation
         colorAttachmentDescs[1].blendEnabled = false;
 
         nri::DepthAttachmentDesc depthAttachmentDesc = {};
-        depthAttachmentDesc.compareOp = nri::CompareOp::LESS_EQUAL;
+        depthAttachmentDesc.compareOp = nri::CompareOp::GREATER_EQUAL; // reversed-Z
         depthAttachmentDesc.write = true;
         depthAttachmentDesc.boundsTest = false;
 

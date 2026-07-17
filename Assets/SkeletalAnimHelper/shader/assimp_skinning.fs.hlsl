@@ -16,7 +16,8 @@ struct PSOutput
 
 PSOutput main(PSInput input)
 {
-    const float3 lightDir = normalize(float3(1.0, 1.0, 1.0));
+    // World-space light direction shared with assimp.fs.hlsl - keep both in sync.
+    const float3 lightDir = normalize(float3(4.0, 3.0, 6.0));
     float3 norm = normalize(input.normal);
     float diff = max(dot(norm, lightDir), 0.0);
 

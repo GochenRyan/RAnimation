@@ -142,7 +142,7 @@ namespace RAnimation
         colorAttachmentDescs[1].blendEnabled = false;
 
         nri::DepthAttachmentDesc depthAttachmentDesc = {};
-        depthAttachmentDesc.compareOp = nri::CompareOp::LESS_EQUAL;
+        depthAttachmentDesc.compareOp = nri::CompareOp::GREATER_EQUAL; // reversed-Z
         depthAttachmentDesc.write = true;
         depthAttachmentDesc.boundsTest = false;
 
@@ -220,22 +220,16 @@ namespace RAnimation
     void StaticMeshDrawPass::Upload(FrameContext& context)
     {
         // ---- Camera upload (always runs) ----
+        // Canonical engine space: Y-up world, right-handed view (lookAtRH), reversed-Z RH clip (z in [1,0]).
+        // The active camera's matrices are computed in Renderer::UpdateActiveCamera each frame (from ImGui
+        // input + the selected instance); this pass just marshals them into the shared camera buffer.
         mMatrixGenerateTimer.Start();
         const RRenderData& rd = context.renderData;
-        glm::vec3 forward = glm::normalize(glm::vec3(
-                std::cos(glm::radians(rd.rdViewElevation)) * std::cos(glm::radians(rd.rdViewAzimuth)),
-                std::sin(glm::radians(rd.rdViewElevation)),
-                std::cos(glm::radians(rd.rdViewElevation)) * std::sin(glm::radians(rd.rdViewAzimuth))));
-        glm::vec3 target = rd.rdCameraWorldPosition + forward;
+        const CameraCommon& activeCamera = rd.rdCameraRig.ActiveCommon();
 
         RUploadMatrices matrices = {};
-        matrices.viewMatrix = glm::lookAtRH(rd.rdCameraWorldPosition, target, glm::vec3(0.0f, 1.0f, 0.0f));
-        matrices.projectionMatrix =
-                glm::perspectiveRH_ZO(glm::radians(static_cast<float>(rd.rdFieldOfView)),
-                                      static_cast<float>(rd.rdOutputResolution.x) /
-                                              static_cast<float>(rd.rdOutputResolution.y),
-                                      0.1f,
-                                      500.0f);
+        matrices.viewMatrix = activeCamera.viewMatrix;
+        matrices.projectionMatrix = activeCamera.projMatrix;
         context.renderData.rdMatrixGenerateTime += mMatrixGenerateTimer.Stop();
 
         const uint32_t frameIndex = context.renderData.queuedFrameIndex;

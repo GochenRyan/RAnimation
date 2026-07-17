@@ -1,112 +1,229 @@
 #include <Tools/Camera.h>
 
-void Camera::Initialize(const float3& position, const float3& lookAt, bool isRelative) {
-    float3 dir = normalize(lookAt - position);
+#include <cmath>
 
-    float3 rot;
-    rot.x = atan2(dir.y, dir.x);
-    rot.y = asin(dir.z);
-    rot.z = 0.0f;
+#include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtc/quaternion.hpp>
 
-    state.globalPosition = double3(position);
-    state.rotation = degrees(rot);
-    m_IsRelative = isRelative;
-}
+namespace RAnimation
+{
+    namespace
+    {
+        // Forward direction from the (azimuth, elevation) spherical convention shared with the legacy
+        // inline camera: azimuth measured from +X toward +Z, elevation is pitch.
+        glm::vec3 ForwardFromAngles(float azimuthDeg, float elevationDeg)
+        {
+            const float az = glm::radians(azimuthDeg);
+            const float el = glm::radians(elevationDeg);
+            return glm::normalize(glm::vec3(std::cos(el) * std::cos(az), std::sin(el), std::cos(el) * std::sin(az)));
+        }
 
-void Camera::InitializeWithRotation(const float3& position, const float3& rotation, bool isRelative) {
-    state.globalPosition = double3(position);
-    state.rotation = rotation;
-    m_IsRelative = isRelative;
-}
+        float WrapDegrees(float deg)
+        {
+            deg = std::fmod(deg, 360.0f);
+            if (deg < 0.0f)
+            {
+                deg += 360.0f;
+            }
+            return deg;
+        }
 
-void Camera::Update(const CameraDesc& desc, uint32_t frameIndex) {
-    uint32_t projFlags = desc.isReversedZ ? PROJ_REVERSED_Z : 0;
-    projFlags |= desc.isPositiveZ ? PROJ_LEFT_HANDED : 0;
+        // Exponential (framerate-independent) smoothing toward `target`. rate>0; larger = faster catch-up.
+        glm::vec3 ExpDamp(const glm::vec3& current, const glm::vec3& target, float rate, float dt)
+        {
+            return glm::mix(target, current, std::exp(-rate * dt));
+        }
 
-    // Position
-    const float3 vRight = state.mWorldToView.Row(0).xyz;
-    const float3 vUp = state.mWorldToView.Row(1).xyz;
-    const float3 vForward = state.mWorldToView.Row(2).xyz;
+        constexpr glm::vec3 kWorldUp = glm::vec3(0.0f, 1.0f, 0.0f);
+        constexpr float kFirstPersonRollSpeed = 90.0f; // degrees/second for Q/E head roll
+    } // namespace
 
-    float3 delta = desc.dLocal * desc.timeScale;
-    delta.z *= desc.isPositiveZ ? 1.0f : -1.0f;
-
-    state.globalPosition += double3(vRight * delta.x);
-    state.globalPosition += double3(vUp * delta.y);
-    state.globalPosition += double3(vForward * delta.z);
-    state.globalPosition += double3(desc.dUser);
-
-    if (desc.limits.IsValid())
-        state.globalPosition = clamp(state.globalPosition, double3(desc.limits.vMin), double3(desc.limits.vMax));
-
-    if (desc.isCustomMatrixSet) {
-        const float3 vCustomRight = desc.customMatrix.Row(3).xyz;
-        state.globalPosition = double3(vCustomRight);
-    }
-
-    if (m_IsRelative) {
-        state.position = float3::Zero();
-        statePrev.position = float3(statePrev.globalPosition - state.globalPosition);
-        statePrev.mWorldToView.PreTranslation(-statePrev.position);
-    } else {
-        state.position = float3(state.globalPosition);
-        statePrev.position = float3(statePrev.globalPosition);
-    }
-
-    // Rotation
-    float angularSpeed = 0.03f * saturate(desc.horizontalFov * 0.5f / 90.0f);
-
-    state.rotation.x += desc.dYaw * angularSpeed;
-    state.rotation.y += desc.dPitch * angularSpeed;
-
-    state.rotation.x = fmodf(state.rotation.x, 360.0f);
-    state.rotation.y = clamp(state.rotation.y, -90.0f, 90.0f);
-
-    if (desc.isCustomMatrixSet) {
-        state.mViewToWorld = desc.customMatrix;
-
-        state.rotation = degrees(state.mViewToWorld.GetRotationYPR());
-        state.rotation.z = 0.0f;
-    } else
-        state.mViewToWorld.SetupByRotationYPR(radians(state.rotation.x), radians(state.rotation.y), radians(state.rotation.z));
-
-    state.mWorldToView = state.mViewToWorld;
-    state.mWorldToView.PreTranslation(float3(state.mWorldToView.Row(2).xyz) * desc.backwardOffset);
-    state.mWorldToView.WorldToView(projFlags);
-    state.mWorldToView.PreTranslation(-state.position);
-
-    // Projection
-    if (desc.orthoRange > 0.0f) {
-        float x = desc.orthoRange;
-        float y = desc.orthoRange / desc.aspectRatio;
-        state.mViewToClip.SetupByOrthoProjection(-x, x, -y, y, desc.nearZ, desc.farZ, projFlags);
-    } else {
-        if (desc.farZ == 0.0f)
-            state.mViewToClip.SetupByHalfFovxInf(0.5f * radians(desc.horizontalFov), desc.aspectRatio, desc.nearZ, projFlags);
+    glm::mat4 CameraCommon::MakeProjection(float aspect) const
+    {
+        glm::mat4 p;
+        if (projection == ProjectionType::Orthographic)
+        {
+            const float h = orthoHalfHeight;
+            const float w = h * aspect;
+            p = glm::orthoRH_ZO(-w, w, -h, h, nearZ, farZ);
+        }
         else
-            state.mViewToClip.SetupByHalfFovx(0.5f * radians(desc.horizontalFov), desc.aspectRatio, desc.nearZ, desc.farZ, projFlags);
+        {
+            p = glm::perspectiveRH_ZO(glm::radians(fovDeg), aspect, nearZ, farZ);
+        }
+
+        // Reversed-Z: remap depth so near->1, far->0 (z' = w - z). This is why the scene pipelines clear
+        // depth to 0 and compare with GREATER_EQUAL. glm is column-major: the z output is row 2, the w
+        // output is row 3, so subtract the z-row from the w-row into the z-row per column.
+        for (int c = 0; c < 4; ++c)
+        {
+            p[c][2] = p[c][3] - p[c][2];
+        }
+        return p;
     }
 
-    // Other
-    state.mWorldToClip = state.mViewToClip * state.mWorldToView;
+    void FreeCamera::Update(float deltaTime, const CameraInput& input, float aspect)
+    {
+        common.projMatrix = common.MakeProjection(aspect);
 
-    state.mViewToWorld = state.mWorldToView;
-    state.mViewToWorld.InvertOrtho();
+        if (input.lookActive)
+        {
+            yawDeg = WrapDegrees(yawDeg + input.mouseDelta.x * mouseSensitivity);
+            pitchDeg = glm::clamp(pitchDeg - input.mouseDelta.y * mouseSensitivity, -89.0f, 89.0f);
+        }
 
-    state.mClipToView = state.mViewToClip;
-    state.mClipToView.Invert();
+        const glm::vec3 forward = ForwardFromAngles(yawDeg, pitchDeg);
+        const glm::vec3 right = glm::normalize(glm::cross(forward, kWorldUp));
 
-    state.mClipToWorld = state.mWorldToClip;
-    state.mClipToWorld.Invert();
+        glm::vec3 move = forward * input.moveForward + right * input.moveRight + kWorldUp * input.moveUp;
+        if (glm::dot(move, move) > 0.0f)
+        {
+            position += glm::normalize(move) * moveSpeed * deltaTime;
+        }
 
-    state.viewportJitter = float2(0.0f);
+        common.viewMatrix = glm::lookAtRH(position, position + forward, kWorldUp);
+    }
 
-    // Previous other
-    statePrev.mWorldToClip = statePrev.mViewToClip * statePrev.mWorldToView;
+    void FirstPersonCamera::Update(float deltaTime, const CameraInput& input, const CameraTarget& target, float aspect)
+    {
+        common.projMatrix = common.MakeProjection(aspect);
 
-    statePrev.mViewToWorld = statePrev.mWorldToView;
-    statePrev.mViewToWorld.InvertOrtho();
+        // Mouse and Q/E always turn the head in first person (no RMB gate). WASD is reserved as "character
+        // input" but this sample has no locomotion system, so it is intentionally unused.
+        yawDeg = WrapDegrees(yawDeg + input.mouseDelta.x * mouseSensitivity);
+        pitchDeg = glm::clamp(pitchDeg - input.mouseDelta.y * mouseSensitivity, -89.0f, 89.0f);
+        rollDeg = WrapDegrees(rollDeg + input.roll * kFirstPersonRollSpeed * deltaTime);
 
-    statePrev.mClipToWorld = statePrev.mWorldToClip;
-    statePrev.mClipToWorld.Invert();
-}
+        if (!target.hasHead)
+        {
+            // Nothing to ride (no selection or head joint not found): retain the previous view.
+            return;
+        }
+
+        // Combine the head joint's world orientation with the user's yaw/pitch/roll offset. The view looks
+        // down the eye's local -Z (glm camera convention); which world direction that is depends on the
+        // rig's head-joint axes, so eyeOffset/angles let the user tune it.
+        const glm::quat headRot = glm::quat_cast(glm::mat3(target.headWorld));
+        const glm::quat finalRot = headRot * glm::quat(glm::radians(glm::vec3(pitchDeg, yawDeg, rollDeg)));
+
+        // Anchor at the head joint (+ a head-local fine offset), then push forward along the look direction
+        // so the eye clears the character's own head mesh. forwardPush follows the actual view axis, so it
+        // is rig-independent.
+        const glm::vec3 lookForward = finalRot * glm::vec3(0.0f, 0.0f, -1.0f);
+        const glm::vec3 eyePos =
+                glm::vec3(target.headWorld[3]) + glm::mat3(target.headWorld) * eyeOffset + lookForward * forwardPush;
+
+        const glm::mat4 eyeXform = glm::translate(glm::mat4(1.0f), eyePos) * glm::mat4_cast(finalRot);
+        common.viewMatrix = glm::inverse(eyeXform);
+    }
+
+    void ThirdPersonCamera::Update(float deltaTime, const CameraInput& input, const CameraTarget& target, float aspect)
+    {
+        common.projMatrix = common.MakeProjection(aspect);
+
+        const glm::vec3 tgtPos = target.hasTarget ? target.targetWorldPos : smoothedTarget;
+        if (!smoothInit)
+        {
+            smoothedTarget = tgtPos;
+            smoothInit = true;
+        }
+        else
+        {
+            smoothedTarget = ExpDamp(smoothedTarget, tgtPos, damping, deltaTime);
+        }
+
+        if (input.lookActive)
+        {
+            yawDeg = WrapDegrees(yawDeg + input.mouseDelta.x * mouseSensitivity);
+            pitchDeg = glm::clamp(pitchDeg - input.mouseDelta.y * mouseSensitivity, -89.0f, 89.0f);
+        }
+        distance = glm::clamp(distance - input.scroll * scrollSpeed, 0.5f, 50.0f);
+
+        // ForwardFromAngles is the view direction (camera -> target); place the camera behind it.
+        const glm::vec3 forward = ForwardFromAngles(yawDeg, pitchDeg);
+        const glm::vec3 position = smoothedTarget - forward * distance;
+        common.viewMatrix = glm::lookAtRH(position, smoothedTarget, kWorldUp);
+    }
+
+    void StationaryCamera::Update(float deltaTime, const CameraTarget& target, float aspect)
+    {
+        common.projMatrix = common.MakeProjection(aspect);
+
+        const glm::vec3 tgtPos = target.hasTarget ? target.targetWorldPos : smoothedTarget;
+        if (!smoothInit)
+        {
+            smoothedTarget = tgtPos;
+            smoothInit = true;
+        }
+        else
+        {
+            smoothedTarget = ExpDamp(smoothedTarget, tgtPos, damping, deltaTime);
+        }
+
+        glm::vec3 lookAt = smoothedTarget;
+        if (glm::distance(lookAt, position) < 1e-4f)
+        {
+            lookAt = position + glm::vec3(0.0f, 0.0f, -1.0f); // avoid a degenerate lookAt
+        }
+        common.viewMatrix = glm::lookAtRH(position, lookAt, kWorldUp);
+    }
+
+    CameraCommon& CameraRig::ActiveCommon()
+    {
+        switch (ActiveType())
+        {
+            case CameraType::FirstPerson:
+                return firstPerson.common;
+            case CameraType::ThirdPerson:
+                return thirdPerson.common;
+            case CameraType::Stationary:
+                return stationary.common;
+            case CameraType::Free:
+            default:
+                return free.common;
+        }
+    }
+
+    const CameraCommon& CameraRig::ActiveCommon() const
+    {
+        return const_cast<CameraRig*>(this)->ActiveCommon();
+    }
+
+    void CameraRig::Update(float deltaTime, const CameraInput& input, const CameraTarget& target, float aspect)
+    {
+        switch (ActiveType())
+        {
+            case CameraType::Free:
+                free.Update(deltaTime, input, aspect);
+                break;
+            case CameraType::FirstPerson:
+                firstPerson.Update(deltaTime, input, target, aspect);
+                break;
+            case CameraType::ThirdPerson:
+                thirdPerson.Update(deltaTime, input, target, aspect);
+                break;
+            case CameraType::Stationary:
+                stationary.Update(deltaTime, target, aspect);
+                break;
+        }
+    }
+
+    void CameraRig::ResetActive()
+    {
+        switch (ActiveType())
+        {
+            case CameraType::Free:
+                free.Reset();
+                break;
+            case CameraType::FirstPerson:
+                firstPerson.Reset();
+                break;
+            case CameraType::ThirdPerson:
+                thirdPerson.Reset();
+                break;
+            case CameraType::Stationary:
+                stationary.Reset();
+                break;
+        }
+    }
+} // namespace RAnimation

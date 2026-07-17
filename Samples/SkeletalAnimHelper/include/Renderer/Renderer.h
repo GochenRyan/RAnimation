@@ -10,7 +10,6 @@
 #include <Renderer/RenderResourceRegistry.h>
 #include <Renderer/SceneFrameData.h>
 #include <Tools/Timer.h>
-#include <Tools/Camera.h>
 
 struct SDL_Window;
 
@@ -31,6 +30,10 @@ namespace RAnimation
         Renderer(NativeWindowHandle* window, SDL_Window* sdlWindow);
         bool Init(unsigned int width, unsigned int height);
         void SetSize(unsigned int width, unsigned int height);
+
+        // Updates the active camera's view/projection from this frame's ImGui input and the selected
+        // instance (follow target / head joint). Call after the ImGui frame is built and before Draw.
+        void UpdateActiveCamera(float deltaTime, ModelAndInstanceData& modInstData);
 
         // Renders one frame of the given scene. The Renderer holds no scene/editor state of its own;
         // the caller (Application) owns the scene data and the UI build.
@@ -87,8 +90,6 @@ namespace RAnimation
         Timer mFrameTimer{};
 
         uint32_t mFrameIndex = 0;
-
-        Camera mCamera;
 
         // Per-frame scene state. Filled by Renderer::Draw (modelInstData/hasSceneGeometry) and
         // by AnimationTransformComputePass::Upload (animatedDispatches/uploadedBoneOffsetMatrixCount).

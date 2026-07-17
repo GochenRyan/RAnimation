@@ -22,12 +22,10 @@ namespace RAnimation
         void SetTranslation(glm::vec3 position);
         void SetRotation(glm::vec3 rotation);
         void SetScale(float scale);
-        void SetSwapYZAxis(bool value);
 
         glm::vec3 GetTranslation();
         glm::vec3 GetRotation();
         float GetScale();
-        bool GetSwapYZAxis();
 
         std::vector<glm::mat4> GetBoneMatrices();
 
@@ -46,7 +44,6 @@ namespace RAnimation
         glm::mat4 mLocalTranslationMatrix = glm::mat4(1.0f);
         glm::mat4 mLocalRotationMatrix = glm::mat4(1.0f);
         glm::mat4 mLocalScaleMatrix = glm::mat4(1.0f);
-        glm::mat4 mLocalSwapAxisMatrix = glm::mat4(1.0f);
 
         glm::mat4 mLocalTransformMatrix = glm::mat4(1.0f);
 

@@ -95,6 +95,29 @@ endfunction()
 
 get_all_targets(ALL_TARGETS ${CMAKE_SOURCE_DIR})
 
+# Group targets into IDE solution folders by origin. Targets that already picked their own folder
+# (NRI, ShaderMake) keep it; everything else lands under "Packages" or "Samples" by source directory.
+set_property(GLOBAL PROPERTY USE_FOLDERS ON)
+
 foreach(t ${ALL_TARGETS})
     setup_output_directories(${t})
+
+    get_target_property(t_type ${t} TYPE)
+    if(t_type STREQUAL "INTERFACE_LIBRARY")
+        continue()
+    endif()
+
+    get_target_property(t_folder ${t} FOLDER)
+    if(t_folder)
+        continue()
+    endif()
+
+    get_target_property(t_source_dir ${t} SOURCE_DIR)
+    string(FIND "${t_source_dir}" "${CMAKE_SOURCE_DIR}/Packages/" is_package)
+    string(FIND "${t_source_dir}" "${CMAKE_SOURCE_DIR}/Samples/" is_sample)
+    if(is_package EQUAL 0)
+        set_target_properties(${t} PROPERTIES FOLDER "Packages")
+    elseif(is_sample EQUAL 0)
+        set_target_properties(${t} PROPERTIES FOLDER "Samples")
+    endif()
 endforeach()

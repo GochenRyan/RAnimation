@@ -6,7 +6,7 @@
         string model = "model/model.usda"
     }
     defaultPrim = "Animated_Woman_AssetRoot"
-    metersPerUnit = 0.01
+    metersPerUnit = 1
     upAxis = "Y"
 )
 

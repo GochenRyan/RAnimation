@@ -92,7 +92,7 @@ over "Animated_Woman_AssetRoot"
         apiSchemas = ["SkelBindingAPI", "MaterialBindingAPI"]
     )
     {
-        matrix4d primvars:skel:geomBindTransform = ( (100, 0, 0, 0), (0, 0, -100, 0), (0, 100, 0, 0), (0, 0, -0.0000238419, 1) ) (
+        matrix4d primvars:skel:geomBindTransform = ( (100, 0, 0, 0), (0, 0, -100, 0), (0, 100, 0, 0), (0, 0, -2.38419e-7, 1) ) (
             doc = '''Encodes the bind-time world space transforms of the prim.
         If the transform is identical for a group of gprims that share a common
         ancestor, the transform may be authored on the ancestor, to "inherit"

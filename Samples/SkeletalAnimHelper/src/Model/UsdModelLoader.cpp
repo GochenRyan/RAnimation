@@ -5,6 +5,7 @@
 #include <Model/UsdModelLoader.h>
 
 #include "UsdPluginRegistration.h"
+#include "UsdConversion.h"
 
 #include <algorithm>
 #include <filesystem>
@@ -50,18 +51,8 @@ namespace
 {
     // ----- conversions --------------------------------------------------------------------------------
 
-    // GfMatrix4d is row-major / row-vector (translation in row 3); glm is column-major / column-vector.
-    // The glm ctor takes column-major values, so feeding USD rows as glm columns yields the correct
-    // (transposed) column-vector matrix - the standard USD<->glm conversion.
-    glm::mat4 glmFromGf(const GfMatrix4d& m)
-    {
-        return glm::mat4(static_cast<float>(m[0][0]), static_cast<float>(m[0][1]), static_cast<float>(m[0][2]),
-                         static_cast<float>(m[0][3]), static_cast<float>(m[1][0]), static_cast<float>(m[1][1]),
-                         static_cast<float>(m[1][2]), static_cast<float>(m[1][3]), static_cast<float>(m[2][0]),
-                         static_cast<float>(m[2][1]), static_cast<float>(m[2][2]), static_cast<float>(m[2][3]),
-                         static_cast<float>(m[3][0]), static_cast<float>(m[3][1]), static_cast<float>(m[3][2]),
-                         static_cast<float>(m[3][3]));
-    }
+    // USD<->glm and canonical-space conversions live in the shared module (UsdConversion.h).
+    using detail::usdconv::GlmFromGf;
 
     std::string jointLeaf(const std::string& jointPath)
     {
@@ -197,21 +188,21 @@ namespace
             glm::mat4 localTransform(1.0f);
             if (hasRest)
             {
-                localTransform = glmFromGf(restXforms[i]);
+                localTransform = GlmFromGf(restXforms[i]);
             }
             else if (parentPath.empty() || jointPathToIndex.find(parentPath) == jointPathToIndex.end())
             {
-                localTransform = glmFromGf(bindXforms[i]);
+                localTransform = GlmFromGf(bindXforms[i]);
             }
             else
             {
                 const int parentJoint = jointPathToIndex.at(parentPath);
-                localTransform = glm::inverse(glmFromGf(bindXforms[static_cast<size_t>(parentJoint)])) *
-                                 glmFromGf(bindXforms[i]);
+                localTransform = glm::inverse(GlmFromGf(bindXforms[static_cast<size_t>(parentJoint)])) *
+                                 GlmFromGf(bindXforms[i]);
             }
 
             out.nodes[i + 1] = {name, parentNodeIndex, localTransform};
-            out.bones[i] = {name, glm::inverse(glmFromGf(bindXforms[i]))};
+            out.bones[i] = {name, glm::inverse(GlmFromGf(bindXforms[i]))};
         }
 
         return true;
@@ -242,6 +233,16 @@ namespace
                    UsdLoadedModel& out)
     {
         const UsdPrim prim = usdMesh.GetPrim();
+
+        // Canonical winding is rightHanded; a leftHanded mesh would be culled inside-out. The publish
+        // pipeline guarantees rightHanded, so this only warns (no winding fixup) for third-party assets.
+        if (!detail::usdconv::IsMeshOrientationCanonical(usdMesh))
+        {
+            fmt::print(stderr, fg(fmt::color::yellow),
+                       "UsdModelLoader: mesh '{}' authors orientation=leftHanded (canonical is rightHanded); "
+                       "faces may render inside-out\n",
+                       prim.GetPath().GetString());
+        }
 
         VtVec3fArray points;
         VtIntArray faceVertexCounts;
@@ -711,19 +712,15 @@ namespace RAnimation
             return false;
         }
 
-        // skeleton-local -> world (SkelRoot/Armature orientation), carried by the synthetic root node.
-        // Also fold in the stage's metersPerUnit so the model renders in metres: these assets are authored
-        // in centimetres (no metersPerUnit -> USD fallback 0.01), which otherwise makes the model ~100x too
-        // big. A uniform scale at the root converts the whole skinned result to metres.
+        // skeleton-local -> world (SkelRoot/Armature orientation), carried by the synthetic root node,
+        // folded into canonical engine space (Y-up, metres). StageToCanonicalMatrix reads STAGE METADATA
+        // only (upAxis Z -> Rx(-90), metersPerUnit -> uniform scale); authored prim xforms arrive through
+        // GetLocalToWorldTransform - the two sources are disjoint, so the Z-up correction cannot
+        // double-apply on assets like animated_woman that bake their own Armature rotation (see
+        // UsdConversion.h).
         UsdGeomXformCache xformCache(UsdTimeCode::Default());
-        double metersPerUnit = UsdGeomGetStageMetersPerUnit(stage);
-        if (metersPerUnit <= 0.0)
-        {
-            metersPerUnit = 1.0;
-        }
-        glm::mat4 skeletonLocalToWorld = glmFromGf(xformCache.GetLocalToWorldTransform(skeleton.GetPrim()));
-        skeletonLocalToWorld =
-                glm::scale(glm::mat4(1.0f), glm::vec3(static_cast<float>(metersPerUnit))) * skeletonLocalToWorld;
+        glm::mat4 skeletonLocalToWorld = detail::usdconv::StageToCanonicalMatrix(stage) *
+                                         GlmFromGf(xformCache.GetLocalToWorldTransform(skeleton.GetPrim()));
         const std::string syntheticRootName = skeleton.GetPrim().GetPath().GetString();
 
         std::unordered_map<std::string, std::string> jointToName;

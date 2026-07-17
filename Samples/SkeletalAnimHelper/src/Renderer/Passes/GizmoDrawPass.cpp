@@ -93,7 +93,7 @@ namespace RAnimation
 
         // Depth-tested but not depth-writing, so the gizmo is occluded by geometry in front of it.
         nri::DepthAttachmentDesc depthAttachmentDesc = {};
-        depthAttachmentDesc.compareOp = nri::CompareOp::LESS_EQUAL;
+        depthAttachmentDesc.compareOp = nri::CompareOp::GREATER_EQUAL; // reversed-Z
         depthAttachmentDesc.write = false;
         depthAttachmentDesc.boundsTest = false;
 

@@ -15,7 +15,8 @@ struct PSOutput
     uint   id    : SV_Target1;
 };
 
-static const float3 lightPos = float3(4.0, 3.0, 6.0);
+// World-space light direction shared with assimp_skinning.fs.hlsl - keep both in sync.
+static const float3 lightDir = normalize(float3(4.0, 3.0, 6.0));
 static const float3 lightColor = float3(1.0, 1.0, 1.0);
 
 float toSRGB(float x)
@@ -29,7 +30,6 @@ float toSRGB(float x)
 PSOutput main(PSInput input)
 {
     float3 norm = normalize(input.normal);
-    float3 lightDir = normalize(lightPos);
 
     float diff = max(dot(norm, lightDir), 0.0);
 

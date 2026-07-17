@@ -146,7 +146,7 @@ void UserInterface::HideMouse(bool hide)
     }
 }
 
-void UserInterface::drawMenuBarAndHotkeys(SceneEditor& sceneEditor)
+void UserInterface::drawMenuBarAndHotkeys(RRenderData& renderData, SceneEditor& sceneEditor)
 {
     ImGuiIO& io = ImGui::GetIO();
     const bool editMode = sceneEditor.IsEditMode();
@@ -240,7 +240,7 @@ void UserInterface::drawMenuBarAndHotkeys(SceneEditor& sceneEditor)
         if (ImGuiFileDialog::Instance()->IsOk())
         {
             const std::string outPath = ImGuiFileDialog::Instance()->GetFilePathName();
-            ExportSceneToUsd(sceneEditor.ModelData(), outPath);
+            ExportSceneToUsd(sceneEditor.ModelData(), renderData.rdCameraRig, outPath);
         }
         ImGuiFileDialog::Instance()->Close();
     }
@@ -254,8 +254,11 @@ void UserInterface::drawMenuBarAndHotkeys(SceneEditor& sceneEditor)
             const std::string scenePath = ImGuiFileDialog::Instance()->GetFilePathName();
 
             std::vector<ImportedSceneInstance> imported;
-            if (ImportSceneFromUsd(scenePath, imported))
+            CameraRig importedRig;
+            if (ImportSceneFromUsd(scenePath, imported, importedRig))
             {
+                renderData.rdCameraRig = importedRig;
+
                 for (const ImportedSceneInstance& imp : imported)
                 {
                     std::shared_ptr<Model> model = sceneEditor.GetModel(imp.assetPath);
@@ -325,7 +328,7 @@ void UserInterface::CreateFrame(RRenderData& renderData, SceneEditor& sceneEdito
     ImGui::NewFrame();
     ImGui::DockSpaceOverViewport(0, ImGui::GetMainViewport(), ImGuiDockNodeFlags_PassthruCentralNode);
 
-    drawMenuBarAndHotkeys(sceneEditor);
+    drawMenuBarAndHotkeys(renderData, sceneEditor);
 
     const bool editMode = sceneEditor.IsEditMode();
 
@@ -342,6 +345,44 @@ void UserInterface::CreateFrame(RRenderData& renderData, SceneEditor& sceneEdito
             renderData.rdPendingPick.y =
                     std::clamp(pixelY, 0, static_cast<int>(renderData.rdOutputResolution.y) - 1);
             renderData.rdPendingPick.requested = true;
+        }
+    }
+
+    // Camera hotkeys: Alt+1..4 select the camera slot, P toggles projection, Alt+R resets the active
+    // camera. Gated on !WantTextInput so typing in the file dialog doesn't trigger them.
+    {
+        ImGuiIO& io = ImGui::GetIO();
+        if (!io.WantTextInput)
+        {
+            CameraRig& rig = renderData.rdCameraRig;
+            if (ImGui::IsKeyChordPressed(ImGuiMod_Alt | ImGuiKey_1))
+            {
+                rig.active = 0;
+            }
+            if (ImGui::IsKeyChordPressed(ImGuiMod_Alt | ImGuiKey_2))
+            {
+                rig.active = 1;
+            }
+            if (ImGui::IsKeyChordPressed(ImGuiMod_Alt | ImGuiKey_3))
+            {
+                rig.active = 2;
+            }
+            if (ImGui::IsKeyChordPressed(ImGuiMod_Alt | ImGuiKey_4))
+            {
+                rig.active = 3;
+            }
+            rig.active = std::clamp(rig.active, 0, 3);
+
+            if (ImGui::IsKeyChordPressed(ImGuiMod_Alt | ImGuiKey_R))
+            {
+                rig.ResetActive();
+            }
+            if (ImGui::IsKeyPressed(ImGuiKey_P, false))
+            {
+                CameraCommon& c = rig.ActiveCommon();
+                c.projection = (c.projection == ProjectionType::Perspective) ? ProjectionType::Orthographic
+                                                                             : ProjectionType::Perspective;
+            }
         }
     }
 
@@ -445,12 +486,114 @@ void UserInterface::CreateFrame(RRenderData& renderData, SceneEditor& sceneEdito
 
     if (ImGui::CollapsingHeader("Camera", ImGuiTreeNodeFlags_DefaultOpen))
     {
-        ImGui::Text("Camera Position: %s", glm::to_string(renderData.rdCameraWorldPosition).c_str());
-        ImGui::SliderInt("Field of View", &renderData.rdFieldOfView, 40, 150, "%d", sliderFlags);
-        ImGui::SliderFloat("Azimuth", &renderData.rdViewAzimuth, 0.0f, 360.0f, "%.1f", sliderFlags);
-        ImGui::SliderFloat("Elevation", &renderData.rdViewElevation, -89.0f, 89.0f, "%.1f", sliderFlags);
-        ImGui::SliderFloat3(
-                "Position", glm::value_ptr(renderData.rdCameraWorldPosition), -50.0f, 50.0f, "%.2f", sliderFlags);
+        CameraRig& rig = renderData.rdCameraRig;
+        rig.active = std::clamp(rig.active, 0, 3);
+
+        static const char* kCameraNames[] = {"1: Free", "2: FirstPerson", "3: ThirdPerson", "4: Stationary"};
+        if (ImGui::BeginCombo("Active Camera", kCameraNames[rig.active]))
+        {
+            for (int i = 0; i < 4; ++i)
+            {
+                const bool selected = (rig.active == i);
+                if (ImGui::Selectable(kCameraNames[i], selected))
+                {
+                    rig.active = i;
+                }
+                if (selected)
+                {
+                    ImGui::SetItemDefaultFocus();
+                }
+            }
+            ImGui::EndCombo();
+        }
+
+        CameraCommon& c = rig.ActiveCommon();
+        static const char* kProjNames[] = {"Perspective", "Orthographic"};
+        int proj = static_cast<int>(c.projection);
+        if (ImGui::Combo("Projection", &proj, kProjNames, IM_ARRAYSIZE(kProjNames)))
+        {
+            c.projection = static_cast<ProjectionType>(proj);
+        }
+
+        if (ImGui::Button("Reset Camera"))
+        {
+            rig.ResetActive();
+        }
+
+        ImGui::Separator();
+
+        // Shared projection parameter (FOV or ortho extent) then the type-specific controls.
+        if (c.projection == ProjectionType::Perspective)
+        {
+            ImGui::SliderFloat("Field of View", &c.fovDeg, 40.0f, 150.0f, "%.1f", sliderFlags);
+        }
+        else
+        {
+            ImGui::SliderFloat("Ortho Half-Height", &c.orthoHalfHeight, 0.5f, 50.0f, "%.2f", sliderFlags);
+        }
+
+        switch (rig.ActiveType())
+        {
+            case CameraType::Free:
+            {
+                FreeCamera& cam = rig.free;
+                ImGui::Text("Position: %s", glm::to_string(cam.position).c_str());
+                ImGui::SliderFloat3("Position", glm::value_ptr(cam.position), -50.0f, 50.0f, "%.2f", sliderFlags);
+                ImGui::SliderFloat("Yaw", &cam.yawDeg, 0.0f, 360.0f, "%.1f", sliderFlags);
+                ImGui::SliderFloat("Pitch", &cam.pitchDeg, -89.0f, 89.0f, "%.1f", sliderFlags);
+                ImGui::SliderFloat("Move Speed", &cam.moveSpeed, 0.5f, 50.0f, "%.1f", sliderFlags);
+                ImGui::SliderFloat("Mouse Sensitivity", &cam.mouseSensitivity, 0.01f, 1.0f, "%.3f", sliderFlags);
+                break;
+            }
+
+            case CameraType::FirstPerson:
+            {
+                FirstPersonCamera& cam = rig.firstPerson;
+                char headBuf[128];
+                std::snprintf(headBuf, sizeof(headBuf), "%s", cam.headBoneName.c_str());
+                if (ImGui::InputText("Head Bone", headBuf, sizeof(headBuf)))
+                {
+                    cam.headBoneName = headBuf;
+                }
+                ImGui::SliderFloat3("Eye Offset", glm::value_ptr(cam.eyeOffset), -1.0f, 1.0f, "%.3f", sliderFlags);
+                ImGui::SliderFloat("Forward Push", &cam.forwardPush, 0.0f, 2.0f, "%.3f", sliderFlags);
+                ImGui::SliderFloat("Yaw Offset", &cam.yawDeg, 0.0f, 360.0f, "%.1f", sliderFlags);
+                ImGui::SliderFloat("Pitch Offset", &cam.pitchDeg, -89.0f, 89.0f, "%.1f", sliderFlags);
+                ImGui::SliderFloat("Roll", &cam.rollDeg, 0.0f, 360.0f, "%.1f", sliderFlags);
+                ImGui::SliderFloat("Mouse Sensitivity", &cam.mouseSensitivity, 0.01f, 1.0f, "%.3f", sliderFlags);
+                break;
+            }
+
+            case CameraType::ThirdPerson:
+            {
+                ThirdPersonCamera& cam = rig.thirdPerson;
+                char headBuf[128];
+                std::snprintf(headBuf, sizeof(headBuf), "%s", cam.headBoneName.c_str());
+                if (ImGui::InputText("Head Bone", headBuf, sizeof(headBuf)))
+                {
+                    cam.headBoneName = headBuf;
+                }
+                ImGui::SliderFloat("Distance", &cam.distance, 0.5f, 50.0f, "%.2f", sliderFlags);
+                // ThirdPerson yaw/pitch are really an orbit (azimuth/elevation) - annotate the true meaning.
+                ImGui::SliderFloat("Yaw (azimuth)", &cam.yawDeg, 0.0f, 360.0f, "%.1f", sliderFlags);
+                ImGui::SliderFloat("Pitch (elevation)", &cam.pitchDeg, -89.0f, 89.0f, "%.1f", sliderFlags);
+                ImGui::SliderFloat("Damping", &cam.damping, 0.5f, 30.0f, "%.1f", sliderFlags);
+                ImGui::SliderFloat("Mouse Sensitivity", &cam.mouseSensitivity, 0.01f, 1.0f, "%.3f", sliderFlags);
+                break;
+            }
+
+            case CameraType::Stationary:
+            {
+                StationaryCamera& cam = rig.stationary;
+                ImGui::Text("Position: %s", glm::to_string(cam.position).c_str());
+                ImGui::SliderFloat3("Position", glm::value_ptr(cam.position), -50.0f, 50.0f, "%.2f", sliderFlags);
+                ImGui::SliderFloat("Damping", &cam.damping, 0.5f, 30.0f, "%.1f", sliderFlags);
+                break;
+            }
+        }
+
+        ImGui::Separator();
+        ImGui::TextDisabled("Alt+1..4 switch | P projection | Alt+R reset | RMB look");
     }
 
     if (ImGui::CollapsingHeader("Timers", ImGuiTreeNodeFlags_DefaultOpen)) {
@@ -705,15 +848,6 @@ void UserInterface::CreateFrame(RRenderData& renderData, SceneEditor& sceneEdito
             }
 
             ImGui::BeginDisabled(!editMode);
-
-            const bool swapBefore = settings.mSwapYZAxis;
-            if (ImGui::Checkbox("Swap Y/Z", &settings.mSwapYZAxis))
-            {
-                // Discrete toggle: record immediately with the pre-toggle value as "before".
-                InstanceSettings before = settings;
-                before.mSwapYZAxis = swapBefore;
-                sceneEditor.RecordInstanceEdit(instance, before, settings, "Toggle Swap Y/Z");
-            }
 
             ImGui::SliderFloat3(
                     "World Position", glm::value_ptr(settings.mWorldPosition), -25.0f, 25.0f, "%.2f", sliderFlags);
