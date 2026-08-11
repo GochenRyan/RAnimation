@@ -77,8 +77,9 @@ add_subdirectory(Samples/SkeletalAnimCompute)
 # Future USD-dependent samples go under the same guard.
 if(RANIM_HAS_USD)
     add_subdirectory(Samples/SkeletalAnimHelper)
+    add_subdirectory(Samples/SkeletalAnimControls)
 else()
-    message(STATUS "Skipping USD-dependent samples (OpenUSD not found): SkeletalAnimHelper.")
+    message(STATUS "Skipping USD-dependent samples (OpenUSD not found): SkeletalAnimHelper, SkeletalAnimControls.")
 endif()
 
 function(get_all_targets result dir)

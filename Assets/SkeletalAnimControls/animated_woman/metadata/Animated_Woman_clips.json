@@ -1,0 +1,83 @@
+{
+    "asset": "Animated_Woman",
+    "assetUsd": "Animated_Woman.asset.usda",
+    "model": "model/model.usda",
+    "layers": {
+        "skeleton": "model/skeleton.usda",
+        "geometry": "model/geometry.usda",
+        "skinning": "model/skinning.usda",
+        "material": "model/material.usda"
+    },
+    "clips": [
+        {
+            "name": "Armature|Death",
+            "file": "anim/Armature_Death.anim.usda",
+            "start": 0,
+            "end": 62,
+            "loop": false
+        },
+        {
+            "name": "Armature|Idle",
+            "file": "anim/Armature_Idle.anim.usda",
+            "start": 0,
+            "end": 200,
+            "loop": true
+        },
+        {
+            "name": "Armature|Jump",
+            "file": "anim/Armature_Jump.anim.usda",
+            "start": 0,
+            "end": 62,
+            "loop": false
+        },
+        {
+            "name": "Armature|Jump2",
+            "file": "anim/Armature_Jump2.anim.usda",
+            "start": 0,
+            "end": 24,
+            "loop": false
+        },
+        {
+            "name": "Armature|PickUp",
+            "file": "anim/Armature_PickUp.anim.usda",
+            "start": 0,
+            "end": 143,
+            "loop": false
+        },
+        {
+            "name": "Armature|Punch",
+            "file": "anim/Armature_Punch.anim.usda",
+            "start": 0,
+            "end": 24,
+            "loop": false
+        },
+        {
+            "name": "Armature|Running",
+            "file": "anim/Armature_Running.anim.usda",
+            "start": 0,
+            "end": 16,
+            "loop": false
+        },
+        {
+            "name": "Armature|SitIdle",
+            "file": "anim/Armature_SitIdle.anim.usda",
+            "start": 0,
+            "end": 153,
+            "loop": false
+        },
+        {
+            "name": "Armature|Sitting",
+            "file": "anim/Armature_Sitting.anim.usda",
+            "start": 0,
+            "end": 106,
+            "loop": false
+        },
+        {
+            "name": "Armature|Walking",
+            "file": "anim/Armature_Walking.anim.usda",
+            "start": 0,
+            "end": 28,
+            "loop": false
+        }
+    ]
+}
