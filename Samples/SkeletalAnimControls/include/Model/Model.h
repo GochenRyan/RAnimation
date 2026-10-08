@@ -5,14 +5,20 @@
 #include <unordered_map>
 #include <vector>
 
+#include <AnimGraph/Pose.h>
 #include <Model/AnimClip.h>
+#include <Model/ClipSampling.h>
 #include <Model/Bone.h>
 #include <Model/Node.h>
 #include <Model/RenderData.h>
 #include <RHIWrap/NRIInterface.h>
+#include <Renderer/NRITrsTexture.h>
+#include <TrsTexture/TrsTexture.h>
 
 namespace RAnimation
 {
+    struct UsdLoadedModel;
+
     class Model
     {
     public:
@@ -21,21 +27,41 @@ namespace RAnimation
 
         void Draw(RRenderData& renderData);
         void DrawInstanced(RRenderData& renderData, uint32_t instanceCount);
-        unsigned int GetTriangleCount();
+        unsigned int GetTriangleCount() const;
 
-        std::string GetModelFileName();
-        std::string GetModelFileNamePath();
+        std::string GetModelFileName() const;
+        std::string GetModelFileNamePath() const;
 
-        bool HasAnimations();
-        const std::vector<std::shared_ptr<AnimClip>>& GetAnimClips();
+        bool HasAnimations() const;
+        const std::vector<std::shared_ptr<AnimClip>>& GetAnimClips() const;
 
-        const std::vector<std::shared_ptr<Node>>& GetNodeList();
-        const std::unordered_map<std::string, std::shared_ptr<Node>>& GetNodeMap();
+        const std::vector<std::shared_ptr<Node>>& GetNodeList() const;
+        const std::unordered_map<std::string, std::shared_ptr<Node>>& GetNodeMap() const;
 
-        const std::vector<std::shared_ptr<Bone>>& GetBoneList();
-        const std::unordered_map<std::string, glm::mat4>& GetInverseBindMatrices();
+        const std::vector<std::shared_ptr<Bone>>& GetBoneList() const;
+        const std::unordered_map<std::string, glm::mat4>& GetInverseBindMatrices() const;
 
-    const std::shared_ptr<Node> GetRootNode();
+        const std::shared_ptr<Node> GetRootNode();
+
+        // Node-order tables shared by the AnimGraph runtime, the camera pose and the TRS texture path.
+        const std::vector<Transform>& GetBindPose() const { return mBindPose; }
+        const std::unordered_map<std::string, int32_t>& GetNodeIndexByName() const { return mNodeIndexByName; }
+        const std::vector<int32_t>& GetNodeParentIndices() const { return mNodeParentIndex; }
+        const ChannelToNodeTable& GetChannelToNodeTable(size_t clipIndex) const { return mChannelToNode.at(clipIndex); }
+        // Global matrices (instanceLocal * node0 * ... * node) for a pose, in node order. Replaces reading
+        // the shared Node tree after UpdateAnimation(0).
+        void ComputeNodeGlobals(const Pose& pose, const glm::mat4& instanceLocal, std::vector<glm::mat4>& out) const;
+        int32_t FindNodeIndex(const std::string& name) const;
+
+        // Baked TRS texture, CPU side (header + clip table + texels). The GPU objects are created by the
+        // renderer (Phase 3). Not ready => the GPU evaluation tiers fall back to the CPU tier for this model.
+        bool IsTrsTexReady() const { return mTrsTexReady; }
+        const BoneTrsTexture& GetTrsTexCpu() const { return mTrsTexCpu; }
+        const std::string& GetTrsTexPath() const { return mTrsTexPath; }
+        const std::string& GetTrsTexStatus() const { return mTrsTexStatus; }
+        void SetTrsTexStatus(std::string status) { mTrsTexStatus = std::move(status); }
+        TrsTextureGpu& TrsTexGpu() { return mTrsTexGpu; }
+        const TrsTextureGpu& TrsTexGpu() const { return mTrsTexGpu; }
 
         void Cleanup(RRenderData& renderData);
 
@@ -66,6 +92,18 @@ namespace RAnimation
         RTextureData mWhiteTexture{};
 
         glm::mat4 mRootTransformMatrix = glm::mat4(1.0f);
+
+        std::vector<Transform> mBindPose{};
+        std::unordered_map<std::string, int32_t> mNodeIndexByName{};
+        std::vector<int32_t> mNodeParentIndex{};
+        std::vector<ChannelToNodeTable> mChannelToNode{};
+
+        BoneTrsTexture mTrsTexCpu{};
+        bool mTrsTexReady = false;
+        std::string mTrsTexPath;
+        std::string mTrsTexStatus = "not loaded";
+        TrsTextureGpu mTrsTexGpu{};
+        void loadTrsTextureCpu(const UsdLoadedModel& loaded, const std::string& assetPath);
 
         std::string mModelFilenamePath;
         std::string mModelFilename;

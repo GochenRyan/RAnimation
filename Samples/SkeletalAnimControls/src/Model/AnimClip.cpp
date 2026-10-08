@@ -7,22 +7,22 @@ void AnimClip::AddChannel(std::shared_ptr<AnimChannel> channel)
     mAnimChannels.emplace_back(std::move(channel));
 }
 
-const std::vector<std::shared_ptr<AnimChannel>>& AnimClip::GetChannels()
+const std::vector<std::shared_ptr<AnimChannel>>& AnimClip::GetChannels() const
 {
     return mAnimChannels;
 }
 
-std::string AnimClip::GetClipName()
+std::string AnimClip::GetClipName() const
 {
     return mClipName;
 }
 
-float AnimClip::GetClipDuration()
+float AnimClip::GetClipDuration() const
 {
     return static_cast<float>(mClipDuration);
 }
 
-float AnimClip::GetClipTicksPerSecond()
+float AnimClip::GetClipTicksPerSecond() const
 {
     return static_cast<float>(mClipTicksPerSecond);
 }

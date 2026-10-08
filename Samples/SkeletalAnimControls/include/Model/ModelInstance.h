@@ -1,12 +1,19 @@
 #pragma once
 
 #include <memory>
+#include <string>
+#include <vector>
 
 #include <Model/InstanceSettings.h>
 #include <Model/Model.h>
+#include <AnimGraph/EvalMode.h>
+#include <AnimGraph/Pose.h>
 
 namespace RAnimation
 {
+    struct AnimGraphAsset;
+    class AnimGraphInstance;
+
     class ModelInstance final
     {
     public:
@@ -32,9 +39,32 @@ namespace RAnimation
         void SetInstanceSettings(InstanceSettings settings);
         InstanceSettings GetInstanceSettings();
 
+        ~ModelInstance();
+
         void UpdateModelRootMatrix();
         void UpdateAnimation(float deltaTime);
         void UpdateAnimationState(float deltaTime);
+
+        // ---- AnimGraph ----------------------------------------------------------------------------
+        // Authored graph asset (null = implicit single-clip graph driven by mAnimClipNr / mAnimSpeedFactor).
+        void SetGraphAsset(std::shared_ptr<AnimGraphAsset> asset);
+        std::shared_ptr<AnimGraphAsset> GetGraphAsset() const;
+        AnimGraphInstance* GetGraph() const;
+        // (Re)builds the per-instance graph for mode when the asset / mode / implicit params changed.
+        // Returns null when the graph is unusable (see GetGraphError()).
+        AnimGraphInstance* EnsureGraph(EvalMode mode, float trackGlobalTimeSec);
+        const std::string& GetGraphError() const { return mGraphError; }
+        void SetEffectiveEvalMode(EvalMode mode);
+        EvalMode GetEffectiveEvalMode() const { return mEffectiveMode; }
+
+        // Tier C: what the renderer actually draws for this instance (track clip + time).
+        void SetTrackPoseSource(int clipIndex, float timeSec);
+        int GetTrackClip() const { return mTrackClip; }
+
+        // CPU pose of what is being drawn, evaluated on demand (camera follow, focus, CPU tier).
+        void MarkCpuPoseDirty() { mCpuPoseDirty = true; }
+        const std::vector<Transform>& EnsureCpuPose();
+        Pose GetCpuPose();
 
     private:
         std::shared_ptr<Model> mModel = nullptr;
@@ -51,5 +81,21 @@ namespace RAnimation
         glm::mat4 mModelRootMatrix = glm::mat4(1.0f);
 
         std::vector<glm::mat4> mBoneMatrices{};
+
+        std::shared_ptr<AnimGraphAsset> mGraphAsset;
+        std::shared_ptr<AnimGraphAsset> mImplicitAsset;
+        std::unique_ptr<AnimGraphInstance> mGraph;
+        std::string mGraphError;
+        bool mGraphDirty = true;
+        uint64_t mGraphRevision = 0;
+        int mImplicitClip = -1;
+        float mImplicitRate = 0.0f;
+        EvalMode mEffectiveMode = EvalMode::Cpu;
+
+        std::vector<Transform> mCpuPose;
+        bool mCpuPoseDirty = true;
+        bool mTrackPoseActive = false;
+        int mTrackClip = 0;
+        float mTrackTimeSec = 0.0f;
     };
 } // namespace RAnimation

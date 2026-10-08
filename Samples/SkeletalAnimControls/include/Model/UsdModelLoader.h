@@ -6,7 +6,7 @@
 #include <glm/gtc/quaternion.hpp>
 
 #include <Model/AnimChannel.h> // AnimBehaviour
-#include <Model/RenderData.h>  // RMesh / RVertex
+#include <Model/MeshData.h>    // RMesh / RVertex
 
 // USD-free interface for the OpenUSD asset loader. ALL pxr/USD (and boost/TBB) headers stay inside
 // UsdModelLoader.cpp so they never leak into the rest of the sample (compile-time isolation, pimpl-style).
@@ -50,6 +50,7 @@ namespace RAnimation
         std::string name;
         float duration = 0.0f;       // in ticks/frames
         float ticksPerSecond = 0.0f; // frames per second
+        bool loop = true;            // clips json "loop" (editor default only; runtime looping is a graph-node property)
         std::vector<UsdAnimChannelData> channels;
     };
 

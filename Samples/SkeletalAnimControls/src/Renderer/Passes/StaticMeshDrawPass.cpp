@@ -26,6 +26,7 @@ namespace RAnimation
             int modelStride = 0;
             int worldPosOffset = 0;
             int pickIDBase = 0;
+            int crowdInstanceBase = 0; // used by the crowd skinning VS only; keeps the shared layout 16 B
         };
     } // namespace
 
@@ -43,9 +44,16 @@ namespace RAnimation
         mWorldMatrixView = context.registry.RegisterSharedView(SceneResourceNames::kWorldMatrixBufferView,
                                                                mWorldMatrixBuffer,
                                                                nri::BufferViewType::SHADER_RESOURCE);
+        // Crowd instance table (written by HybridEvalComputePass::Upload); registered here too so the shared
+        // material layout's t2 range always has a view to bind.
+        mCrowdInstanceBuffer = context.registry.RegisterSharedBuffer(SceneResourceNames::kCrowdInstanceBuffer,
+                                                                     SceneBufferDescs::CrowdInstance(context.budget));
+        mCrowdInstanceView = context.registry.RegisterSharedView(SceneResourceNames::kCrowdInstanceBufferView,
+                                                                 mCrowdInstanceBuffer,
+                                                                 nri::BufferViewType::SHADER_RESOURCE);
 
         return mCameraBuffer.IsValid() && mWorldMatrixBuffer.IsValid() && mCameraView.IsValid() &&
-               mWorldMatrixView.IsValid();
+               mWorldMatrixView.IsValid() && mCrowdInstanceBuffer.IsValid() && mCrowdInstanceView.IsValid();
     }
 
     bool StaticMeshDrawPass::CreatePipeline(RenderContext& context)
@@ -57,6 +65,8 @@ namespace RAnimation
         mBufferRanges = {
                 {0, 1, nri::DescriptorType::CONSTANT_BUFFER, nri::StageBits::VERTEX_SHADER},
                 {1, 1, nri::DescriptorType::STRUCTURED_BUFFER, nri::StageBits::VERTEX_SHADER},
+                // t2: crowd instance table (tier C skinning). Shaders that do not declare it simply ignore it.
+                {2, 1, nri::DescriptorType::STRUCTURED_BUFFER, nri::StageBits::VERTEX_SHADER},
         };
 
         nri::DescriptorSetDesc setDescs[] = {
@@ -188,7 +198,7 @@ namespace RAnimation
         req.descriptorSetMaxNum = queuedFrameNum;
         // Set 1: camera (constant buffer) + world matrix (structured buffer)
         req.constantBufferMaxNum = queuedFrameNum;
-        req.structuredBufferMaxNum = queuedFrameNum;
+        req.structuredBufferMaxNum = queuedFrameNum * 2; // world matrices + crowd instances
         return req;
     }
 
@@ -206,11 +216,13 @@ namespace RAnimation
 
             nri::Descriptor* cameraView = context.registry.GetView(mCameraView, frameIndex);
             nri::Descriptor* worldView = context.registry.GetView(mWorldMatrixView, frameIndex);
+            nri::Descriptor* crowdView = context.registry.GetView(mCrowdInstanceView, frameIndex);
 
-            nri::Descriptor* descriptors[] = {cameraView, worldView};
+            nri::Descriptor* descriptors[] = {cameraView, worldView, crowdView};
             nri::UpdateDescriptorRangeDesc ranges[] = {
                     {mDescriptorSets[frameIndex], 0, 0, &descriptors[0], 1},
                     {mDescriptorSets[frameIndex], 1, 0, &descriptors[1], 1},
+                    {mDescriptorSets[frameIndex], 2, 0, &descriptors[2], 1},
             };
             context.NRI.UpdateDescriptorRanges(ranges, helper::GetCountOf(ranges));
         }

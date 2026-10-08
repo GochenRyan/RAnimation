@@ -23,6 +23,11 @@ target_link_libraries(SkeletalAnimControls PRIVATE NRI)
 target_link_libraries(SkeletalAnimControls PRIVATE SDL3::SDL3)
 target_link_libraries(SkeletalAnimControls PRIVATE imgui)
 target_link_libraries(SkeletalAnimControls PRIVATE ImGuiFileDialog)
+target_link_libraries(SkeletalAnimControls PRIVATE imgui_node_editor)
+# TRS texture format + loader (Tools/TrsTexture). The baked asset is produced by the BakeTrsTextures step
+# (fingerprint-gated, so a no-change build does nothing) before the sample builds.
+target_link_libraries(SkeletalAnimControls PRIVATE TrsTexture)
+add_dependencies(SkeletalAnimControls BakeTrsTextures)
 
 # OpenUSD replaces assimp as this sample's asset loader (UsdSkel) and backs Import/Export Scene to USD.
 # The reusable helpers (CMake/usd_options.cmake, CMake/vulkan_validation_options.cmake) link USD, deploy

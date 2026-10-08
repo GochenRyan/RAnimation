@@ -11,4 +11,6 @@ struct InstanceSettings final
     unsigned int mAnimClipNr = 0;
     float mAnimPlayTimePos = 0.0f;
     float mAnimSpeedFactor = 1.0f;
+    // Normalised start phase in [0,1): seeds the graph clocks and selects the tier-C track bucket.
+    float mAnimPhase = 0.0f;
 };

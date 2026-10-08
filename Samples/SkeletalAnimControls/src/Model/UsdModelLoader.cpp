@@ -469,6 +469,7 @@ namespace
                   const std::string& clipFile,
                   int startFrame,
                   int endFrame,
+                  bool loop,
                   const std::unordered_map<std::string, std::string>& jointToName,
                   UsdLoadedModel& out)
     {
@@ -514,6 +515,7 @@ namespace
         clip.name = clipName;
         clip.ticksPerSecond = static_cast<float>(fps);
         clip.duration = static_cast<float>(std::max(0, endFrame - startFrame));
+        clip.loop = loop;
         clip.channels.resize(animJoints.size());
 
         for (size_t j = 0; j < animJoints.size(); ++j)
@@ -628,8 +630,10 @@ namespace
             const std::string file = fileIt->second.GetString();
             const int start = startIt != clip.end() ? startIt->second.GetInt() : 0;
             const int end = endIt != clip.end() ? endIt->second.GetInt() : 0;
+            const auto loopIt = clip.find("loop");
+            const bool loop = loopIt != clip.end() && loopIt->second.IsBool() ? loopIt->second.GetBool() : true;
 
-            loadClip(assetDir, name, file, start, end, jointToName, out);
+            loadClip(assetDir, name, file, start, end, loop, jointToName, out);
         }
     }
 

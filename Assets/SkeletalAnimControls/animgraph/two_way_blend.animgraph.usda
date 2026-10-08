@@ -1,0 +1,49 @@
+#usda 1.0
+(
+    customLayerData = {
+        dictionary ranim = {
+            int animGraphVersion = 1
+            string doc = "Two-way blend: Walking (A) vs Running (B), Alpha 0.5. All GPU: two texture terms, no upload slot."
+        }
+    }
+    defaultPrim = "AnimGraph"
+)
+
+def Scope "AnimGraph"
+{
+    custom int ranim:outputNode = 3
+
+    def Scope "Node_0"
+    {
+        custom int ranim:clipIndex = 9
+        custom float2 ranim:editorPos = (60, 60)
+        custom bool ranim:looping = 1
+        custom float ranim:playRate = 1
+        custom string ranim:type = "ClipPlayer"
+    }
+
+    def Scope "Node_1"
+    {
+        custom int ranim:clipIndex = 6
+        custom float2 ranim:editorPos = (60, 260)
+        custom bool ranim:looping = 1
+        custom float ranim:playRate = 1
+        custom string ranim:type = "ClipPlayer"
+    }
+
+    def Scope "Node_2"
+    {
+        custom float2 ranim:editorPos = (380, 150)
+        custom rel ranim:in:A = </AnimGraph/Node_0>
+        custom rel ranim:in:B = </AnimGraph/Node_1>
+        custom float ranim:param = 0.5
+        custom string ranim:type = "TwoWayBlend"
+    }
+
+    def Scope "Node_3"
+    {
+        custom float2 ranim:editorPos = (700, 150)
+        custom rel ranim:in:Result = </AnimGraph/Node_2>
+        custom string ranim:type = "Root"
+    }
+}

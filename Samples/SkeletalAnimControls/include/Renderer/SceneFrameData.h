@@ -6,10 +6,13 @@
 #include <unordered_map>
 #include <vector>
 
+#include <AnimGraph/EvalMode.h>
+
 struct ModelAndInstanceData;
 
 namespace RAnimation
 {
+    class Model;
     class ModelInstance;
 
     struct AnimatedDispatch
@@ -22,10 +25,26 @@ namespace RAnimation
         uint32_t instanceCount = 0;
     };
 
-    // Per-frame state computed by Renderer::updateModelBuffer() and consumed by passes during Record().
+    // CPU-side description of one animated model group as packed by HybridEvalComputePass::Upload.
+    // gpu is the root-constant POD BoneMatrixComputePass consumes unchanged; in tier C gpu.instanceCount is
+    // the number of TRACKS while drawInstanceCount is the number of crowd members drawn.
+    struct AnimatedGroup
+    {
+        AnimatedDispatch gpu;
+        uint32_t workBase = 0;
+        uint32_t workCount = 0;
+        uint32_t drawInstanceCount = 0;
+        uint32_t crowdInstanceBase = 0;
+        EvalMode mode = EvalMode::Cpu;
+        bool isTracks = false;
+        Model* model = nullptr;
+    };
+
+    // Per-frame state filled by Renderer::Draw and HybridEvalComputePass::Upload, consumed during Record().
     struct SceneFrameData
     {
         const std::vector<AnimatedDispatch>* animatedDispatches = nullptr;
+        const std::vector<AnimatedGroup>* animatedGroups = nullptr;
         ModelAndInstanceData* modelInstData = nullptr;
         size_t uploadedBoneOffsetMatrixCount = 0;
         bool hasSceneGeometry = false;

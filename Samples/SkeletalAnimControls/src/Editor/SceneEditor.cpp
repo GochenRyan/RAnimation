@@ -206,12 +206,13 @@ void SceneEditor::AddInstances(std::shared_ptr<Model> model, int numInstances)
 
         std::shared_ptr<ModelInstance> newInstance =
                 std::make_shared<ModelInstance>(model, glm::vec3(xPos, 0.0f, zPos), glm::vec3(0.0f, rotation, 0.0f));
+        InstanceSettings instSettings = newInstance->GetInstanceSettings();
         if (animClipNum > 0)
         {
-            InstanceSettings instSettings = newInstance->GetInstanceSettings();
             instSettings.mAnimClipNr = clipNr;
-            newInstance->SetInstanceSettings(instSettings);
         }
+        instSettings.mAnimPhase = static_cast<float>(std::rand() % 1000) / 1000.0f;
+        newInstance->SetInstanceSettings(instSettings);
 
         createdInstances.emplace_back(std::move(newInstance));
     }
@@ -223,6 +224,39 @@ void SceneEditor::AddInstances(std::shared_ptr<Model> model, int numInstances)
 
     mEditor.Execute(std::make_unique<FunctionalCommand>(
             "Create Instances",
+            [this, createdInstances]()
+            {
+                for (const auto& instance : createdInstances)
+                {
+                    insertInstanceInternal(instance);
+                }
+            },
+            [this, createdInstances]()
+            {
+                for (const auto& instance : createdInstances)
+                {
+                    removeInstanceInternal(instance);
+                }
+            }));
+}
+
+void SceneEditor::AddInstances(std::shared_ptr<Model> model, const std::vector<InstanceSettings>& settings, const char* commandName)
+{
+    std::vector<std::shared_ptr<ModelInstance>> createdInstances;
+    createdInstances.reserve(settings.size());
+    for (const InstanceSettings& s : settings)
+    {
+        std::shared_ptr<ModelInstance> newInstance = std::make_shared<ModelInstance>(model, s.mWorldPosition, s.mWorldRotation, s.mScale);
+        newInstance->SetInstanceSettings(s);
+        createdInstances.emplace_back(std::move(newInstance));
+    }
+    if (createdInstances.empty())
+    {
+        return;
+    }
+
+    mEditor.Execute(std::make_unique<FunctionalCommand>(
+            commandName,
             [this, createdInstances]()
             {
                 for (const auto& instance : createdInstances)
@@ -274,19 +308,15 @@ void SceneEditor::FocusCameraOn(std::shared_ptr<ModelInstance> instance)
     // centre of the joint AABB instead (roughly mid-body). Refresh the pose first (advance by 0 so the
     // play time does not step) so the joint world matrices reflect this instance.
     glm::vec3 focus = instance->GetWorldPosition();
-    instance->UpdateAnimation(0.0f);
-    const auto& nodeMap = instance->GetModel()->GetNodeMap();
-    if (!nodeMap.empty())
+    std::vector<glm::mat4> globals;
+    instance->GetModel()->ComputeNodeGlobals(instance->GetCpuPose(), instance->GetLocalTransformMatrix(), globals);
+    if (!globals.empty())
     {
         glm::vec3 mn(std::numeric_limits<float>::max());
         glm::vec3 mx(std::numeric_limits<float>::lowest());
-        for (const auto& [name, node] : nodeMap)
+        for (const glm::mat4& m : globals)
         {
-            if (!node)
-            {
-                continue;
-            }
-            const glm::vec3 p = glm::vec3(node->GetTRSMatrix()[3]);
+            const glm::vec3 p = glm::vec3(m[3]);
             mn = glm::min(mn, p);
             mx = glm::max(mx, p);
         }

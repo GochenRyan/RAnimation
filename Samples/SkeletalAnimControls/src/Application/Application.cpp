@@ -2,7 +2,15 @@
 #include <Platform/SDL/SDLWindow.h>
 #include <Application/Application.h>
 
+#include <algorithm>
 #include <chrono>
+#include <cstdlib>
+
+#include <fmt/base.h>
+#include <fmt/color.h>
+
+#include <AnimGraph/AnimGraphAsset.h>
+#include <Model/UsdSceneExporter.h>
 
 using namespace RAnimation;
 
@@ -71,12 +79,33 @@ void Application::MainLoop()
 
     while (!mPlatform->GetMainWindow()->ShouldClose())
     {
+        if (mFrameLimit >= 0)
+        {
+            if (mFramesRendered > 0 && mFramesRendered % 30 == 0)
+            {
+                printFrameStats("frame");
+            }
+            if (mFramesRendered >= mFrameLimit)
+            {
+                printFrameStats("final");
+                if (mVerifyAtEnd)
+                {
+                    runVerification();
+                }
+                break;
+            }
+        }
+
         mRenderer->SetSize(mPlatform->GetMainWindow()->GetWidth(), mPlatform->GetMainWindow()->GetHeight());
 
         // Build the UI for this frame (reads renderer telemetry, reads/edits the SceneEditor) before
         // rendering, so this frame's ImguiPass draws this frame's UI. ImGui draw data is global state.
         mUserInterface.CreateFrame(mRenderer->GetRenderData(), mSceneEditor);
         mUserInterface.Render(mRenderer->GetRenderData());
+
+        // Advance every instance's animation graph (time, CPU seams, Work records) before the camera reads
+        // poses and before the renderer packs the frame.
+        mAnimationSystem.Update(deltaTime, mSceneEditor.ModelData());
 
         // Drive the active camera from this frame's ImGui input + the selected instance, after the UI
         // frame is built (so IO is populated) and before Draw uploads the camera matrices.
@@ -86,6 +115,7 @@ void Application::MainLoop()
         {
             break;
         }
+        ++mFramesRendered;
 
         const bool editMode = mSceneEditor.IsEditMode();
         if (editMode != lastEditMode)

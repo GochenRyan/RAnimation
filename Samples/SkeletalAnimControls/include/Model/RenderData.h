@@ -9,6 +9,7 @@
 #include <glm/glm.hpp>
 #include <ml.h>
 
+#include <Model/MeshData.h>
 #include <Tools/Camera.h>
 
 #include <Renderer/PassRegistry.h>
@@ -42,37 +43,35 @@ namespace RAnimation
         bool requested = false;
     };
 
-    struct RVertex
-    {
-        glm::vec3 position = glm::vec3(0.0f);
-        glm::vec4 color = glm::vec4(1.0f);
-        glm::vec3 normal = glm::vec3(0.0f);
-        glm::vec2 uv = glm::vec2(0.0f);
-        glm::uvec4 boneNumber = glm::uvec4(0);
-        glm::vec4 boneWeight = glm::vec4(0.0f);
-    };
-
-    // Material texture slots a mesh can reference. First-party replacement for assimp's aiTextureType
-    // (the loader is now USD-based). Only Diffuse is currently consumed by the draw passes.
-    enum class TextureType : uint8_t
-    {
-        Diffuse
-    };
-
-    struct RMesh
-    {
-        std::vector<RVertex> vertices{};
-        std::vector<uint32_t> indices{};
-        std::unordered_map<TextureType, std::string> textures{};
-        bool usesPBRColors = false;
-    };
-
    /* data format to be uploaded to compute shader */
     struct RNodeTransformData
     {
         glm::vec4 translation = glm::vec4(0.0f);
         glm::vec4 scale = glm::vec4(1.0f);
         glm::vec4 rotation = glm::vec4(0.0f, 0.0f, 0.0f, 1.0f); // this is a quaternion
+    };
+
+    /* tier C: one crowd member (mirrors CrowdInstance in hybrid_common.hlsli) */
+    struct CrowdInstanceData
+    {
+        glm::mat4 world = glm::mat4(1.0f);
+        uint32_t trackIndex = 0;
+        uint32_t _pad[3] = {0, 0, 0};
+    };
+    static_assert(sizeof(CrowdInstanceData) == 80, "CrowdInstanceData must match the HLSL layout");
+
+    /* per-frame numbers published by HybridEvalComputePass for the UI */
+    struct HybridEvalStats
+    {
+        uint32_t dispatches = 0;
+        uint32_t threadGroups = 0;
+        uint32_t works = 0;
+        uint32_t terms = 0;
+        uint32_t slotTransforms = 0;
+        uint32_t crowdInstances = 0;
+        size_t slotBytes = 0;
+        size_t uploadBytes = 0;
+        size_t trsTextureBytes = 0;
     };
 
     struct RUploadMatrices
@@ -178,6 +177,13 @@ namespace RAnimation
         // Shared by StaticMeshDrawPass / SkinnedMeshDrawPass / NRITexture material descriptor allocation.
         // Owned by StaticMeshDrawPass (created in CreatePipeline, destroyed in Cleanup).
         nri::PipelineLayout* rdMaterialPipelineLayout = nullptr;
+
+        // Owned by HybridEvalComputePass (created in CreatePipeline, destroyed in Cleanup). Published so
+        // NRITrsTexture::Load can fill a per-model set 1 at model-load time. The free list holds the
+        // pre-allocated set 1s (NRI cannot free single sets); Load pops, Model::Cleanup pushes back.
+        nri::PipelineLayout* rdHybridEvalPipelineLayout = nullptr;
+        std::vector<nri::DescriptorSet*> rdTrsTextureSetFreeList;
+        HybridEvalStats rdHybridStats{};
 
         std::vector<QueuedFrame> rdQueuedFrames;
         uint32_t queuedFrameIndex = 0;

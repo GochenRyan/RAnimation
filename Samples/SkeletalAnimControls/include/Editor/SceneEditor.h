@@ -4,6 +4,7 @@
 #include <memory>
 #include <string>
 #include <unordered_set>
+#include <vector>
 
 #include <glm/glm.hpp>
 
@@ -85,6 +86,17 @@ namespace RAnimation
                                 const InstanceSettings& after,
                                 const char* name);
 
+        // Generic command access for other editors (AnimGraph panel): Execute runs Do() then records;
+        // Record only pushes an already-applied change (slider drags).
+        void ExecuteCommand(std::unique_ptr<ICommand> command)
+        {
+            mEditor.Execute(std::move(command));
+        }
+        void RecordCommand(std::unique_ptr<ICommand> command)
+        {
+            mEditor.Record(std::move(command));
+        }
+
         // -- Structural operations (each produces a command) --
         bool HasModel(const std::string& modelFileName) const;
         std::shared_ptr<Model> GetModel(const std::string& modelFileName) const;
@@ -94,6 +106,8 @@ namespace RAnimation
 
         std::shared_ptr<ModelInstance> AddInstance(std::shared_ptr<Model> model);
         void AddInstances(std::shared_ptr<Model> model, int numInstances);
+        // Creates one instance per settings entry as a single undo step (crowd spawn).
+        void AddInstances(std::shared_ptr<Model> model, const std::vector<InstanceSettings>& settings, const char* commandName);
         void DeleteInstance(std::shared_ptr<ModelInstance> instance);
         void CloneInstance(std::shared_ptr<ModelInstance> instance);
         void FocusCameraOn(std::shared_ptr<ModelInstance> instance);

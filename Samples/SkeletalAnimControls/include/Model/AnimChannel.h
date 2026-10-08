@@ -36,17 +36,26 @@ namespace RAnimation
                             AnimBehaviour preState = AnimBehaviour::Default,
                             AnimBehaviour postState = AnimBehaviour::Default);
 
-        std::string GetTargetNodeName();
-        float GetMaxTime();
+        std::string GetTargetNodeName() const;
+        float GetMaxTime() const;
         bool HasTranslationKeys() const;
         bool HasScalingKeys() const;
         bool HasRotationKeys() const;
 
-        glm::mat4 GetTRSMatrix(float time);
+        glm::mat4 GetTRSMatrix(float time) const;
 
-        glm::vec3 GetTranslation(float time);
-        glm::vec3 GetScaling(float time);
-        glm::quat GetRotation(float time);
+        glm::vec3 GetTranslation(float time) const;
+        glm::vec3 GetScaling(float time) const;
+        glm::quat GetRotation(float time) const;
+
+        // Read-only key access (fingerprinting / tooling).
+        size_t GetKeyCount() const { return mTranslationTimings.size() + mRotationTimings.size() + mScaleTimings.size(); }
+        const std::vector<float>& GetTranslationTimings() const { return mTranslationTimings; }
+        const std::vector<float>& GetRotationTimings() const { return mRotationTimings; }
+        const std::vector<float>& GetScaleTimings() const { return mScaleTimings; }
+        const std::vector<glm::vec3>& GetTranslations() const { return mTranslations; }
+        const std::vector<glm::quat>& GetRotations() const { return mRotations; }
+        const std::vector<glm::vec3>& GetScalings() const { return mScalings; }
 
     private:
         std::string mNodeName;

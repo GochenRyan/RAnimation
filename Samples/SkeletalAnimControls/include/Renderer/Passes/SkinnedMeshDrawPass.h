@@ -24,11 +24,14 @@ namespace RAnimation
 
     private:
         nri::Pipeline* mPipeline = nullptr;
+        nri::Pipeline* mCrowdPipeline = nullptr; // tier C: per-track bone matrices x per-instance world
         std::vector<nri::DescriptorSet*> mDescriptorSets;
 
         BufferHandle mCameraBuffer{};
         BufferHandle mBoneMatrixBuffer{};
         BufferViewHandle mCameraView{};
         BufferViewHandle mBoneMatrixView{};
+        BufferHandle mCrowdInstanceBuffer{};
+        BufferViewHandle mCrowdInstanceView{};
     };
 } // namespace RAnimation

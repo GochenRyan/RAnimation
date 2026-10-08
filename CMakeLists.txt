@@ -56,6 +56,7 @@ include(CMake/sdl_options.cmake)
 include(CMake/shadermake_options.cmake)
 
 include(CMake/imgui_options.cmake)
+include(CMake/imgui_node_editor_options.cmake)
 
 include(CMake/imgui_file_dialog_options.cmake)
 
@@ -77,9 +78,12 @@ add_subdirectory(Samples/SkeletalAnimCompute)
 # Future USD-dependent samples go under the same guard.
 if(RANIM_HAS_USD)
     add_subdirectory(Samples/SkeletalAnimHelper)
+    # TrsTexture (library + TrsTextureBaker + the BakeTrsTextures step) must exist before the sample that
+    # links the library and depends on the baked asset.
+    add_subdirectory(Tools/TrsTexture)
     add_subdirectory(Samples/SkeletalAnimControls)
 else()
-    message(STATUS "Skipping USD-dependent samples (OpenUSD not found): SkeletalAnimHelper, SkeletalAnimControls.")
+    message(STATUS "Skipping USD-dependent targets (OpenUSD not found): SkeletalAnimHelper, SkeletalAnimControls, TrsTextureBaker.")
 endif()
 
 function(get_all_targets result dir)
@@ -116,9 +120,12 @@ foreach(t ${ALL_TARGETS})
     get_target_property(t_source_dir ${t} SOURCE_DIR)
     string(FIND "${t_source_dir}" "${CMAKE_SOURCE_DIR}/Packages/" is_package)
     string(FIND "${t_source_dir}" "${CMAKE_SOURCE_DIR}/Samples/" is_sample)
+    string(FIND "${t_source_dir}" "${CMAKE_SOURCE_DIR}/Tools/" is_tool)
     if(is_package EQUAL 0)
         set_target_properties(${t} PROPERTIES FOLDER "Packages")
     elseif(is_sample EQUAL 0)
         set_target_properties(${t} PROPERTIES FOLDER "Samples")
+    elseif(is_tool EQUAL 0)
+        set_target_properties(${t} PROPERTIES FOLDER "Tools")
     endif()
 endforeach()

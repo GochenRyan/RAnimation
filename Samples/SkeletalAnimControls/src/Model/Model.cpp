@@ -7,8 +7,10 @@
 #include <fmt/color.h>
 
 #include <Model/Model.h>
+#include <Model/TrsSource.h>
 #include <Model/UsdModelLoader.h>
 #include <Renderer/NRITexture.h>
+#include <Renderer/NRITrsTexture.h>
 #include <RHIWrap/Helper.h>
 
 using namespace RAnimation;
@@ -154,6 +156,25 @@ bool Model::LoadModel(RRenderData& renderData, std::string modelFilename, unsign
         }
 
         mAnimClips.emplace_back(animClip);
+    }
+
+    /* node-order tables shared with the AnimGraph runtime and the TRS texture path */
+    for (size_t i = 0; i < mNodeList.size(); ++i)
+    {
+        mNodeIndexByName[mNodeList[i]->GetNodeName()] = static_cast<int32_t>(i);
+        mBindPose.emplace_back(mNodeList[i]->GetBindTransform());
+        mNodeParentIndex.emplace_back(loaded.nodes.at(i).parentIndex);
+    }
+    for (size_t c = 0; c < mAnimClips.size(); ++c)
+    {
+        mChannelToNode.emplace_back(BuildChannelToNodeTable(*mAnimClips[c], mNodeIndexByName));
+        mAnimClips[c]->SetClipLoop(loaded.animClips.at(c).loop);
+    }
+
+    loadTrsTextureCpu(loaded, modelFilename);
+    if (mTrsTexReady)
+    {
+        NRITrsTexture::Load(renderData, *this);
     }
 
     mRootTransformMatrix = loaded.rootTransform;
@@ -326,47 +347,47 @@ void Model::DrawInstanced(RRenderData& renderData, uint32_t instanceCount)
     }
 }
 
-unsigned int Model::GetTriangleCount()
+unsigned int Model::GetTriangleCount() const
 {
     return mTriangleCount;
 }
 
-std::string Model::GetModelFileName()
+std::string Model::GetModelFileName() const
 {
     return mModelFilename;
 }
 
-std::string Model::GetModelFileNamePath()
+std::string Model::GetModelFileNamePath() const
 {
     return mModelFilenamePath;
 }
 
-bool Model::HasAnimations()
+bool Model::HasAnimations() const
 {
     return !mAnimClips.empty();
 }
 
-const std::vector<std::shared_ptr<AnimClip>>& Model::GetAnimClips()
+const std::vector<std::shared_ptr<AnimClip>>& Model::GetAnimClips() const
 {
     return mAnimClips;
 }
 
-const std::vector<std::shared_ptr<Node>>& Model::GetNodeList()
+const std::vector<std::shared_ptr<Node>>& Model::GetNodeList() const
 {
     return mNodeList;
 }
 
-const std::unordered_map<std::string, std::shared_ptr<Node>>& Model::GetNodeMap()
+const std::unordered_map<std::string, std::shared_ptr<Node>>& Model::GetNodeMap() const
 {
     return mNodeMap;
 }
 
-const std::vector<std::shared_ptr<Bone>>& Model::GetBoneList()
+const std::vector<std::shared_ptr<Bone>>& Model::GetBoneList() const
 {
     return mBoneList;
 }
 
-const std::unordered_map<std::string, glm::mat4>& Model::GetInverseBindMatrices()
+const std::unordered_map<std::string, glm::mat4>& Model::GetInverseBindMatrices() const
 {
     return mInverseBindMatrices;
 }
@@ -378,6 +399,8 @@ const std::shared_ptr<Node> Model::GetRootNode()
 
 void Model::Cleanup(RRenderData& renderData)
 {
+    NRITrsTexture::Release(renderData, mTrsTexGpu);
+
     for (auto& [name, textureData] : mTextures)
     {
         if (textureData.nriTexture != nullptr)

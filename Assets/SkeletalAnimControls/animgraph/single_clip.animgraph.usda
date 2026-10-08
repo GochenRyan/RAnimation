@@ -1,0 +1,31 @@
+#usda 1.0
+(
+    customLayerData = {
+        dictionary ranim = {
+            int animGraphVersion = 1
+            string doc = "Single clip: ClipPlayer(Walking) -> Root. Everything on the GPU (one texture term)."
+        }
+    }
+    defaultPrim = "AnimGraph"
+)
+
+def Scope "AnimGraph"
+{
+    custom int ranim:outputNode = 1
+
+    def Scope "Node_0"
+    {
+        custom int ranim:clipIndex = 9
+        custom float2 ranim:editorPos = (80, 140)
+        custom bool ranim:looping = 1
+        custom float ranim:playRate = 1
+        custom string ranim:type = "ClipPlayer"
+    }
+
+    def Scope "Node_1"
+    {
+        custom float2 ranim:editorPos = (420, 140)
+        custom rel ranim:in:Result = </AnimGraph/Node_0>
+        custom string ranim:type = "Root"
+    }
+}

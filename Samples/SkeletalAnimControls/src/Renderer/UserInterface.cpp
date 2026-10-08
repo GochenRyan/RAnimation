@@ -17,6 +17,9 @@
 #include <Model\Model.h>
 #include <Model\ModelInstance.h>
 #include <Model\UsdSceneExporter.h>
+#include <AnimGraph/AnimGraphAsset.h>
+#include <AnimGraph/AnimGraphInstance.h>
+#include <Editor/Command.h>
 #include <Editor/SceneEditor.h>
 #include <Renderer/UserInterface.h>
 
@@ -93,6 +96,8 @@ bool UserInterface::Init(RRenderData& renderData)
 {
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
+    mAnimGraphPanel.PresetDir = ASSETS_SRC_DIR "/SkeletalAnimControls/animgraph";
+    mAnimGraphPanel.Initialize();
 
     ImGuiIO& io = ImGui::GetIO();
     io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
@@ -419,6 +424,10 @@ void UserInterface::CreateFrame(RRenderData& renderData, SceneEditor& sceneEdito
                                                 std::max(0, static_cast<int>(modInstData.miModelInstances.size()) - 1));
 
     ImGuiSliderFlags sliderFlags = ImGuiSliderFlags_AlwaysClamp;
+
+    // The AnimGraph editor is its own dockable window; draw it before the Control window so the early
+    // returns below never skip it.
+    mAnimGraphPanel.Draw(sceneEditor);
 
     if (!ImGui::Begin("Control"))
     {
@@ -872,6 +881,94 @@ void UserInterface::CreateFrame(RRenderData& renderData, SceneEditor& sceneEdito
         }
     }
 
+    if (ImGui::CollapsingHeader("AnimGraph / GPU Eval", ImGuiTreeNodeFlags_DefaultOpen))
+    {
+        ImGui::Checkbox("Show AnimGraph Editor", &mAnimGraphPanel.bVisible);
+
+        int mode = static_cast<int>(modInstData.miEvalMode);
+        const char* modeNames[] = {EvalModeName(EvalMode::Cpu), EvalModeName(EvalMode::PerCharacter),
+                                   EvalModeName(EvalMode::PerNpc), EvalModeName(EvalMode::Tracks)};
+        if (ImGui::Combo("Eval mode", &mode, modeNames, 4))
+        {
+            modInstData.miEvalMode = static_cast<EvalMode>(mode);
+        }
+        ImGui::SliderInt("Track phases (C)", &modInstData.miTrackPhases, 1, 16, "%d", sliderFlags);
+        ImGui::Checkbox("Interpolate texture rows", &modInstData.miTrsInterpolate);
+        if (modInstData.miEvalMode == EvalMode::Tracks)
+        {
+            ImGui::TextDisabled("tier C ignores per-instance graphs: pose = (clip, phase bucket) track");
+        }
+
+        const HybridEvalStats& hs = renderData.rdHybridStats;
+        const ModelAndInstanceData::AnimStats& as = modInstData.miAnimStats;
+        ImGui::Text("GPU: %u dispatch(es), %u thread group(s), %u work(s), %u term(s)", hs.dispatches, hs.threadGroups, hs.works, hs.terms);
+        ImGui::Text("slots: %u transforms (%.1f KB) | upload %.1f KB/frame | TRS textures %.1f KB resident",
+                    hs.slotTransforms, hs.slotBytes / 1024.0, hs.uploadBytes / 1024.0, hs.trsTextureBytes / 1024.0);
+        ImGui::Text("CPU graphs: %.3f ms | ticked %d | tracked %d | failed %d | visits update %d / evaluate %d",
+                    as.cpuMs, as.instancesTicked, as.instancesTracked, as.instancesFailed, as.updateVisits, as.evaluateVisits);
+        if (hs.crowdInstances > 0)
+        {
+            ImGui::Text("crowd instances drawn: %u", hs.crowdInstances);
+        }
+
+        for (const auto& model : modInstData.miModelList)
+        {
+            const bool ready = model->IsTrsTexReady() && model->TrsTexGpu().IsReady();
+            ImGui::TextColored(ready ? ImVec4(0.4f, 0.9f, 0.4f, 1.0f) : ImVec4(1.0f, 0.4f, 0.4f, 1.0f),
+                               "%s: %s", model->GetModelFileName().c_str(), model->GetTrsTexStatus().c_str());
+        }
+
+        if (!modInstData.miModelInstances.empty())
+        {
+            std::shared_ptr<ModelInstance> instance = modInstData.miModelInstances[modInstData.miSelectedInstance];
+            std::shared_ptr<AnimGraphAsset> asset = instance->GetGraphAsset();
+            AnimGraphInstance* graph = instance->GetGraph();
+            ImGui::Text("selected: graph '%s' | mode %s | evaluator %s",
+                        asset ? asset->Name.c_str() : "(single clip)",
+                        EvalModeName(instance->GetEffectiveEvalMode()),
+                        graph != nullptr ? std::string(graph->EvaluatorName()).c_str() : "-");
+            if (graph != nullptr)
+            {
+                ImGui::TextDisabled("%s | tick %.3f ms", graph->Plan().Summary.c_str(), graph->LastTickMs);
+            }
+            if (!instance->GetGraphError().empty())
+            {
+                ImGui::TextColored(ImVec4(1.0f, 0.4f, 0.4f, 1.0f), "graph error: %s", instance->GetGraphError().c_str());
+            }
+        }
+
+        ImGui::BeginDisabled(!editMode || modInstData.miModelList.empty());
+        ImGui::SliderInt("Crowd cols", &mCrowdCols, 1, 100, "%d", sliderFlags);
+        ImGui::SliderInt("Crowd rows", &mCrowdRows, 1, 100, "%d", sliderFlags);
+        ImGui::SliderFloat("Crowd spacing", &mCrowdSpacing, 0.5f, 5.0f, "%.2f", sliderFlags);
+        const int maxInstances = static_cast<int>(renderData.rdResourceBudget.maxWorldMatrices);
+        if (ImGui::Button("Spawn crowd"))
+        {
+            std::shared_ptr<Model> model = modInstData.miModelList[modInstData.miSelectedModel];
+            const int clipCount = static_cast<int>(model->GetAnimClips().size());
+            const int available = std::max(0, maxInstances - static_cast<int>(modInstData.miModelInstances.size()));
+            const int wanted = std::min(mCrowdCols * mCrowdRows, available);
+            std::vector<InstanceSettings> settings;
+            settings.reserve(static_cast<size_t>(wanted));
+            for (int i = 0; i < wanted; ++i)
+            {
+                const int col = i % mCrowdCols;
+                const int row = i / mCrowdCols;
+                InstanceSettings s;
+                s.mWorldPosition = glm::vec3((col - mCrowdCols / 2) * mCrowdSpacing, 0.0f, (row - mCrowdRows / 2) * mCrowdSpacing);
+                s.mWorldRotation = glm::vec3(0.0f, static_cast<float>(std::rand() % 360 - 180), 0.0f);
+                s.mAnimClipNr = clipCount > 0 ? static_cast<unsigned int>(std::rand() % clipCount) : 0u;
+                s.mAnimPhase = static_cast<float>(std::rand() % 1000) / 1000.0f;
+                settings.push_back(s);
+            }
+            sceneEditor.AddInstances(model, settings, "Spawn Crowd");
+            modInstData.miSelectedInstance = static_cast<int>(modInstData.miModelInstances.size()) - 1;
+        }
+        ImGui::SameLine();
+        ImGui::TextDisabled("budget: %d animated instances", maxInstances);
+        ImGui::EndDisabled();
+    }
+
     if (ImGui::CollapsingHeader("Animation", ImGuiTreeNodeFlags_DefaultOpen))
     {
         if (!modInstData.miModelInstances.empty())
@@ -922,6 +1019,60 @@ void UserInterface::CreateFrame(RRenderData& renderData, SceneEditor& sceneEdito
                 trackSettingsEdit(sceneEditor, instance, settings, "Change Speed");
                 instance->SetInstanceSettings(settings);
 
+                // Graph assignment: implicit single clip, or one of the presets (opened in the editor too).
+                {
+                    std::shared_ptr<AnimGraphAsset> current = instance->GetGraphAsset();
+                    auto assign = [&](std::shared_ptr<AnimGraphAsset> asset)
+                    {
+                        std::shared_ptr<AnimGraphAsset> previous = instance->GetGraphAsset();
+                        std::shared_ptr<ModelInstance> target = instance;
+                        sceneEditor.ExecuteCommand(std::make_unique<FunctionalCommand>(
+                                "Assign Graph",
+                                [target, asset]() { target->SetGraphAsset(asset); },
+                                [target, previous]() { target->SetGraphAsset(previous); }));
+                    };
+                    const std::string label = current ? current->Name : std::string("(single clip)");
+                    if (ImGui::BeginCombo("Graph", label.c_str()))
+                    {
+                        if (ImGui::Selectable("(single clip)", !current))
+                        {
+                            assign(nullptr);
+                        }
+                        for (const std::string& path : mAnimGraphPanel.PresetFiles())
+                        {
+                            const std::string name = std::filesystem::path(path).filename().generic_string();
+                            const bool isSelected = current && current->Path == path;
+                            if (ImGui::Selectable(name.c_str(), isSelected))
+                            {
+                                std::shared_ptr<AnimGraphAsset>& cached = mGraphAssetCache[path];
+                                if (!cached)
+                                {
+                                    std::string error;
+                                    cached = AnimGraphAsset::LoadFromFile(path, error);
+                                }
+                                if (cached)
+                                {
+                                    assign(cached);
+                                }
+                            }
+                        }
+                        ImGui::EndCombo();
+                    }
+                    if (current && ImGui::Button("Open in AnimGraph Editor"))
+                    {
+                        mAnimGraphPanel.bVisible = true;
+                        if (!current->Path.empty())
+                        {
+                            std::shared_ptr<AnimGraphAsset> opened = mAnimGraphPanel.LoadGraphFile(current->Path);
+                            if (opened)
+                            {
+                                mGraphAssetCache[current->Path] = opened;
+                                assign(opened);
+                            }
+                        }
+                    }
+                }
+
                 ImGui::EndDisabled();
             }
             else
@@ -955,6 +1106,7 @@ void UserInterface::Cleanup(RRenderData& renderData)
 
     if (ImGui::GetCurrentContext() != nullptr)
     {
+        mAnimGraphPanel.Shutdown();
         ImGui::DestroyContext();
     }
 }

@@ -42,12 +42,12 @@ void AnimChannel::SetChannelData(std::string nodeName,
     }
 }
 
-std::string AnimChannel::GetTargetNodeName()
+std::string AnimChannel::GetTargetNodeName() const
 {
     return mNodeName;
 }
 
-float AnimChannel::GetMaxTime()
+float AnimChannel::GetMaxTime() const
 {
     float maxTranslationTime = mTranslationTimings.at(mTranslationTimings.size() - 1);
     float maxRotationTime = mRotationTimings.at(mRotationTimings.size() - 1);
@@ -71,13 +71,13 @@ bool AnimChannel::HasRotationKeys() const
     return !mRotations.empty();
 }
 
-glm::mat4 AnimChannel::GetTRSMatrix(float time)
+glm::mat4 AnimChannel::GetTRSMatrix(float time) const
 {
     return glm::translate(glm::mat4_cast(GetRotation(time)) * glm::scale(glm::mat4(1.0f), GetScaling(time)),
                           GetTranslation(time));
 }
 
-glm::vec3 AnimChannel::GetTranslation(float time)
+glm::vec3 AnimChannel::GetTranslation(float time) const
 {
     if (mTranslations.empty())
     {
@@ -136,7 +136,7 @@ glm::vec3 AnimChannel::GetTranslation(float time)
     return glm::mix(mTranslations.at(timeIndex), mTranslations.at(timeIndex + 1), interpolatedTime);
 }
 
-glm::vec3 AnimChannel::GetScaling(float time)
+glm::vec3 AnimChannel::GetScaling(float time) const
 {
     if (mScalings.empty())
     {
@@ -195,7 +195,7 @@ glm::vec3 AnimChannel::GetScaling(float time)
     return glm::mix(mScalings.at(timeIndex), mScalings.at(timeIndex + 1), interpolatedTime);
 }
 
-glm::quat AnimChannel::GetRotation(float time)
+glm::quat AnimChannel::GetRotation(float time) const
 {
     if (mRotations.empty())
     {

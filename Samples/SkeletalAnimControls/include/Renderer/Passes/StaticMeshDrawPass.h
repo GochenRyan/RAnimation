@@ -36,6 +36,8 @@ namespace RAnimation
         BufferHandle mWorldMatrixBuffer{};
         BufferViewHandle mCameraView{};
         BufferViewHandle mWorldMatrixView{};
+        BufferHandle mCrowdInstanceBuffer{};
+        BufferViewHandle mCrowdInstanceView{};
 
         // Per-frame CPU-side scratch for non-animated instance world matrices.
         std::vector<glm::mat4> mWorldPosMatrices;

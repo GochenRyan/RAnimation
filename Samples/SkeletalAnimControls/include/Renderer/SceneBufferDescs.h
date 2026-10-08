@@ -9,6 +9,7 @@
 
 #include <glm/glm.hpp>
 
+#include <AnimGraph/HybridWork.h>
 #include <Model/RenderData.h>
 #include <Renderer/RenderResourceBudget.h>
 #include <Renderer/SceneResourceNames.h>
@@ -111,6 +112,40 @@ namespace RAnimation
                     sizeof(glm::mat4),
                     budget.GetMaxBoneMatrices(),
                     sizeof(glm::mat4),
+                    nri::BufferUsageBits::SHADER_RESOURCE,
+                    nri::MemoryLocation::HOST_UPLOAD,
+                    true};
+        }
+
+        // ---- hybrid_eval inputs (HOST_UPLOAD, per queued frame) ----
+        inline BufferDesc HybridWork(const RenderResourceBudget& budget)
+        {
+            return {SceneResourceNames::kHybridWorkBuffer,
+                    sizeof(RAnimation::HybridWork),
+                    budget.maxWorldMatrices,
+                    sizeof(RAnimation::HybridWork),
+                    nri::BufferUsageBits::SHADER_RESOURCE,
+                    nri::MemoryLocation::HOST_UPLOAD,
+                    true};
+        }
+
+        inline BufferDesc HybridTerm(const RenderResourceBudget& budget)
+        {
+            return {SceneResourceNames::kHybridTermBuffer,
+                    sizeof(RAnimation::HybridTerm),
+                    budget.maxWorldMatrices * kMaxTermsPerWork,
+                    sizeof(RAnimation::HybridTerm),
+                    nri::BufferUsageBits::SHADER_RESOURCE,
+                    nri::MemoryLocation::HOST_UPLOAD,
+                    true};
+        }
+
+        inline BufferDesc CrowdInstance(const RenderResourceBudget& budget)
+        {
+            return {SceneResourceNames::kCrowdInstanceBuffer,
+                    sizeof(CrowdInstanceData),
+                    budget.maxWorldMatrices,
+                    sizeof(CrowdInstanceData),
                     nri::BufferUsageBits::SHADER_RESOURCE,
                     nri::MemoryLocation::HOST_UPLOAD,
                     true};

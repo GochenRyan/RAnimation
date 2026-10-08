@@ -1,13 +1,16 @@
 /* Dear ImGui */
 #pragma once
 
+#include <map>
 #include <memory>
+#include <string>
 
 #include <Model/RenderData.h>
 #include <Model/ModelAndInstanceData.h>
 #include <Model/InstanceSettings.h>
 #include <Model/ModelInstance.h>
 #include <Editor/SceneEditor.h>
+#include <Editor/AnimGraph/AnimGraphPanel.h>
 #include <Tools/Timer.h>
 
 namespace RAnimation
@@ -77,6 +80,15 @@ namespace RAnimation
         int mUiDrawOffset = 0;
 
         int mManyInstanceCreateNum = 1;
+
+        // AnimGraph editor window + the graph assets picked from the Animation header (keyed by path).
+        AnimGraphPanel mAnimGraphPanel{};
+        std::map<std::string, std::shared_ptr<AnimGraphAsset>> mGraphAssetCache;
+
+        // Crowd spawn (tier C demo): N x M grid of the selected model with random clip / phase / yaw.
+        int mCrowdCols = 20;
+        int mCrowdRows = 20;
+        float mCrowdSpacing = 1.5f;
 
         // UI timing (moved out of the Renderer); written into RRenderData for the stats panel.
         Timer mUIGenerateTimer{};

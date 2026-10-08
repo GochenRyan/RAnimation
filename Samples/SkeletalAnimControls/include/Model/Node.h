@@ -6,6 +6,7 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/quaternion.hpp>
 
+#include <AnimGraph/Pose.h>
 #include <Model/RenderData.h>
 
 namespace RAnimation
@@ -25,6 +26,7 @@ namespace RAnimation
         void SetScaling(glm::vec3 scaling);
         void SetLocalTransform(glm::mat4 transform);
         void ResetToBindPose();
+        Transform GetBindTransform() const;
 
         void SetRootTransformMatrix(glm::mat4 matrix);
 

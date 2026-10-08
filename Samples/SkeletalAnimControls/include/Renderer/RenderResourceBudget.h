@@ -121,7 +121,10 @@ namespace RAnimation
             constexpr uint64_t nodeTransformBytes = 48;
             constexpr uint64_t indexBytes = 4;
 
-            const uint64_t worldBytes = SaturatingMultiply(animatedInstances, matrixBytes * 2);
+            // world + model root matrices, plus the hybrid_eval inputs per instance:
+            // Work (16) + up to kMaxTermsPerWork terms (8 x 16) + crowd instance (80)
+            constexpr uint64_t hybridBytes = 16 + 8 * 16 + 80;
+            const uint64_t worldBytes = SaturatingMultiply(animatedInstances, matrixBytes * 2 + hybridBytes);
             const uint64_t boneBytes = SaturatingMultiply(animatedInstances,
                                                           SaturatingMultiply(maxBonesPerInstance, matrixBytes * 2 + indexBytes));
             const uint64_t nodeBytes = SaturatingMultiply(animatedInstances,

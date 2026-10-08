@@ -3,6 +3,7 @@
 #include <glm/glm.hpp>
 
 #include <Model/ModelInstance.h>
+#include <AnimGraph/AnimGraphInstance.h> // complete type for the unique_ptr member
 
 using namespace RAnimation;
 
@@ -91,6 +92,7 @@ std::vector<glm::mat4> ModelInstance::GetBoneMatrices()
 void ModelInstance::SetInstanceSettings(InstanceSettings settings)
 {
     mInstanceSettings = settings;
+    mCpuPoseDirty = true;
     UpdateModelRootMatrix();
 }
 

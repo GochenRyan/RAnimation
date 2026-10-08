@@ -52,6 +52,23 @@ namespace RAnimation
         void WaitIdle();
         RRenderData& GetRenderData() { return mRenderData; }
 
+        // Smoke-test parity check: reads one instance's skinning matrices back from the last frame and
+        // compares them with the CPU evaluation of the same pose (see RendererVerify.cpp).
+        struct BoneVerifyResult
+        {
+            bool ok = false;
+            uint32_t comparedBones = 0;
+            // vs the CPU pose sampled from the source keyframes: includes the .trstex resampling cost
+            float maxPositionError = 0.0f;
+            float maxElementError = 0.0f;
+            // vs a CPU mirror of the exact GPU blend (texture rows + slots): isolates kernel correctness
+            bool hasMirror = false;
+            float mirrorPositionError = 0.0f;
+            float mirrorElementError = 0.0f;
+            std::string info;
+        };
+        bool VerifyBoneMatrices(ModelAndInstanceData& scene, int instanceIndex, BoneVerifyResult& out);
+
         void Cleanup();
 
     private:

@@ -1,0 +1,60 @@
+#usda 1.0
+(
+    customLayerData = {
+        dictionary ranim = {
+            int animGraphVersion = 1
+            string doc = "1D blend space over speed: Idle (0) - Walking (0.5) - Running (1). Input 0.5. GPU resolves the two bracketing samples."
+        }
+    }
+    defaultPrim = "AnimGraph"
+)
+
+def Scope "AnimGraph"
+{
+    custom int ranim:outputNode = 4
+
+    def Scope "Node_0"
+    {
+        custom int ranim:clipIndex = 1
+        custom float2 ranim:editorPos = (60, 40)
+        custom bool ranim:looping = 1
+        custom float ranim:playRate = 1
+        custom string ranim:type = "ClipPlayer"
+    }
+
+    def Scope "Node_1"
+    {
+        custom int ranim:clipIndex = 9
+        custom float2 ranim:editorPos = (60, 220)
+        custom bool ranim:looping = 1
+        custom float ranim:playRate = 1
+        custom string ranim:type = "ClipPlayer"
+    }
+
+    def Scope "Node_2"
+    {
+        custom int ranim:clipIndex = 6
+        custom float2 ranim:editorPos = (60, 400)
+        custom bool ranim:looping = 1
+        custom float ranim:playRate = 1
+        custom string ranim:type = "ClipPlayer"
+    }
+
+    def Scope "Node_3"
+    {
+        custom float2 ranim:editorPos = (400, 220)
+        custom rel ranim:in:Sample0 = </AnimGraph/Node_0>
+        custom rel ranim:in:Sample1 = </AnimGraph/Node_1>
+        custom rel ranim:in:Sample2 = </AnimGraph/Node_2>
+        custom float ranim:param = 0.5
+        custom float[] ranim:samplePositions = [0, 0.5, 1]
+        custom string ranim:type = "BlendSpace1D"
+    }
+
+    def Scope "Node_4"
+    {
+        custom float2 ranim:editorPos = (740, 220)
+        custom rel ranim:in:Result = </AnimGraph/Node_3>
+        custom string ranim:type = "Root"
+    }
+}

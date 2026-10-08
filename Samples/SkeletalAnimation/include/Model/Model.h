@@ -37,7 +37,7 @@ namespace RAnimation
         const std::vector<std::shared_ptr<Bone>>& GetBoneList();
         const std::unordered_map<std::string, glm::mat4>& GetInverseBindMatrices();
 
-    const std::shared_ptr<Node> GetRootNode();
+        const std::shared_ptr<Node> GetRootNode();
 
         void Cleanup(RRenderData& renderData);
 

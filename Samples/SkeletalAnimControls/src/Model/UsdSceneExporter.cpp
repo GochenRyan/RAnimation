@@ -252,6 +252,7 @@ namespace RAnimation
             const InstanceSettings settings = instance->GetInstanceSettings();
             // authoritative round-trip value; the clip name is written too for human readability
             prim.SetCustomDataByKey(TfToken("ranim:animClipNr"), VtValue(static_cast<int>(settings.mAnimClipNr)));
+            prim.SetCustomDataByKey(TfToken("ranim:animPhase"), VtValue(settings.mAnimPhase));
 
             const auto& clips = model->GetAnimClips();
             if (settings.mAnimClipNr < clips.size())
@@ -391,6 +392,15 @@ namespace RAnimation
                            "UsdSceneExporter: '{}' authors legacy ranim:swapYZAxis=1 - ignored; re-export the "
                            "scene\n",
                            prim.GetPath().GetString());
+            }
+            const VtValue phase = prim.GetCustomDataByKey(TfToken("ranim:animPhase"));
+            if (phase.IsHolding<float>())
+            {
+                imported.settings.mAnimPhase = phase.Get<float>();
+            }
+            else if (phase.IsHolding<double>())
+            {
+                imported.settings.mAnimPhase = static_cast<float>(phase.Get<double>());
             }
             const VtValue clipNr = prim.GetCustomDataByKey(TfToken("ranim:animClipNr"));
             if (clipNr.IsHolding<int>())

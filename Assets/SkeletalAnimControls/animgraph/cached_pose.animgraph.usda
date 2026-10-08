@@ -1,0 +1,82 @@
+#usda 1.0
+(
+    customLayerData = {
+        dictionary ranim = {
+            int animGraphVersion = 1
+            string doc = "Cached pose: SaveCachedPose 'Locomotion' (Walking/Running blend) is produced once per frame on the CPU; UseCachedPose feeds it as upload slot 0 into a GPU blend with the Punch texture term."
+        }
+    }
+    defaultPrim = "AnimGraph"
+)
+
+def Scope "AnimGraph"
+{
+    custom int ranim:outputNode = 7
+
+    def Scope "Node_0"
+    {
+        custom int ranim:clipIndex = 9
+        custom float2 ranim:editorPos = (60, 40)
+        custom bool ranim:looping = 1
+        custom float ranim:playRate = 1
+        custom string ranim:type = "ClipPlayer"
+    }
+
+    def Scope "Node_1"
+    {
+        custom int ranim:clipIndex = 6
+        custom float2 ranim:editorPos = (60, 220)
+        custom bool ranim:looping = 1
+        custom float ranim:playRate = 1
+        custom string ranim:type = "ClipPlayer"
+    }
+
+    def Scope "Node_2"
+    {
+        custom float2 ranim:editorPos = (380, 130)
+        custom rel ranim:in:A = </AnimGraph/Node_0>
+        custom rel ranim:in:B = </AnimGraph/Node_1>
+        custom float ranim:param = 0.5
+        custom string ranim:type = "TwoWayBlend"
+    }
+
+    def Scope "Node_3"
+    {
+        custom string ranim:cacheName = "Locomotion"
+        custom float2 ranim:editorPos = (680, 130)
+        custom rel ranim:in:Source = </AnimGraph/Node_2>
+        custom string ranim:type = "SaveCachedPose"
+    }
+
+    def Scope "Node_4"
+    {
+        custom string ranim:cacheName = "Locomotion"
+        custom float2 ranim:editorPos = (680, 330)
+        custom string ranim:type = "UseCachedPose"
+    }
+
+    def Scope "Node_5"
+    {
+        custom int ranim:clipIndex = 5
+        custom float2 ranim:editorPos = (680, 500)
+        custom bool ranim:looping = 1
+        custom float ranim:playRate = 1
+        custom string ranim:type = "ClipPlayer"
+    }
+
+    def Scope "Node_6"
+    {
+        custom float2 ranim:editorPos = (980, 400)
+        custom rel ranim:in:A = </AnimGraph/Node_4>
+        custom rel ranim:in:B = </AnimGraph/Node_5>
+        custom float ranim:param = 0.25
+        custom string ranim:type = "TwoWayBlend"
+    }
+
+    def Scope "Node_7"
+    {
+        custom float2 ranim:editorPos = (1280, 400)
+        custom rel ranim:in:Result = </AnimGraph/Node_6>
+        custom string ranim:type = "Root"
+    }
+}

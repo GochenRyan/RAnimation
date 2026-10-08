@@ -14,4 +14,8 @@ target_include_directories(imgui
 
 target_link_libraries(imgui PUBLIC SDL3::SDL3)
 
+# Every consumer sees the ImVec2/ImVec4 operators the same way (imgui_internal.h #errors if the macro is
+# defined only after imgui.h was included; the node editor and ImGuiFileDialog both define it themselves).
+target_compile_definitions(imgui PUBLIC IMGUI_DEFINE_MATH_OPERATORS)
+
 add_library(imgui::imgui ALIAS imgui)

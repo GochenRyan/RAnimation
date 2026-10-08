@@ -11,7 +11,7 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <imgui.h>
 
-#include <Renderer/Passes/AnimationTransformComputePass.h>
+#include <Renderer/Passes/HybridEvalComputePass.h>
 #include <Renderer/Passes/BoneMatrixComputePass.h>
 #include <Renderer/Passes/GizmoDrawPass.h>
 #include <Renderer/Passes/ImguiPass.h>
@@ -783,7 +783,7 @@ bool Renderer::registerPasses()
     mRenderData.rdPassRegistry.Add<StaticMeshDrawPass>();
     mRenderData.rdPassRegistry.Add<SkinnedMeshDrawPass>();
     mRenderData.rdPassRegistry.Add<GizmoDrawPass>();
-    mRenderData.rdPassRegistry.Add<AnimationTransformComputePass>();
+    mRenderData.rdPassRegistry.Add<HybridEvalComputePass>(); // pose evaluation (all tiers), feeds BoneMatrixComputePass
     mRenderData.rdPassRegistry.Add<BoneMatrixComputePass>();
     mOutlinePass = mRenderData.rdPassRegistry.Add<OutlinePass>();
     mRenderData.rdPassRegistry.Add<ImguiPass>();
@@ -1338,28 +1338,23 @@ void Renderer::UpdateActiveCamera(float deltaTime, ModelAndInstanceData& modInst
                                    activeType == CameraType::Stationary;
             if (needsPose)
             {
-                // Refresh the shared node tree to this instance's current pose (advance by 0 so play time
-                // does not double-step) before reading joint world transforms.
-                selected->UpdateAnimation(0.0f);
-                const auto& nodeMap = selected->GetModel()->GetNodeMap();
+                // Read the drawn pose's node globals from the instance's on-demand CPU pose (graph or
+                // track clip); the shared Node tree is no longer mutated per instance.
+                const std::shared_ptr<Model> model = selected->GetModel();
+                std::vector<glm::mat4> globals;
+                model->ComputeNodeGlobals(selected->GetCpuPose(), selected->GetLocalTransformMatrix(), globals);
 
                 if (activeType == CameraType::Stationary)
                 {
                     glm::vec3 mn(std::numeric_limits<float>::max());
                     glm::vec3 mx(std::numeric_limits<float>::lowest());
-                    bool any = false;
-                    for (const auto& [name, node] : nodeMap)
+                    for (const glm::mat4& m : globals)
                     {
-                        if (!node)
-                        {
-                            continue;
-                        }
-                        const glm::vec3 p = glm::vec3(node->GetTRSMatrix()[3]);
+                        const glm::vec3 p = glm::vec3(m[3]);
                         mn = glm::min(mn, p);
                         mx = glm::max(mx, p);
-                        any = true;
                     }
-                    if (any)
+                    if (!globals.empty())
                     {
                         target.targetWorldPos = (mn + mx) * 0.5f;
                     }
@@ -1370,10 +1365,10 @@ void Renderer::UpdateActiveCamera(float deltaTime, ModelAndInstanceData& modInst
                     const std::string& headBoneName = (activeType == CameraType::FirstPerson)
                                                               ? rig.firstPerson.headBoneName
                                                               : rig.thirdPerson.headBoneName;
-                    const auto it = nodeMap.find(headBoneName);
-                    if (it != nodeMap.end() && it->second)
+                    const int32_t headIndex = model->FindNodeIndex(headBoneName);
+                    if (headIndex >= 0 && static_cast<size_t>(headIndex) < globals.size())
                     {
-                        const glm::mat4 headWorld = it->second->GetTRSMatrix();
+                        const glm::mat4 headWorld = globals[static_cast<size_t>(headIndex)];
                         target.targetWorldPos = glm::vec3(headWorld[3]);
                         if (activeType == CameraType::FirstPerson)
                         {

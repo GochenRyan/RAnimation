@@ -1,7 +1,7 @@
 #include <Model/Node.h>
 #include <fmt/base.h>
-#define GLM_ENABLE_EXPERIMENTAL
-#include <glm/gtx/matrix_decompose.hpp>
+
+#include <Model/TransformDecompose.h>
 
 using namespace RAnimation;
 
@@ -79,22 +79,26 @@ void Node::SetScaling(glm::vec3 scaling)
 
 void Node::SetLocalTransform(glm::mat4 transform)
 {
-    glm::vec3 skew = glm::vec3(0.0f);
-    glm::vec4 perspective = glm::vec4(0.0f);
-    glm::vec3 translation = glm::vec3(0.0f);
-    glm::vec3 scaling = glm::vec3(1.0f);
-    glm::quat rotation = glm::identity<glm::quat>();
-
-    if (!glm::decompose(transform, scaling, rotation, translation, skew, perspective))
+    Transform bind;
+    if (!DecomposeBindTransform(transform, bind))
     {
         fmt::print(stderr, "{} warning: failed to decompose node transform for '{}'\n", __FUNCTION__, mNodeName);
     }
 
-    mBindTranslation = translation;
-    mBindRotation = glm::normalize(rotation);
-    mBindScaling = scaling;
+    mBindTranslation = bind.T;
+    mBindRotation = bind.R;
+    mBindScaling = bind.S;
 
     ResetToBindPose();
+}
+
+Transform Node::GetBindTransform() const
+{
+    Transform t;
+    t.T = mBindTranslation;
+    t.R = mBindRotation;
+    t.S = mBindScaling;
+    return t;
 }
 
 void Node::ResetToBindPose()
