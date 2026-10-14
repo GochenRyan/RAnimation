@@ -1,4 +1,5 @@
 #pragma once
+#include <functional>
 #include <memory>
 #include <string>
 #include <string_view>
@@ -7,12 +8,14 @@
 #include <AnimGraph/EvalMode.h>
 #include <AnimGraph/ExecPlan.h>
 #include <AnimGraph/HybridWork.h>
+#include <AnimGraph/MontagePlayback.h>
 #include <AnimGraph/Pose.h>
 #include <MemStack/MemStack.h>
 
 namespace RAnimation
 {
     class AnimNode;
+    class AnimSlot;
     class Model;
     struct AnimGraphAsset;
     struct BakedGraph;
@@ -45,6 +48,19 @@ namespace RAnimation
         bool EvaluateFullPose(std::vector<Transform>& outPose);
 
         AnimNode* GetNode(int id) const;
+        // Node by its authored name (NodeDesc::Name of the runtime description); null if absent. Cheap but
+        // linear: resolve once and keep the pointer while the asset revision is unchanged.
+        AnimNode* FindNode(std::string_view name) const;
+        template <typename T> T* FindNode(std::string_view name) const { return dynamic_cast<T*>(FindNode(name)); }
+
+        // Montage requests go to the AnimSlot with that SlotName; false if no such slot, unknown clip or
+        // a higher-priority montage owns the slot. Notifies crossed by any slot's montages are reported
+        // through OnNotify (called from Tick, on the ticking thread).
+        AnimSlot* FindSlot(std::string_view slotName) const;
+        bool PlayMontage(std::string_view slotName, const MontageDesc& desc);
+        bool StopMontage(std::string_view slotName, float blendOutSec);
+        void DispatchNotify(std::string_view slotName, std::string_view notifyName);
+        std::function<void(std::string_view slot, std::string_view notify)> OnNotify;
         BakedGraph* Baked() const { return mBaked.get(); }
         const ExecPlan& Plan() const { return mPlan; }
         const Model* GetModel() const { return mModel; }

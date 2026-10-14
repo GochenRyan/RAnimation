@@ -51,17 +51,29 @@ endif()
 # the OUTPUT so an unchanged asset never re-runs the step; when any .usda/.json under the asset changes the
 # baker runs, and its own fingerprint check still skips the write if nothing relevant changed.
 # ---------------------------------------------------------------------------------------------------
-set(RANIM_ANIMW_DIR ${CMAKE_SOURCE_DIR}/Assets/SkeletalAnimControls/animated_woman)
-file(GLOB_RECURSE RANIM_ANIMW_INPUTS CONFIGURE_DEPENDS "${RANIM_ANIMW_DIR}/*.usda" "${RANIM_ANIMW_DIR}/*.json")
-set(RANIM_ANIMW_STAMP ${CMAKE_CURRENT_BINARY_DIR}/Animated_Woman.trstex.stamp)
+# ranim_add_trs_bake(<asset dir> <asset stem>): bakes <dir>/<stem>.asset.usda -> <dir>/baked/<stem>.trstex
+# and appends the stamp to RANIM_TRS_BAKE_STAMPS. Any .usda / .json under the asset directory is an input.
+function(ranim_add_trs_bake asset_dir asset_stem)
+    file(GLOB_RECURSE inputs CONFIGURE_DEPENDS "${asset_dir}/*.usda" "${asset_dir}/*.json")
+    set(stamp ${CMAKE_CURRENT_BINARY_DIR}/${asset_stem}.trstex.stamp)
+    get_filename_component(asset_leaf "${asset_dir}" NAME)
+    add_custom_command(
+        OUTPUT ${stamp}
+        COMMAND $<TARGET_FILE:TrsTextureBaker> "${asset_dir}/${asset_stem}.asset.usda"
+                -o "${asset_dir}/baked/${asset_stem}.trstex" --rate 30
+        COMMAND ${CMAKE_COMMAND} -E touch "${stamp}"
+        DEPENDS TrsTextureBaker ${inputs}
+        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+        COMMENT "Baking TRS texture: ${asset_leaf} -> baked/${asset_stem}.trstex"
+        VERBATIM)
+    set(RANIM_TRS_BAKE_STAMPS ${RANIM_TRS_BAKE_STAMPS} ${stamp} PARENT_SCOPE)
+endfunction()
 
-add_custom_command(
-    OUTPUT ${RANIM_ANIMW_STAMP}
-    COMMAND $<TARGET_FILE:TrsTextureBaker> "${RANIM_ANIMW_DIR}/Animated_Woman.asset.usda"
-            -o "${RANIM_ANIMW_DIR}/baked/Animated_Woman.trstex" --rate 30
-    COMMAND ${CMAKE_COMMAND} -E touch "${RANIM_ANIMW_STAMP}"
-    DEPENDS TrsTextureBaker ${RANIM_ANIMW_INPUTS}
-    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-    COMMENT "Baking TRS texture: animated_woman -> baked/Animated_Woman.trstex"
-    VERBATIM)
-add_custom_target(BakeTrsTextures DEPENDS ${RANIM_ANIMW_STAMP})
+set(RANIM_TRS_BAKE_STAMPS "")
+set(RANIM_CONTROLS_ASSETS ${CMAKE_SOURCE_DIR}/Assets/SkeletalAnimControls)
+ranim_add_trs_bake(${RANIM_CONTROLS_ASSETS}/animated_woman Animated_Woman)
+# ual_mannequin is published by Tools/Maya/FBX2USD (ual_mannequin.ini); skip the bake when it is absent.
+if(EXISTS ${RANIM_CONTROLS_ASSETS}/ual_mannequin/UAL_Mannequin.asset.usda)
+    ranim_add_trs_bake(${RANIM_CONTROLS_ASSETS}/ual_mannequin UAL_Mannequin)
+endif()
+add_custom_target(BakeTrsTextures DEPENDS ${RANIM_TRS_BAKE_STAMPS})

@@ -362,6 +362,11 @@ std::string Model::GetModelFileNamePath() const
     return mModelFilenamePath;
 }
 
+std::string Model::GetAssetFamily() const
+{
+    return std::filesystem::path(mModelFilenamePath).parent_path().filename().generic_string();
+}
+
 bool Model::HasAnimations() const
 {
     return !mAnimClips.empty();
@@ -370,6 +375,36 @@ bool Model::HasAnimations() const
 const std::vector<std::shared_ptr<AnimClip>>& Model::GetAnimClips() const
 {
     return mAnimClips;
+}
+
+int32_t Model::FindClipIndexIn(const std::vector<std::shared_ptr<AnimClip>>& clips, std::string_view name)
+{
+    if (name.empty())
+    {
+        return -1;
+    }
+    for (size_t i = 0; i < clips.size(); ++i)
+    {
+        if (clips[i] && clips[i]->GetClipName() == name)
+        {
+            return static_cast<int32_t>(i);
+        }
+    }
+    for (size_t i = 0; i < clips.size(); ++i)
+    {
+        if (!clips[i])
+        {
+            continue;
+        }
+        const std::string full = clips[i]->GetClipName();
+        const size_t bar = full.rfind('|');
+        const std::string_view shortName = bar == std::string::npos ? std::string_view(full) : std::string_view(full).substr(bar + 1);
+        if (shortName == name)
+        {
+            return static_cast<int32_t>(i);
+        }
+    }
+    return -1;
 }
 
 const std::vector<std::shared_ptr<Node>>& Model::GetNodeList() const

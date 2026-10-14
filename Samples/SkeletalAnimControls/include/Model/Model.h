@@ -1,4 +1,5 @@
 #pragma once
+#include <string_view>
 #include <cstdint>
 #include <memory>
 #include <string>
@@ -31,6 +32,10 @@ namespace RAnimation
 
         std::string GetModelFileName() const;
         std::string GetModelFileNamePath() const;
+        // Name of the asset directory ("animated_woman", "ual_mannequin"): the skeleton family the model
+        // belongs to. AnimGraphs are authored per family under animgraph/<family>/ (clip and bone names
+        // are the contract, so a graph is only meaningful for models of the same family).
+        std::string GetAssetFamily() const;
 
         bool HasAnimations() const;
         const std::vector<std::shared_ptr<AnimClip>>& GetAnimClips() const;
@@ -52,6 +57,11 @@ namespace RAnimation
         // the shared Node tree after UpdateAnimation(0).
         void ComputeNodeGlobals(const Pose& pose, const glm::mat4& instanceLocal, std::vector<glm::mat4>& out) const;
         int32_t FindNodeIndex(const std::string& name) const;
+        // Clip lookup by name: the full clip name ("Armature|Jump") or the part after the last '|'
+        // ("Jump"). Full names win; -1 when unknown. Graph assets and state machine definitions refer
+        // to clips this way so they survive re-exports and apply to other models with the same clip set.
+        int32_t FindClipIndex(std::string_view name) const { return FindClipIndexIn(mAnimClips, name); }
+        static int32_t FindClipIndexIn(const std::vector<std::shared_ptr<AnimClip>>& clips, std::string_view name);
 
         // Baked TRS texture, CPU side (header + clip table + texels). The GPU objects are created by the
         // renderer (Phase 3). Not ready => the GPU evaluation tiers fall back to the CPU tier for this model.

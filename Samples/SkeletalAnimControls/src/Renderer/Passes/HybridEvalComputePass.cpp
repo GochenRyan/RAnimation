@@ -44,6 +44,8 @@ namespace RAnimation
                                                             SceneBufferDescs::HybridWork(context.budget));
         mTermBuffer = context.registry.RegisterSharedBuffer(SceneResourceNames::kHybridTermBuffer,
                                                             SceneBufferDescs::HybridTerm(context.budget));
+        mMaskBuffer = context.registry.RegisterSharedBuffer(SceneResourceNames::kHybridMaskBuffer,
+                                                            SceneBufferDescs::HybridMask(context.budget));
         mCrowdInstanceBuffer = context.registry.RegisterSharedBuffer(SceneResourceNames::kCrowdInstanceBuffer,
                                                                      SceneBufferDescs::CrowdInstance(context.budget));
         mSlotBuffer = context.registry.RegisterSharedBuffer(SceneResourceNames::kNodeTransformBuffer,
@@ -67,6 +69,9 @@ namespace RAnimation
         mTermView = context.registry.RegisterSharedView(SceneResourceNames::kHybridTermBufferView,
                                                         mTermBuffer,
                                                         nri::BufferViewType::SHADER_RESOURCE);
+        mMaskView = context.registry.RegisterSharedView(SceneResourceNames::kHybridMaskBufferView,
+                                                        mMaskBuffer,
+                                                        nri::BufferViewType::SHADER_RESOURCE);
         mSlotView = context.registry.RegisterSharedView(SceneResourceNames::kNodeTransformBufferView,
                                                         mSlotBuffer,
                                                         nri::BufferViewType::SHADER_RESOURCE);
@@ -78,7 +83,7 @@ namespace RAnimation
                mSlotBuffer.IsValid() && mTRSMatrixBuffer.IsValid() && mNodeParentIndexBuffer.IsValid() &&
                mBoneNodeIndexBuffer.IsValid() && mBoneOffsetMatrixBuffer.IsValid() &&
                mModelRootMatrixBuffer.IsValid() && mWorkView.IsValid() && mTermView.IsValid() &&
-               mSlotView.IsValid() && mTRSMatrixStorageView.IsValid();
+               mSlotView.IsValid() && mTRSMatrixStorageView.IsValid() && mMaskBuffer.IsValid() && mMaskView.IsValid();
     }
 
     bool HybridEvalComputePass::CreatePipeline(RenderContext& context)
@@ -88,6 +93,7 @@ namespace RAnimation
                 {1, 1, nri::DescriptorType::STRUCTURED_BUFFER, nri::StageBits::COMPUTE_SHADER},         // Terms
                 {2, 1, nri::DescriptorType::STRUCTURED_BUFFER, nri::StageBits::COMPUTE_SHADER},         // Slots
                 {3, 1, nri::DescriptorType::STORAGE_STRUCTURED_BUFFER, nri::StageBits::COMPUTE_SHADER}, // TRS out
+                {4, 1, nri::DescriptorType::STRUCTURED_BUFFER, nri::StageBits::COMPUTE_SHADER},         // Masks
         };
         mDescriptorRanges1 = {
                 {0, 1, nri::DescriptorType::TEXTURE, nri::StageBits::COMPUTE_SHADER},           // TRS texture
@@ -219,12 +225,14 @@ namespace RAnimation
                     context.registry.GetView(mTermView, frameIndex),
                     context.registry.GetView(mSlotView, frameIndex),
                     context.registry.GetView(mTRSMatrixStorageView, frameIndex),
+                    context.registry.GetView(mMaskView, frameIndex),
             };
             nri::UpdateDescriptorRangeDesc ranges[] = {
                     {mDescriptorSets[frameIndex], 0, 0, &descriptors[0], 1},
                     {mDescriptorSets[frameIndex], 1, 0, &descriptors[1], 1},
                     {mDescriptorSets[frameIndex], 2, 0, &descriptors[2], 1},
                     {mDescriptorSets[frameIndex], 3, 0, &descriptors[3], 1},
+                    {mDescriptorSets[frameIndex], 4, 0, &descriptors[4], 1},
             };
             context.NRI.UpdateDescriptorRanges(ranges, helper::GetCountOf(ranges));
         }
@@ -261,6 +269,7 @@ namespace RAnimation
     {
         mWorks.clear();
         mTerms.clear();
+        mMaskRows.clear();
         mSlotData.clear();
         mCrowdInstances.clear();
         mNodeParentIndices.clear();
@@ -319,6 +328,7 @@ namespace RAnimation
                 if (boneId >= boneCount || nodeIndex < 0)
                 {
                     fmt::print(stderr, fg(fmt::color::red), "HybridEvalComputePass: bone '{}' of '{}' has no node\n", bone->GetBoneName(), model->GetModelFileName());
+                    rd.rdUploadToUBOTime += mUploadTimer.Stop();
                     publishEmpty(context);
                     return;
                 }
@@ -371,7 +381,7 @@ namespace RAnimation
                     const int bucket = static_cast<int>(u % static_cast<uint32_t>(phases));
                     const float timeSec = AnimationSystem::TrackClipTimeSec(*model->GetAnimClips()[clip], bucket, phases, scene.miTrackGlobalTimeSec);
                     mModelRootMatrices.emplace_back(glm::mat4(1.0f)); // tracks are evaluated in model space
-                    mTerms.push_back({clip, timeSec, 1.0f, 0.0f});
+                    mTerms.push_back({clip, timeSec, 1.0f, 0u});
                 }
                 else
                 {
@@ -392,9 +402,23 @@ namespace RAnimation
                                 mSlotData.emplace_back(PackTransform(cpuWork->slotData[static_cast<size_t>(s) * nodeCount + n]));
                             }
                         }
+                        // Mask rows next (absolute float offsets), referenced by the terms below.
+                        std::vector<uint32_t> maskBase(cpuWork->maskRowCount, 0);
+                        for (uint32_t r = 0; r < cpuWork->maskRowCount; ++r)
+                        {
+                            maskBase[r] = static_cast<uint32_t>(mMaskRows.size());
+                            const size_t src = static_cast<size_t>(r) * nodeCount;
+                            mMaskRows.insert(mMaskRows.end(),
+                                             cpuWork->maskRows.begin() + static_cast<std::ptrdiff_t>(src),
+                                             cpuWork->maskRows.begin() + static_cast<std::ptrdiff_t>(src + nodeCount));
+                        }
                         for (const HybridTermCpu& t : cpuWork->terms)
                         {
                             HybridTerm term = {};
+                            if (t.maskRow >= 0 && static_cast<uint32_t>(t.maskRow) < cpuWork->maskRowCount)
+                            {
+                                term.maskRow = maskBase[static_cast<size_t>(t.maskRow)] + 1u;
+                            }
                             if (t.bSlot)
                             {
                                 const uint32_t local = std::min<uint32_t>(t.index, cpuWork->slotCount > 0 ? cpuWork->slotCount - 1 : 0);
@@ -418,7 +442,7 @@ namespace RAnimation
                         {
                             mSlotData.emplace_back(PackTransform(n < pose.size() ? pose[n] : model->GetBindPose()[n]));
                         }
-                        mTerms.push_back({kHybridTermSlotBit | base, 0.0f, 1.0f, 0.0f});
+                        mTerms.push_back({kHybridTermSlotBit | base, 0.0f, 1.0f, 0u});
                     }
                 }
 
@@ -449,16 +473,17 @@ namespace RAnimation
         const uint64_t maxBones = budget.GetMaxBoneMatrices();
         const uint64_t maxWorld = budget.maxWorldMatrices;
         const uint64_t maxTerms = maxWorld * kMaxTermsPerWork;
-        if (mTrsCursor > maxNodes || mSlotData.size() > maxNodes || mNodeParentIndices.size() > maxNodes ||
+        if (mTrsCursor > maxNodes || mSlotData.size() > maxNodes || mMaskRows.size() > maxNodes || mNodeParentIndices.size() > maxNodes ||
             mBoneOffsetMatrices.size() > maxBones || mBoneNodeIndices.size() > maxBones ||
             mModelRootMatrices.size() > maxWorld || mWorks.size() > maxWorld || mTerms.size() > maxTerms ||
             mCrowdInstances.size() > maxWorld)
         {
             fmt::print(stderr,
                        fg(fmt::color::red),
-                       "HybridEvalComputePass::Upload error: capacity exceeded (trs={}/{}, slots={}/{}, bones={}/{}, works={}/{}, terms={}/{}, crowd={}/{})\n",
-                       mTrsCursor, maxNodes, mSlotData.size(), maxNodes, mBoneOffsetMatrices.size(), maxBones,
+                       "HybridEvalComputePass::Upload error: capacity exceeded (trs={}/{}, slots={}/{}, masks={}/{}, bones={}/{}, works={}/{}, terms={}/{}, crowd={}/{})\n",
+                       mTrsCursor, maxNodes, mSlotData.size(), maxNodes, mMaskRows.size(), maxNodes, mBoneOffsetMatrices.size(), maxBones,
                        mWorks.size(), maxWorld, mTerms.size(), maxTerms, mCrowdInstances.size(), maxWorld);
+            rd.rdUploadToUBOTime += mUploadTimer.Stop();
             publishEmpty(context);
             return;
         }
@@ -480,6 +505,7 @@ namespace RAnimation
         };
         upload(mWorkBuffer, mWorks.data(), mWorks.size() * sizeof(HybridWork));
         upload(mTermBuffer, mTerms.data(), mTerms.size() * sizeof(HybridTerm));
+        upload(mMaskBuffer, mMaskRows.data(), mMaskRows.size() * sizeof(float));
         upload(mSlotBuffer, mSlotData.data(), mSlotData.size() * sizeof(RNodeTransformData));
         upload(mCrowdInstanceBuffer, mCrowdInstances.data(), mCrowdInstances.size() * sizeof(CrowdInstanceData));
         upload(mNodeParentIndexBuffer, mNodeParentIndices.data(), mNodeParentIndices.size() * sizeof(int32_t));
@@ -501,7 +527,7 @@ namespace RAnimation
         stats.slotTransforms = static_cast<uint32_t>(mSlotData.size());
         stats.slotBytes = slotBytes;
         stats.uploadBytes = slotBytes + tableBytes + mWorks.size() * sizeof(HybridWork) + mTerms.size() * sizeof(HybridTerm) +
-                            mCrowdInstances.size() * sizeof(CrowdInstanceData);
+                            mMaskRows.size() * sizeof(float) + mCrowdInstances.size() * sizeof(CrowdInstanceData);
         stats.crowdInstances = static_cast<uint32_t>(mCrowdInstances.size());
         for (const AnimatedGroup& g : mAnimatedGroups)
         {

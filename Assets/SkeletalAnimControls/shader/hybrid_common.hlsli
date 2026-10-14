@@ -7,8 +7,8 @@ struct HybridTerm
 {
     uint kindAndIndex; // bit31: 1 = upload slot (low bits = absolute slot node base), 0 = clip index
     float timeSec;     // clip time, already wrapped/clamped by the CPU
-    float weight;      // normalised on the CPU
-    float _pad;
+    float weight;      // scalar part of the weight (the kernel renormalises per node)
+    uint maskRow;      // 0 = none, else 1 + absolute float offset of this term's per-node factor row in g_Masks
 };
 
 struct HybridWork

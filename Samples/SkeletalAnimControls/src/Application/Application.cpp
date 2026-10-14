@@ -8,6 +8,7 @@
 
 #include <fmt/base.h>
 #include <fmt/color.h>
+#include <imgui.h>
 
 #include <AnimGraph/AnimGraphAsset.h>
 #include <Model/UsdSceneExporter.h>
@@ -64,7 +65,63 @@ bool Application::init(unsigned int width, unsigned int height, std::string titl
             [renderer](const std::shared_ptr<Model>& model) { renderer->ReleaseModel(model); },
             [renderer](const glm::vec3& point) { renderer->FocusCameraOnPoint(point); });
 
+    // The character state machine is optional: a missing definition / graph only disables the panel.
+    std::string controllerError;
+    if (!mCharacterController.Init(ASSETS_SRC_DIR "/SkeletalAnimControls", controllerError))
+    {
+        fmt::print(stderr, fg(fmt::color::yellow), "CharacterController disabled: {}\n", controllerError);
+    }
+    mUserInterface.SetCharacterController(&mCharacterController);
+
     return true;
+}
+
+void Application::updateCharacterInput()
+{
+    if (!mCharacterController.IsAttached() || mControllerScript)
+    {
+        return;
+    }
+    // Free camera owns WASD; every other camera follows the selected instance, so the keys drive the
+    // character. Text fields / hovered panels keep the keyboard (same guard as the cameras).
+    const ImGuiIO& io = ImGui::GetIO();
+    const bool keysFree = !io.WantCaptureKeyboard && !io.WantTextInput;
+    const bool characterKeys = keysFree && mRenderer->GetRenderData().rdCameraRig.ActiveType() != CameraType::Free;
+    CharacterInput input;
+    if (characterKeys)
+    {
+        // W/S forward, A/D strafe, Q/E turn, Shift jog, Alt sprint, Ctrl crouch, V aim (+ Up/Down pitch),
+        // Space jump, F punch, H hit, G toggle weapon, K die.
+        input.moveY = (ImGui::IsKeyDown(ImGuiKey_W) ? 1.0f : 0.0f) - (ImGui::IsKeyDown(ImGuiKey_S) ? 1.0f : 0.0f);
+        input.moveX = (ImGui::IsKeyDown(ImGuiKey_D) ? 1.0f : 0.0f) - (ImGui::IsKeyDown(ImGuiKey_A) ? 1.0f : 0.0f);
+        input.turn = (ImGui::IsKeyDown(ImGuiKey_E) ? 1.0f : 0.0f) - (ImGui::IsKeyDown(ImGuiKey_Q) ? 1.0f : 0.0f);
+        input.run = ImGui::IsKeyDown(ImGuiKey_LeftShift) || ImGui::IsKeyDown(ImGuiKey_RightShift);
+        input.sprint = ImGui::IsKeyDown(ImGuiKey_LeftAlt) || ImGui::IsKeyDown(ImGuiKey_RightAlt);
+        input.crouch = ImGui::IsKeyDown(ImGuiKey_LeftCtrl) || ImGui::IsKeyDown(ImGuiKey_RightCtrl);
+        input.aim = ImGui::IsKeyDown(ImGuiKey_V);
+        input.aimPitch = (ImGui::IsKeyDown(ImGuiKey_UpArrow) ? 1.0f : 0.0f) - (ImGui::IsKeyDown(ImGuiKey_DownArrow) ? 1.0f : 0.0f);
+        if (ImGui::IsKeyPressed(ImGuiKey_Space, false))
+        {
+            mCharacterController.Jump();
+        }
+        if (ImGui::IsKeyPressed(ImGuiKey_F, false))
+        {
+            mCharacterController.RequestAction("punch");
+        }
+        if (ImGui::IsKeyPressed(ImGuiKey_H, false))
+        {
+            mCharacterController.RequestAction("hit");
+        }
+        if (ImGui::IsKeyPressed(ImGuiKey_G, false))
+        {
+            mCharacterController.ToggleWeapon();
+        }
+        if (ImGui::IsKeyPressed(ImGuiKey_K, false))
+        {
+            mCharacterController.Die();
+        }
+    }
+    mCharacterController.SetInput(input);
 }
 
 void Application::MainLoop()
@@ -92,8 +149,16 @@ void Application::MainLoop()
                 {
                     runVerification();
                 }
+                if (mControllerScript)
+                {
+                    verifyControllerLog();
+                }
                 break;
             }
+        }
+        if (mFixedDeltaTime > 0.0f)
+        {
+            deltaTime = mFixedDeltaTime;
         }
 
         mRenderer->SetSize(mPlatform->GetMainWindow()->GetWidth(), mPlatform->GetMainWindow()->GetHeight());
@@ -102,6 +167,14 @@ void Application::MainLoop()
         // rendering, so this frame's ImguiPass draws this frame's UI. ImGui draw data is global state.
         mUserInterface.CreateFrame(mRenderer->GetRenderData(), mSceneEditor);
         mUserInterface.Render(mRenderer->GetRenderData());
+
+        // Character state machine first: it decides which graph / blend input this frame evaluates.
+        if (mControllerScript)
+        {
+            runControllerScript(mFramesRendered);
+        }
+        updateCharacterInput();
+        mCharacterController.Update(deltaTime, mSceneEditor.ModelData());
 
         // Advance every instance's animation graph (time, CPU seams, Work records) before the camera reads
         // poses and before the renderer packs the frame.
@@ -144,6 +217,7 @@ void Application::Cleanup()
         // Order matters: the device must stay alive while the UI and the scene's models release their
         // GPU resources. The Renderer tears down its own device last.
         mRenderer->WaitIdle();
+        mCharacterController.Detach();
         mUserInterface.Cleanup(mRenderer->GetRenderData());
         mSceneEditor.ReleaseAllGpuResources();
         mRenderer->Cleanup();

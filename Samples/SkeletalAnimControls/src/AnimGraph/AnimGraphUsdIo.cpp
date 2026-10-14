@@ -92,15 +92,57 @@ namespace RAnimation
             UsdPrim prim = UsdGeomScope::Define(stage, primPath).GetPrim();
 
             SetCustomAttr(prim, "ranim:type", SdfValueTypeNames->String, d.Type);
+            if (!d.Name.empty())
+            {
+                SetCustomAttr(prim, "ranim:name", SdfValueTypeNames->String, d.Name);
+            }
             if (d.Type == "ClipPlayer")
             {
+                // clipIndex stays as the fallback for models whose clips carry different names
                 SetCustomAttr(prim, "ranim:clipIndex", SdfValueTypeNames->Int, d.ClipIndex);
+                if (!d.ClipName.empty())
+                {
+                    SetCustomAttr(prim, "ranim:clipName", SdfValueTypeNames->String, d.ClipName);
+                }
                 SetCustomAttr(prim, "ranim:playRate", SdfValueTypeNames->Float, d.PlayRate);
                 SetCustomAttr(prim, "ranim:looping", SdfValueTypeNames->Bool, d.bLooping);
             }
-            else if (d.Type == "TwoWayBlend" || d.Type == "BlendSpace1D")
+            else if (d.Type == "TwoWayBlend" || d.Type == "BlendSpace1D" || d.Type == "LayeredBlend" || d.Type == "BlendSpace2D")
             {
                 SetCustomAttr(prim, "ranim:param", SdfValueTypeNames->Float, d.Param);
+            }
+            if (d.Type == "BlendSpace2D")
+            {
+                SetCustomAttr(prim, "ranim:param2", SdfValueTypeNames->Float, d.Param2);
+                SetCustomAttr(prim, "ranim:wrapX", SdfValueTypeNames->Bool, d.bWrapX);
+                VtVec2fArray positions;
+                for (size_t i = 0; 2 * i + 1 < d.SamplePositions2.size(); ++i)
+                {
+                    positions.push_back(GfVec2f(d.SamplePositions2[2 * i], d.SamplePositions2[2 * i + 1]));
+                }
+                if (!positions.empty())
+                {
+                    SetCustomAttr(prim, "ranim:samplePositions2", SdfValueTypeNames->Float2Array, positions);
+                }
+            }
+            if (d.Type == "CrossfadeSelect")
+            {
+                SetCustomAttr(prim, "ranim:activeIndex", SdfValueTypeNames->Int, d.ActiveIndex);
+                SetCustomAttr(prim, "ranim:blendTime", SdfValueTypeNames->Float, d.BlendTimeSec);
+                if (!d.InputNames.empty())
+                {
+                    VtStringArray names(d.InputNames.begin(), d.InputNames.end());
+                    SetCustomAttr(prim, "ranim:inputNames", SdfValueTypeNames->StringArray, names);
+                }
+            }
+            if (d.Type == "AnimSlot")
+            {
+                SetCustomAttr(prim, "ranim:slotName", SdfValueTypeNames->String, d.SlotName);
+            }
+            if (d.Type == "LayeredBlend")
+            {
+                SetCustomAttr(prim, "ranim:maskRoot", SdfValueTypeNames->String, d.MaskRoot);
+                SetCustomAttr(prim, "ranim:blendDepth", SdfValueTypeNames->Int, d.BlendDepth);
             }
             if (d.Type == "BlendSpace1D" && !d.SamplePositions.empty())
             {
@@ -211,11 +253,35 @@ namespace RAnimation
         {
             NodeDesc& d = outEditorDesc.Nodes[static_cast<size_t>(index)];
             GetAttr(prim, "ranim:type", d.Type);
+            GetAttr(prim, "ranim:name", d.Name);
             GetAttr(prim, "ranim:clipIndex", d.ClipIndex);
+            GetAttr(prim, "ranim:clipName", d.ClipName);
             GetAttr(prim, "ranim:param", d.Param);
             GetAttr(prim, "ranim:playRate", d.PlayRate);
             GetAttr(prim, "ranim:looping", d.bLooping);
             GetAttr(prim, "ranim:cacheName", d.CacheName);
+            GetAttr(prim, "ranim:param2", d.Param2);
+            GetAttr(prim, "ranim:wrapX", d.bWrapX);
+            VtVec2fArray positions2;
+            if (GetAttr(prim, "ranim:samplePositions2", positions2))
+            {
+                d.SamplePositions2.clear();
+                for (const GfVec2f& p : positions2)
+                {
+                    d.SamplePositions2.push_back(p[0]);
+                    d.SamplePositions2.push_back(p[1]);
+                }
+            }
+            GetAttr(prim, "ranim:activeIndex", d.ActiveIndex);
+            GetAttr(prim, "ranim:blendTime", d.BlendTimeSec);
+            VtStringArray inputNames;
+            if (GetAttr(prim, "ranim:inputNames", inputNames))
+            {
+                d.InputNames.assign(inputNames.begin(), inputNames.end());
+            }
+            GetAttr(prim, "ranim:slotName", d.SlotName);
+            GetAttr(prim, "ranim:maskRoot", d.MaskRoot);
+            GetAttr(prim, "ranim:blendDepth", d.BlendDepth);
             VtFloatArray positions;
             if (GetAttr(prim, "ranim:samplePositions", positions))
             {

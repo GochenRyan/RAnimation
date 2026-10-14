@@ -65,11 +65,13 @@ namespace RAnimation
         // Owned: Works / Terms / CrowdInstance (HOST_UPLOAD) + TRSMatrix (DEVICE, written here).
         BufferHandle mWorkBuffer{};
         BufferHandle mTermBuffer{};
+        BufferHandle mMaskBuffer{};
         BufferHandle mCrowdInstanceBuffer{};
         BufferHandle mSlotBuffer{}; // == NodeTransformBuffer
         BufferHandle mTRSMatrixBuffer{};
         BufferViewHandle mWorkView{};
         BufferViewHandle mTermView{};
+        BufferViewHandle mMaskView{};
         BufferViewHandle mSlotView{};
         BufferViewHandle mTRSMatrixStorageView{};
 
@@ -82,6 +84,7 @@ namespace RAnimation
         // Per-frame CPU-side scratch, filled in Upload(), consumed in Record() and by sibling passes.
         std::vector<HybridWork> mWorks;
         std::vector<HybridTerm> mTerms;
+        std::vector<float> mMaskRows; // LayeredBlend factor rows of every instance, flat
         std::vector<RNodeTransformData> mSlotData;
         std::vector<CrowdInstanceData> mCrowdInstances;
         std::vector<int32_t> mNodeParentIndices;

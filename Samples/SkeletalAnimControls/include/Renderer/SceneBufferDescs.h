@@ -140,6 +140,19 @@ namespace RAnimation
                     true};
         }
 
+        // LayeredBlend factor rows (nodeCount floats each). Budgeted like the upload slots: at most one
+        // row-equivalent per node transform the frame can carry.
+        inline BufferDesc HybridMask(const RenderResourceBudget& budget)
+        {
+            return {SceneResourceNames::kHybridMaskBuffer,
+                    sizeof(float),
+                    budget.GetMaxNodeTransforms(),
+                    sizeof(float),
+                    nri::BufferUsageBits::SHADER_RESOURCE,
+                    nri::MemoryLocation::HOST_UPLOAD,
+                    true};
+        }
+
         inline BufferDesc CrowdInstance(const RenderResourceBudget& budget)
         {
             return {SceneResourceNames::kCrowdInstanceBuffer,

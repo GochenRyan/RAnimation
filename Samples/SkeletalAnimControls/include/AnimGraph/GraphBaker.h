@@ -35,6 +35,10 @@ namespace RAnimation
 
         static std::unique_ptr<BakedGraph> Bake(const GraphDesc& desc, const Model& model, std::string& outError);
 
+        // Replaces every ClipPlayer's ClipIndex by the index of its ClipName in the model (full or short
+        // clip name). An unknown name is an error; an empty name keeps the authored index.
+        static bool ResolveClipNames(GraphDesc& desc, const Model& model, std::string& outError);
+
         // Dependencies of node idx: explicit pose inputs + UseCachedPose's virtual edge to its SaveCachedPose.
         static std::vector<int> DependenciesOf(const GraphDesc& desc, int idx, const std::map<std::string, int>& saveByName);
         // Three-colour DFS; returns a description of the first cycle found, or empty.

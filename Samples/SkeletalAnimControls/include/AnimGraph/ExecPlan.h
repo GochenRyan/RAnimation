@@ -60,13 +60,21 @@ namespace RAnimation
         int Index = 0;          // slot index or clip index
         float Weight = 0.0f;
         float TimeSec = 0.0f;   // texture terms: wrapped/clamped clip time
+        int MaskRow = -1;       // row of per-node factors in the mask table (-1 = none); see LayeredBlend
     };
 
     // Flattens the GPU half from Root using the baked nodes' current state (ClipPlayer::Time, blend
     // params). Root is always GPU, so an all-CPU graph flattens to the single term {slot 0, weight 1}.
-    bool BuildHybridSamples(const AnimGraphInstance& instance, std::vector<HybridSample>& out, std::string& outError);
+    // LayeredBlend nodes add rows of per-node factors to outMaskRows (nodeCount floats each, products
+    // along the path); terms under them reference their row.
+    bool BuildHybridSamples(const AnimGraphInstance& instance,
+                            std::vector<HybridSample>& out,
+                            std::vector<float>& outMaskRows,
+                            std::string& outError);
 
-    // Merge terms with the same source, drop zero weights, normalise.
+    // Merge terms with the same source and mask row, drop zero weights. No global normalisation: with
+    // per-node masks the weights no longer sum to the same value on every node, so the kernel (and the
+    // verify mirror) renormalise per node instead.
     void NormalizeHybrid(std::vector<HybridSample>& samples);
 
     // The kernel's per-Work capacity is fixed (kMaxTermsPerWork, kMaxSlotsPerWork); graphs beyond it are
@@ -75,5 +83,7 @@ namespace RAnimation
                            const std::vector<HybridSample>& work,
                            int maxTerms,
                            int maxSlots,
-                           std::string& outError);
+                           std::string& outError,
+                           int maskRowCount = 0,
+                           int maxMaskRows = 0);
 } // namespace RAnimation

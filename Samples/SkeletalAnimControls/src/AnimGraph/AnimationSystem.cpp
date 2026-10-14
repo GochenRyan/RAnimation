@@ -16,7 +16,9 @@ namespace RAnimation
 {
     EvalMode AnimationSystem::EffectiveMode(const Model& model, EvalMode requested)
     {
-        if (EvalModeUsesTrsTexture(requested) && !model.IsTrsTexReady())
+        // Both copies are needed: the CPU one (baked file loaded and fingerprint-matched) and the GPU one
+        // (upload may be refused, e.g. a texture above the device limit).
+        if (EvalModeUsesTrsTexture(requested) && (!model.IsTrsTexReady() || !model.TrsTexGpu().IsReady()))
         {
             return EvalMode::Cpu;
         }

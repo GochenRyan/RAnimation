@@ -12,12 +12,14 @@ namespace RAnimation
     // One blend term of a Work record. bit31 of kindAndIndex selects the source:
     //   0 -> baked TRS texture, low bits = clip index, timeSec = clip time (already wrapped/clamped by the CPU)
     //   1 -> upload slot, low bits = absolute element index of the slot's node 0 in the slot buffer
+    //   maskRow: 0 = no mask; otherwise 1 + the absolute float offset of this term's per-node factor row in
+    //   the mask buffer (nodeCount floats, multiplied into weight per node; the kernel renormalises per node)
     struct HybridTerm
     {
         uint32_t kindAndIndex = 0;
         float timeSec = 0.0f;
         float weight = 0.0f;
-        float _pad = 0.0f;
+        uint32_t maskRow = 0;
     };
     static_assert(sizeof(HybridTerm) == 16, "HybridTerm must match the HLSL layout");
 
@@ -34,8 +36,9 @@ namespace RAnimation
 
     constexpr uint32_t kHybridTermSlotBit = 0x80000000u;
     constexpr uint32_t kHybridTermIndexMask = 0x7FFFFFFFu;
-    constexpr uint32_t kMaxTermsPerWork = 8;  // buffer capacity per Work; the editor refuses graphs beyond it
-    constexpr uint32_t kMaxSlotsPerWork = 4;  // CPU->GPU seams per instance
+    constexpr uint32_t kMaxTermsPerWork = 16;   // buffer capacity per Work; the editor refuses graphs beyond it
+    constexpr uint32_t kMaxSlotsPerWork = 4;    // CPU->GPU seams per instance
+    constexpr uint32_t kMaxMaskRowsPerWork = 8; // LayeredBlend factor rows per instance (2 per layered node on a path)
 
     // ---- CPU side ----------------------------------------------------------------------------------------
 
@@ -45,6 +48,7 @@ namespace RAnimation
         uint32_t index = 0;
         float timeSec = 0.0f;
         float weight = 0.0f;
+        int maskRow = -1;     // LOCAL row in HybridWorkCpu::maskRows, -1 = none
     };
 
     // What one instance hands to the renderer each frame: the terms plus the CPU-evaluated slot poses
@@ -54,14 +58,18 @@ namespace RAnimation
     {
         std::vector<HybridTermCpu> terms;
         std::vector<Transform> slotData;
+        std::vector<float> maskRows; // row r occupies [r * nodeCount, (r + 1) * nodeCount)
         uint32_t slotCount = 0;
+        uint32_t maskRowCount = 0;
         uint32_t nodeCount = 0;
 
         void Clear()
         {
             terms.clear();
             slotData.clear();
+            maskRows.clear();
             slotCount = 0;
+            maskRowCount = 0;
         }
 
         Transform* AllocateSlot()

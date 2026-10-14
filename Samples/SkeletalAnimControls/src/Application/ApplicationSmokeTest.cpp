@@ -13,6 +13,9 @@
 #include <Application/Application.h>
 #include <Model/UsdSceneExporter.h>
 
+#include <deque>
+#include <iterator>
+
 using namespace RAnimation;
 
 bool Application::ApplySmokeTestOptions(const SmokeTestOptions& options)
@@ -110,9 +113,158 @@ bool Application::ApplySmokeTestOptions(const SmokeTestOptions& options)
         fmt::print("smoke: spawned {} crowd instance(s) (budget {})\n", wanted, maxInstances);
     }
 
+    if (!options.saveStateMachinePath.empty())
+    {
+        std::string error;
+        if (!mCharacterController.SaveDefinition(options.saveStateMachinePath, error))
+        {
+            fmt::print(stderr, fg(fmt::color::red), "smoke: could not save the state machine: {}\n", error);
+            return false;
+        }
+        fmt::print("smoke: wrote '{}'\n", options.saveStateMachinePath);
+    }
+
     mFrameLimit = options.frames;
     mVerifyAtEnd = options.verify;
+    mFixedDeltaTime = options.fixedDeltaTime;
+
+    if (options.controller)
+    {
+        if (scene.miModelInstances.empty())
+        {
+            fmt::print(stderr, fg(fmt::color::red), "smoke: --controller needs an instance (use --scene)\n");
+            return false;
+        }
+        std::string error;
+        if (!mCharacterController.Attach(scene.miModelInstances.front(), error))
+        {
+            fmt::print(stderr, fg(fmt::color::red), "smoke: could not attach the character controller: {}\n", error);
+            return false;
+        }
+        mControllerScript = true;
+        if (mFixedDeltaTime <= 0.0f)
+        {
+            mFixedDeltaTime = 1.0f / 60.0f;
+        }
+        if (mFrameLimit < 0)
+        {
+            mFrameLimit = 600;
+        }
+        fmt::print("smoke: character controller attached (definition: {}), scripted input, dt {:.4f} s, {} frames\n",
+                   mCharacterController.DefinitionSource(), mFixedDeltaTime, mFrameLimit);
+    }
     return true;
+}
+
+// Frame-indexed script at 1/60 s. The same script runs on every model that has a profile; the expected
+// transition sequence only names shared states, the timing assumes the UAL / animated_woman clip lengths.
+//   0.5 s walk, 1.5 s jog, 2.5 s jump (Start -> Land on touchdown, Land -> Stand when the clip ends),
+//   5.0 s punch (upper body slot), 5.5 s crouch, 6.5 s stand still, 7.0 s draw the pistol, 7.5 s hit
+//   (full body slot, locks movement), 9.0 s die.
+void Application::runControllerScript(int frame)
+{
+    CharacterInput input;
+    if (frame >= 30 && frame < 390)
+    {
+        input.moveY = 1.0f;
+    }
+    if (frame >= 90 && frame < 390)
+    {
+        input.run = true;
+    }
+    if (frame >= 330 && frame < 390)
+    {
+        input.crouch = true;
+    }
+    mCharacterController.SetInput(input);
+    if (frame == 150)
+    {
+        mCharacterController.Jump();
+    }
+    if (frame == 300)
+    {
+        mCharacterController.RequestAction("punch");
+    }
+    if (frame == 420)
+    {
+        mCharacterController.ToggleWeapon();
+    }
+    if (frame == 450)
+    {
+        mCharacterController.RequestAction("hit");
+    }
+    if (frame == 540)
+    {
+        mCharacterController.Die();
+    }
+
+    // Motion assertions: the state machine never owns gameplay state, so check the gameplay side too.
+    const MotionState& motion = mCharacterController.Motion();
+    auto expectMotion = [&](bool ok, const char* what)
+    {
+        if (!ok)
+        {
+            fmt::print(fg(fmt::color::red), "smoke[controller] frame {}: motion check failed: {}\n", frame, what);
+            mVerifyFailed = true;
+        }
+    };
+    if (frame == 149)
+    {
+        expectMotion(motion.grounded && motion.position.z > 0.3f, "walked forward on the ground before the jump");
+    }
+    if (frame == 160)
+    {
+        expectMotion(motion.airborne && motion.position.y > 0.0f, "airborne shortly after Jump()");
+    }
+    if (frame == 300)
+    {
+        expectMotion(motion.grounded && motion.position.y == 0.0f, "back on the ground 2.5 s after the jump");
+    }
+    if (frame == 456)
+    {
+        expectMotion(motion.movementLocked, "the hit montage locks movement");
+    }
+    if (frame == 30 || frame == 90 || frame == 150 || frame == 300 || frame == 330 || frame == 390 || frame == 420 ||
+        frame == 450 || frame == 540)
+    {
+        fmt::print("smoke[controller] frame {}: {}\n", frame, mCharacterController.ActiveStatesText());
+    }
+}
+
+void Application::verifyControllerLog()
+{
+    // Expected transition order (a subsequence of the log).
+    // (the punch is still blending out when the crouch starts, so the Action region reports after it)
+    const char* expected[] = {"Locomotion -> JumpStart", "JumpStart -> JumpLand", "JumpLand -> Stand", "Free -> UpperBodyBusy",
+                              "Stand -> Crouch", "UpperBodyBusy -> Free", "Crouch -> Stand", "Unarmed -> Pistol",
+                              "Free -> FullBodyBusy", "FullBodyBusy -> Free", "Locomotion -> Dead"};
+    const std::deque<std::string>& log = mCharacterController.Log();
+    size_t next = 0;
+    for (const std::string& line : log)
+    {
+        if (next < std::size(expected) && line == expected[next])
+        {
+            ++next;
+        }
+    }
+    fmt::print("smoke[controller] final: {}\n", mCharacterController.ActiveStatesText());
+    for (const std::string& line : log)
+    {
+        fmt::print("smoke[controller]   {}\n", line);
+    }
+    for (const std::string& line : mCharacterController.Notifies())
+    {
+        fmt::print("smoke[controller]   notify {}\n", line);
+    }
+    const bool notified = !mCharacterController.Notifies().empty();
+    if (!notified)
+    {
+        fmt::print(fg(fmt::color::red), "smoke[controller] no montage notify was reported (expected HitWindow from punch)\n");
+    }
+    const bool pass = next == std::size(expected) && notified;
+    fmt::print(pass ? fg(fmt::color::green) : fg(fmt::color::red), "smoke[controller] transition sequence {} ({}/{} expected steps)\n",
+               pass ? "OK" : "FAILED", next, std::size(expected));
+    mVerifyFailed = mVerifyFailed || !pass;
 }
 
 void Application::runVerification()

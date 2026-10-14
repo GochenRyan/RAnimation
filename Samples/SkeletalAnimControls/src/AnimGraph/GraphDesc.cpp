@@ -4,7 +4,8 @@ namespace RAnimation
 {
     bool IsGpuCapableNodeType(const std::string& type)
     {
-        return type == "Root" || type == "ClipPlayer" || type == "TwoWayBlend" || type == "BlendSpace1D";
+        return type == "Root" || type == "ClipPlayer" || type == "TwoWayBlend" || type == "BlendSpace1D" ||
+               type == "LayeredBlend" || type == "CrossfadeSelect" || type == "BlendSpace2D" || type == "AnimSlot";
     }
 
     bool IsKnownNodeType(const std::string& type)

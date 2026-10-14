@@ -22,6 +22,7 @@
 #include <Editor/Command.h>
 #include <Editor/SceneEditor.h>
 #include <Renderer/UserInterface.h>
+#include <Controls/CharacterController.h>
 
 using namespace RAnimation;
 
@@ -432,6 +433,7 @@ void UserInterface::CreateFrame(RRenderData& renderData, SceneEditor& sceneEdito
     if (!ImGui::Begin("Control"))
     {
         ImGui::End();
+        renderData.rdUIGenerateTime = mUIGenerateTimer.Stop();
         return;
     }
 
@@ -798,6 +800,7 @@ void UserInterface::CreateFrame(RRenderData& renderData, SceneEditor& sceneEdito
                 {
                     ImGui::EndDisabled();
                     ImGui::End();
+                    renderData.rdUIGenerateTime = mUIGenerateTimer.Stop();
                     return;
                 }
             }
@@ -845,6 +848,7 @@ void UserInterface::CreateFrame(RRenderData& renderData, SceneEditor& sceneEdito
                 {
                     ImGui::EndDisabled();
                     ImGui::End();
+                    renderData.rdUIGenerateTime = mUIGenerateTimer.Stop();
                     return;
                 }
             }
@@ -969,6 +973,11 @@ void UserInterface::CreateFrame(RRenderData& renderData, SceneEditor& sceneEdito
         ImGui::EndDisabled();
     }
 
+    if (ImGui::CollapsingHeader("Character (state machine)", ImGuiTreeNodeFlags_DefaultOpen))
+    {
+        drawCharacterPanel(modInstData);
+    }
+
     if (ImGui::CollapsingHeader("Animation", ImGuiTreeNodeFlags_DefaultOpen))
     {
         if (!modInstData.miModelInstances.empty())
@@ -1038,7 +1047,10 @@ void UserInterface::CreateFrame(RRenderData& renderData, SceneEditor& sceneEdito
                         {
                             assign(nullptr);
                         }
-                        for (const std::string& path : mAnimGraphPanel.PresetFiles())
+                        // Only the graphs of this model's skeleton family (animgraph/<family>/): a graph
+                        // refers to clips and mask bones by name, so other families' graphs would not bake.
+                        const std::string family = instance->GetModel()->GetAssetFamily();
+                        for (const std::string& path : mAnimGraphPanel.PresetFiles(family))
                         {
                             const std::string name = std::filesystem::path(path).filename().generic_string();
                             const bool isSelected = current && current->Path == path;
@@ -1085,6 +1097,94 @@ void UserInterface::CreateFrame(RRenderData& renderData, SceneEditor& sceneEdito
     ImGui::End();
 
     renderData.rdUIGenerateTime = mUIGenerateTimer.Stop();
+}
+
+void UserInterface::drawCharacterPanel(ModelAndInstanceData& modInstData)
+{
+    CharacterController* controller = mCharacterController;
+    if (controller == nullptr || controller->Manager() == nullptr && controller->DefinitionSource().empty())
+    {
+        ImGui::TextDisabled("controller unavailable (definition or locomotion graph missing)");
+        return;
+    }
+    ImGui::TextDisabled("definition: %s", controller->DefinitionSource().c_str());
+    if (!controller->DefinitionDoc().empty())
+    {
+        ImGui::TextWrapped("%s", controller->DefinitionDoc().c_str());
+    }
+
+    const bool hasInstances = !modInstData.miModelInstances.empty();
+    std::shared_ptr<ModelInstance> selected = hasInstances ? modInstData.miModelInstances[modInstData.miSelectedInstance] : nullptr;
+    const bool attachedToSelected = controller->IsAttached() && controller->Target() == selected.get();
+
+    ImGui::BeginDisabled(!hasInstances || attachedToSelected);
+    if (ImGui::Button("Attach to selected instance"))
+    {
+        std::string error;
+        if (!controller->Attach(selected, error))
+        {
+            mCharacterStatus = error;
+        }
+        else
+        {
+            mCharacterStatus.clear();
+        }
+    }
+    ImGui::EndDisabled();
+    ImGui::SameLine();
+    ImGui::BeginDisabled(!controller->IsAttached());
+    if (ImGui::Button("Detach"))
+    {
+        controller->Detach();
+    }
+    ImGui::EndDisabled();
+    if (!mCharacterStatus.empty())
+    {
+        ImGui::TextColored(ImVec4(1.0f, 0.4f, 0.4f, 1.0f), "%s", mCharacterStatus.c_str());
+    }
+
+    if (!controller->IsAttached())
+    {
+        ImGui::TextDisabled("not attached");
+        return;
+    }
+    ImGui::Text("active: %s", controller->ActiveStatesText().c_str());
+    ImGui::TextDisabled("keys (non-Free camera): W/S A/D move, Q/E turn, Shift jog, Alt sprint, Ctrl crouch, V aim (Up/Down pitch),");
+    ImGui::TextDisabled("Space jump, F punch, H hit, G weapon, K die");
+    if (ImGui::Button("Jump"))
+    {
+        controller->Jump();
+    }
+    ImGui::SameLine();
+    if (ImGui::Button("Punch"))
+    {
+        controller->RequestAction("punch");
+    }
+    ImGui::SameLine();
+    if (ImGui::Button("Hit"))
+    {
+        controller->RequestAction("hit");
+    }
+    ImGui::SameLine();
+    if (ImGui::Button("Weapon"))
+    {
+        controller->ToggleWeapon();
+    }
+    ImGui::SameLine();
+    if (ImGui::Button("Die"))
+    {
+        controller->Die();
+    }
+    {
+        const MotionState& m = controller->Motion();
+        ImGui::TextDisabled("motion: %s speed %.2f m/s yaw %.0f pos (%.2f, %.2f, %.2f)%s", m.airborne ? "airborne" : "grounded", m.speed,
+                            m.yawDeg, m.position.x, m.position.y, m.position.z, m.movementLocked ? " [locked]" : "");
+        if (controller->Profile() != nullptr)
+        {
+            ImGui::TextDisabled("profile: %s", controller->Profile()->path.c_str());
+        }
+    }
+    ImGui::TextDisabled("(movement is not recorded in the undo history; transitions and notifies go to the console)");
 }
 
 void UserInterface::Render(RRenderData& renderData)

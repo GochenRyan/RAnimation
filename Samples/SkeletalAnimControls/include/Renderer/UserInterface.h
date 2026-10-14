@@ -15,11 +15,18 @@
 
 namespace RAnimation
 {
+    class CharacterController;
+
     class UserInterface
     {
     public:
         bool Init(RRenderData& renderData);
         void HideMouse(bool hide);
+        // Optional: the "Character" header drives this controller (attach / events / state log).
+        void SetCharacterController(CharacterController* controller)
+        {
+            mCharacterController = controller;
+        }
 
         void CreateFrame(RRenderData& renderData, SceneEditor& sceneEditor);
         void Render(RRenderData& renderData);
@@ -29,6 +36,9 @@ namespace RAnimation
     private:
         // Builds the top menu bar (Edit menu: undo/redo + mode toggle) and processes editor hotkeys.
         void drawMenuBarAndHotkeys(RRenderData& renderData, SceneEditor& sceneEditor);
+
+        // "Character (state machine)" header: attach / detach, events, active states, transition log.
+        void drawCharacterPanel(ModelAndInstanceData& modInstData);
 
         // Helper invoked right after a slider widget: coalesces a drag into one settings-edit command.
         // `edited` is the live working copy (the value being applied this frame), used as the "after".
@@ -84,6 +94,9 @@ namespace RAnimation
         // AnimGraph editor window + the graph assets picked from the Animation header (keyed by path).
         AnimGraphPanel mAnimGraphPanel{};
         std::map<std::string, std::shared_ptr<AnimGraphAsset>> mGraphAssetCache;
+
+        CharacterController* mCharacterController = nullptr;
+        std::string mCharacterStatus;
 
         // Crowd spawn (tier C demo): N x M grid of the selected model with random clip / phase / yaw.
         int mCrowdCols = 20;

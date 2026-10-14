@@ -38,11 +38,18 @@ namespace RAnimation
         // Loads a graph file into the panel as the current asset. Returns the asset or null.
         std::shared_ptr<AnimGraphAsset> LoadGraphFile(const std::string& path);
         std::shared_ptr<AnimGraphAsset> CurrentAsset() const { return mAsset; }
-        const std::vector<std::string>& PresetFiles();
+        // Presets are grouped by skeleton family: one sub directory of PresetDir per asset folder
+        // (Model::GetAssetFamily), e.g. animgraph/animated_woman/*.animgraph.usda.
+        const std::vector<std::string>& Families();
+        const std::vector<std::string>& PresetFiles(const std::string& family);
+        // The family the toolbar picker browses. It follows the selected instance's model until the
+        // user picks another one in the Family combo (and snaps back when a different model is selected).
+        const std::string& Family() const { return mFamily; }
+        void FollowModelFamily(const std::string& family);
 
         bool bVisible = true;
         std::string FilePath;  // current save path (toolbar Save)
-        std::string PresetDir; // preset directory
+        std::string PresetDir; // preset root directory (one sub directory per skeleton family)
 
     private:
         void DrawToolbar(SceneEditor& sceneEditor);
@@ -52,6 +59,7 @@ namespace RAnimation
         void HandleDeletion(SceneEditor& sceneEditor, bool editMode);
         void HandleDialogs(SceneEditor& sceneEditor);
         void DrawPresetPicker(SceneEditor& sceneEditor, bool editMode);
+        std::string FamilyDir() const; // PresetDir/<family>
 
         // Edit plumbing: snapshot -> mutate -> commit (undoable) / live sync while dragging a slider.
         void BeginEdit();
@@ -65,8 +73,12 @@ namespace RAnimation
         std::shared_ptr<AnimGraphAsset> mAsset;
         ax::NodeEditor::EditorContext* mContext = nullptr;
 
-        std::vector<std::string> mPresetFiles; // full paths
+        std::vector<std::string> mFamilies;                        // sub directory names of PresetDir
+        std::map<std::string, std::vector<std::string>> mPresetFiles; // family -> full paths
         bool bPresetListLoaded = false;
+        std::string mFamily;              // family the picker browses
+        std::string mFollowedModelFamily; // last family handed to FollowModelFamily
+        bool bFamilyPinned = false;       // the user picked a family by hand
         std::string mPresetDoc; // doc string of the current preset
 
         std::string mStatusMessage; // e.g. why a link was rejected

@@ -1,0 +1,160 @@
+#usda 1.0
+(
+    defaultPrim = "Scene"
+    metersPerUnit = 1
+    upAxis = "Y"
+)
+
+def Xform "Scene" (
+    customData = {
+        dictionary ranim = {
+            int activeCamera = 3
+            dictionary cam0 = {
+                float far = 500
+                float fov = 60
+                float mouseSensitivity = 0.15
+                float moveSpeed = 5
+                float near = 0.1
+                float orthoHalfHeight = 5
+                float pitch = -34.481396
+                float3 position = (2.050069, 7.6334867, 7.293683)
+                int projection = 0
+                float yaw = 254.0546
+            }
+            dictionary cam1 = {
+                float3 eyeOffset = (0, 0.05, 0)
+                float far = 500
+                float forwardPush = 0.3
+                float fov = 60
+                string headBoneName = "Head"
+                float mouseSensitivity = 0.15
+                float near = 0.1
+                float orthoHalfHeight = 5
+                float pitch = -11.100001
+                int projection = 0
+                float roll = 0
+                float yaw = 15.900046
+            }
+            dictionary cam2 = {
+                float damping = 8
+                float distance = 5
+                float far = 500
+                float fov = 60
+                string headBoneName = "Head"
+                float mouseSensitivity = 0.15
+                float near = 0.1
+                float orthoHalfHeight = 5
+                float pitch = -28.199991
+                int projection = 0
+                float scrollSpeed = 1
+                float yaw = 263.84985
+            }
+            dictionary cam3 = {
+                float damping = 5
+                float far = 500
+                float fov = 83.8
+                float near = 0.1
+                float orthoHalfHeight = 5
+                float3 position = (33.08, 50, -50)
+                int projection = 0
+            }
+        }
+    }
+)
+{
+    def Xform "Instance_0" (
+        customData = {
+            dictionary ranim = {
+                string animClip = "Armature|Idle_Loop"
+                int animClipNr = 53
+            }
+        }
+        prepend references = @ual_mannequin/UAL_Mannequin.asset.usda@
+    )
+    {
+        float3 xformOp:rotateXYZ = (0, 0, 0)
+        float3 xformOp:scale = (1, 1, 1)
+        double3 xformOp:translate = (-1.5, 0, 0.0)
+        uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateXYZ", "xformOp:scale"]
+    }
+
+    def Xform "Instance_1" (
+        customData = {
+            dictionary ranim = {
+                string animClip = "Armature|Walk_Fwd_Loop"
+                int animClipNr = 224
+            }
+        }
+        prepend references = @ual_mannequin/UAL_Mannequin.asset.usda@
+    )
+    {
+        float3 xformOp:rotateXYZ = (0, 0, 0)
+        float3 xformOp:scale = (1, 1, 1)
+        double3 xformOp:translate = (0.0, 0, 0.0)
+        uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateXYZ", "xformOp:scale"]
+    }
+
+    def Xform "Instance_2" (
+        customData = {
+            dictionary ranim = {
+                string animClip = "Armature|Jog_Fwd_Loop"
+                int animClipNr = 67
+            }
+        }
+        prepend references = @ual_mannequin/UAL_Mannequin.asset.usda@
+    )
+    {
+        float3 xformOp:rotateXYZ = (0, 0, 0)
+        float3 xformOp:scale = (1, 1, 1)
+        double3 xformOp:translate = (1.5, 0, 0.0)
+        uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateXYZ", "xformOp:scale"]
+    }
+
+    def Xform "Instance_3" (
+        customData = {
+            dictionary ranim = {
+                string animClip = "Armature|Crouch_Fwd_Loop"
+                int animClipNr = 30
+            }
+        }
+        prepend references = @ual_mannequin/UAL_Mannequin.asset.usda@
+    )
+    {
+        float3 xformOp:rotateXYZ = (0, 0, 0)
+        float3 xformOp:scale = (1, 1, 1)
+        double3 xformOp:translate = (-1.5, 0, 1.5)
+        uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateXYZ", "xformOp:scale"]
+    }
+
+    def Xform "Instance_4" (
+        customData = {
+            dictionary ranim = {
+                string animClip = "Armature|Pistol_Idle_Loop"
+                int animClipNr = 80
+            }
+        }
+        prepend references = @ual_mannequin/UAL_Mannequin.asset.usda@
+    )
+    {
+        float3 xformOp:rotateXYZ = (0, 0, 0)
+        float3 xformOp:scale = (1, 1, 1)
+        double3 xformOp:translate = (0.0, 0, 1.5)
+        uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateXYZ", "xformOp:scale"]
+    }
+
+    def Xform "Instance_5" (
+        customData = {
+            dictionary ranim = {
+                string animClip = "Armature|Zombie_Walk_Fwd_Loop"
+                int animClipNr = 249
+            }
+        }
+        prepend references = @ual_mannequin/UAL_Mannequin.asset.usda@
+    )
+    {
+        float3 xformOp:rotateXYZ = (0, 0, 0)
+        float3 xformOp:scale = (1, 1, 1)
+        double3 xformOp:translate = (1.5, 0, 1.5)
+        uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateXYZ", "xformOp:scale"]
+    }
+}

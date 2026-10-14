@@ -13,10 +13,21 @@ namespace RAnimation
         std::string Type;
         float PosX = 0;
         float PosY = 0;
+        std::string Name;     // optional node name (ranim:name)
         int ClipIndex = 0;
+        std::string ClipName; // ClipPlayer: kept in sync with ClipIndex from the selected model's clip list
         float Param = 0.0f; // TwoWayBlend.Alpha / BlendSpace1D.Input / ClipPlayer rate (mapped to PlayRate)
         bool bLooping = true;
         std::string CacheName;
+        std::string SlotName; // AnimSlot
+        std::string MaskRoot; // LayeredBlend
+        int BlendDepth = 0;   // LayeredBlend
+        float Param2 = 0.0f;                 // BlendSpace2D InputY
+        bool bWrapX = true;                  // BlendSpace2D
+        std::vector<float> SamplePositions2; // BlendSpace2D x,y pairs
+        int ActiveIndex = 0;                 // CrossfadeSelect
+        float BlendTimeSec = 0.2f;           // CrossfadeSelect
+        std::vector<std::string> InputNames; // CrossfadeSelect
     };
 
     struct EditorLink

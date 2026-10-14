@@ -1,0 +1,88 @@
+#usda 1.0
+(
+    customLayerData = {
+        dictionary ranim = {
+            int animGraphVersion = 1
+            string doc = "2D blend space on a polar grid: Idle at speed 0; Walking at speed 0.5 and Running at speed 1, each at direction 0 and 180 (the same clip stands in for both directions - animated_woman has no strafes). Input: direction 90, speed 0.75."
+        }
+    }
+    defaultPrim = "AnimGraph"
+)
+
+def Scope "AnimGraph"
+{
+    custom int ranim:outputNode = 6
+
+    def Scope "Node_0"
+    {
+        custom int ranim:clipIndex = 1
+        custom string ranim:clipName = "Armature|Idle"
+        custom float2 ranim:editorPos = (60, 40)
+        custom bool ranim:looping = 1
+        custom float ranim:playRate = 1
+        custom string ranim:type = "ClipPlayer"
+    }
+
+    def Scope "Node_1"
+    {
+        custom int ranim:clipIndex = 9
+        custom string ranim:clipName = "Armature|Walking"
+        custom float2 ranim:editorPos = (60, 200)
+        custom bool ranim:looping = 1
+        custom float ranim:playRate = 1
+        custom string ranim:type = "ClipPlayer"
+    }
+
+    def Scope "Node_2"
+    {
+        custom int ranim:clipIndex = 9
+        custom string ranim:clipName = "Armature|Walking"
+        custom float2 ranim:editorPos = (60, 360)
+        custom bool ranim:looping = 1
+        custom float ranim:playRate = 1
+        custom string ranim:type = "ClipPlayer"
+    }
+
+    def Scope "Node_3"
+    {
+        custom int ranim:clipIndex = 6
+        custom string ranim:clipName = "Armature|Running"
+        custom float2 ranim:editorPos = (60, 520)
+        custom bool ranim:looping = 1
+        custom float ranim:playRate = 1
+        custom string ranim:type = "ClipPlayer"
+    }
+
+    def Scope "Node_4"
+    {
+        custom int ranim:clipIndex = 6
+        custom string ranim:clipName = "Armature|Running"
+        custom float2 ranim:editorPos = (60, 680)
+        custom bool ranim:looping = 1
+        custom float ranim:playRate = 1
+        custom string ranim:type = "ClipPlayer"
+    }
+
+    def Scope "Node_5"
+    {
+        custom float2 ranim:editorPos = (400, 360)
+        custom rel ranim:in:Sample0 = </AnimGraph/Node_0>
+        custom rel ranim:in:Sample1 = </AnimGraph/Node_1>
+        custom rel ranim:in:Sample2 = </AnimGraph/Node_2>
+        custom rel ranim:in:Sample3 = </AnimGraph/Node_3>
+        custom rel ranim:in:Sample4 = </AnimGraph/Node_4>
+        custom string ranim:name = "Stand"
+        custom float ranim:param = 90
+        custom float ranim:param2 = 0.75
+        custom float2[] ranim:samplePositions2 = [(0, 0), (0, 0.5), (180, 0.5), (0, 1), (180, 1)]
+        custom string ranim:type = "BlendSpace2D"
+        custom bool ranim:wrapX = 1
+    }
+
+    def Scope "Node_6"
+    {
+        custom float2 ranim:editorPos = (740, 360)
+        custom rel ranim:in:Result = </AnimGraph/Node_5>
+        custom string ranim:type = "Root"
+    }
+}

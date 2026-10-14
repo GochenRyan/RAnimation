@@ -32,6 +32,21 @@ bool NRITrsTexture::Load(RRenderData& renderData, Model& model)
         model.SetTrsTexStatus("no free TRS descriptor set left (kMaxTrsTextureModels reached for this session)");
         return false;
     }
+    // The baker enforces a default budget of 16384 rows; the device may allow less (older mobile parts)
+    // or more (Vulkan on recent desktop GPUs). Refuse instead of aborting inside CreateTexture; the
+    // model then runs on the CPU tier (AnimationSystem::EffectiveMode).
+    {
+        const nri::DeviceDesc& deviceDesc = renderData.NRI.GetDeviceDesc(*renderData.rdDevice);
+        const uint32_t maxDim = deviceDesc.dimensions.texture2DMaxDim;
+        if (cpu.Width() > maxDim || cpu.Height() > maxDim)
+        {
+            model.SetTrsTexStatus(fmt::format("TRS texture {}x{} exceeds the device's 2D texture limit {}",
+                                              cpu.Width(),
+                                              cpu.Height(),
+                                              maxDim));
+            return false;
+        }
+    }
 
     // ---- texture --------------------------------------------------------------------------------------
     nri::TextureDesc textureDesc = {};

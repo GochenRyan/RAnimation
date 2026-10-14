@@ -123,30 +123,73 @@ namespace RAnimation
 
     void AnimGraphPanel::ReloadPresetList()
     {
+        // PresetDir/<family>/*.animgraph.usda. Files directly in PresetDir belong to no family and are
+        // not listed: a graph only makes sense for the skeleton family whose clip names it uses.
+        mFamilies.clear();
         mPresetFiles.clear();
         std::error_code ec;
         if (!PresetDir.empty() && std::filesystem::is_directory(PresetDir, ec))
         {
-            for (const auto& entry : std::filesystem::directory_iterator(PresetDir, ec))
+            for (const auto& familyEntry : std::filesystem::directory_iterator(PresetDir, ec))
             {
-                const std::string name = entry.path().filename().generic_string();
-                if (entry.is_regular_file() && name.size() > 15 && name.compare(name.size() - 15, 15, ".animgraph.usda") == 0)
+                if (!familyEntry.is_directory())
                 {
-                    mPresetFiles.push_back(entry.path().generic_string());
+                    continue;
                 }
+                const std::string family = familyEntry.path().filename().generic_string();
+                std::vector<std::string>& files = mPresetFiles[family];
+                for (const auto& entry : std::filesystem::directory_iterator(familyEntry.path(), ec))
+                {
+                    const std::string name = entry.path().filename().generic_string();
+                    if (entry.is_regular_file() && name.size() > 15 && name.compare(name.size() - 15, 15, ".animgraph.usda") == 0)
+                    {
+                        files.push_back(entry.path().generic_string());
+                    }
+                }
+                std::sort(files.begin(), files.end());
+                mFamilies.push_back(family);
             }
-            std::sort(mPresetFiles.begin(), mPresetFiles.end());
+            std::sort(mFamilies.begin(), mFamilies.end());
         }
         bPresetListLoaded = true;
     }
 
-    const std::vector<std::string>& AnimGraphPanel::PresetFiles()
+    const std::vector<std::string>& AnimGraphPanel::Families()
     {
         if (!bPresetListLoaded)
         {
             ReloadPresetList();
         }
-        return mPresetFiles;
+        return mFamilies;
+    }
+
+    const std::vector<std::string>& AnimGraphPanel::PresetFiles(const std::string& family)
+    {
+        if (!bPresetListLoaded)
+        {
+            ReloadPresetList();
+        }
+        static const std::vector<std::string> kNone;
+        const auto it = mPresetFiles.find(family);
+        return it != mPresetFiles.end() ? it->second : kNone;
+    }
+
+    void AnimGraphPanel::FollowModelFamily(const std::string& family)
+    {
+        if (family != mFollowedModelFamily)
+        {
+            // A different model got selected: browse its family again even if the user had pinned one.
+            mFollowedModelFamily = family;
+            bFamilyPinned = false;
+        }
+        if (!bFamilyPinned && !family.empty())
+        {
+            mFamily = family;
+        }
+        if (mFamily.empty() && !Families().empty())
+        {
+            mFamily = Families().front();
+        }
     }
 
     void AnimGraphPanel::ReplaceGraph(std::shared_ptr<AnimGraphAsset> asset)
@@ -328,7 +371,27 @@ namespace RAnimation
     {
         (void)sceneEditor;
         (void)editMode;
-        const std::vector<std::string>& presets = PresetFiles();
+        // Family (skeleton) combo, then the presets of that family.
+        ImGui::SetNextItemWidth(140.0f);
+        if (ImGui::BeginCombo("##family", mFamily.empty() ? "(no family)" : mFamily.c_str()))
+        {
+            for (const std::string& family : Families())
+            {
+                if (ImGui::Selectable(family.c_str(), family == mFamily))
+                {
+                    mFamily = family;
+                    bFamilyPinned = family != mFollowedModelFamily;
+                }
+            }
+            ImGui::EndCombo();
+        }
+        if (ImGui::IsItemHovered())
+        {
+            ImGui::SetTooltip("skeleton family = sub directory of %s\nfollows the selected instance's model unless picked by hand",
+                              PresetDir.c_str());
+        }
+        ImGui::SameLine();
+        const std::vector<std::string>& presets = PresetFiles(mFamily);
         const std::string current = mAsset ? mAsset->Name : "(none)";
         ImGui::SetNextItemWidth(200.0f);
         if (ImGui::BeginCombo("##preset", current.c_str()))
@@ -346,8 +409,13 @@ namespace RAnimation
         }
         if (ImGui::IsItemHovered())
         {
-            ImGui::SetTooltip("graph presets in %s", PresetDir.c_str());
+            ImGui::SetTooltip("graph presets in %s", FamilyDir().c_str());
         }
+    }
+
+    std::string AnimGraphPanel::FamilyDir() const
+    {
+        return mFamily.empty() ? PresetDir : (std::filesystem::path(PresetDir) / mFamily).generic_string();
     }
 
     void AnimGraphPanel::DrawToolbar(SceneEditor& sceneEditor)
@@ -385,7 +453,7 @@ namespace RAnimation
             if (FilePath.empty())
             {
                 IGFD::FileDialogConfig config;
-                config.path = PresetDir;
+                config.path = FamilyDir();
                 config.fileName = "untitled.animgraph.usda";
                 config.countSelectionMax = 1;
                 config.flags = ImGuiFileDialogFlags_Modal | ImGuiFileDialogFlags_ConfirmOverwrite;
@@ -400,7 +468,7 @@ namespace RAnimation
         if (ImGui::Button("Save As..."))
         {
             IGFD::FileDialogConfig config;
-            config.path = PresetDir;
+            config.path = FamilyDir();
             config.fileName = FilePath.empty() ? "untitled.animgraph.usda" : std::filesystem::path(FilePath).filename().generic_string();
             config.countSelectionMax = 1;
             config.flags = ImGuiFileDialogFlags_Modal | ImGuiFileDialogFlags_ConfirmOverwrite;
@@ -410,7 +478,7 @@ namespace RAnimation
         if (ImGui::Button("Load..."))
         {
             IGFD::FileDialogConfig config;
-            config.path = PresetDir;
+            config.path = FamilyDir();
             config.countSelectionMax = 1;
             config.flags = ImGuiFileDialogFlags_Modal;
             ImGuiFileDialog::Instance()->OpenDialog("LoadAnimGraph", "Load AnimGraph", "AnimGraph{.animgraph.usda,.usda}", config);
@@ -532,29 +600,65 @@ namespace RAnimation
 
             ImGui::PushItemWidth(140.0f);
             ImGui::BeginDisabled(!editMode);
+            {
+                // Optional node name: what CharacterController / AnimGraphInstance::FindNode look up.
+                char nameBuffer[64] = {};
+                std::snprintf(nameBuffer, sizeof(nameBuffer), "%s", node.Name.c_str());
+                if (ImGui::InputText("Name", nameBuffer, sizeof(nameBuffer)))
+                {
+                    node.Name = nameBuffer;
+                }
+                if (ImGui::IsItemActivated())
+                {
+                    BeginEdit();
+                }
+                if (ImGui::IsItemDeactivatedAfterEdit())
+                {
+                    CommitEdit(sceneEditor, "Rename Node");
+                }
+            }
             if (type->bHasClipIndex)
             {
+                // The card shows what the file says (ClipName); the index is only the legacy fallback.
+                // Against the selected model the name either resolves (shown plainly) or is flagged in
+                // red: the graph belongs to another skeleton family, or the clip was renamed.
                 const int clipCount = clips ? static_cast<int>(clips->size()) : 0;
-                std::string clipName = fmt::format("clip {}", node.ClipIndex);
-                if (clipCount > 0 && node.ClipIndex >= 0 && node.ClipIndex < clipCount)
-                {
-                    clipName = (*clips)[static_cast<size_t>(node.ClipIndex)]->GetClipName();
-                }
+                const int resolved = clips && !node.ClipName.empty() ? Model::FindClipIndexIn(*clips, node.ClipName) : -1;
+                const bool legacyIndex = node.ClipName.empty() && clipCount > 0 && node.ClipIndex >= 0 && node.ClipIndex < clipCount;
+                const std::string clipName = !node.ClipName.empty()
+                                                     ? node.ClipName
+                                                     : (legacyIndex ? (*clips)[static_cast<size_t>(node.ClipIndex)]->GetClipName()
+                                                                    : fmt::format("clip {}", node.ClipIndex));
+                // Cycling walks the selected model's clip list and writes both the name and the index.
+                const int cycleFrom = resolved >= 0 ? resolved : node.ClipIndex;
                 if (ImGui::ArrowButton("##clipPrev", ImGuiDir_Left) && clipCount > 0)
                 {
                     BeginEdit();
-                    node.ClipIndex = (node.ClipIndex - 1 + clipCount) % clipCount;
+                    node.ClipIndex = ((cycleFrom - 1) % clipCount + clipCount) % clipCount;
+                    node.ClipName = (*clips)[static_cast<size_t>(node.ClipIndex)]->GetClipName();
                     CommitEdit(sceneEditor, "Change Clip");
                 }
                 ImGui::SameLine();
                 if (ImGui::ArrowButton("##clipNext", ImGuiDir_Right) && clipCount > 0)
                 {
                     BeginEdit();
-                    node.ClipIndex = (node.ClipIndex + 1) % clipCount;
+                    node.ClipIndex = (std::max(cycleFrom, -1) + 1) % clipCount;
+                    node.ClipName = (*clips)[static_cast<size_t>(node.ClipIndex)]->GetClipName();
                     CommitEdit(sceneEditor, "Change Clip");
                 }
                 ImGui::SameLine();
-                ImGui::TextUnformatted(clipName.c_str());
+                if (clips != nullptr && resolved < 0 && !legacyIndex)
+                {
+                    ImGui::TextColored(kErrorColor, "%s", clipName.c_str());
+                    if (ImGui::IsItemHovered())
+                    {
+                        ImGui::SetTooltip("not a clip of the selected model (%s)", selected->GetModel()->GetModelFileName().c_str());
+                    }
+                }
+                else
+                {
+                    ImGui::TextUnformatted(clipName.c_str());
+                }
             }
             if (type->bHasParam)
             {
@@ -570,6 +674,120 @@ namespace RAnimation
                 if (ImGui::IsItemDeactivatedAfterEdit())
                 {
                     CommitEdit(sceneEditor, "Change Param");
+                }
+            }
+            if (type->bHasSlot)
+            {
+                char slotBuffer[64] = {};
+                std::snprintf(slotBuffer, sizeof(slotBuffer), "%s", node.SlotName.c_str());
+                if (ImGui::InputText("Slot", slotBuffer, sizeof(slotBuffer)))
+                {
+                    node.SlotName = slotBuffer;
+                }
+                if (ImGui::IsItemActivated())
+                {
+                    BeginEdit();
+                }
+                if (ImGui::IsItemDeactivatedAfterEdit())
+                {
+                    CommitEdit(sceneEditor, "Change Slot Name");
+                }
+            }
+            if (type->bHasParam2)
+            {
+                ImGui::SliderFloat("Speed", &node.Param2, 0.0f, 1.0f, "%.2f", ImGuiSliderFlags_AlwaysClamp);
+                if (ImGui::IsItemActivated())
+                {
+                    BeginEdit();
+                }
+                if (ImGui::IsItemEdited())
+                {
+                    SyncAsset();
+                }
+                if (ImGui::IsItemDeactivatedAfterEdit())
+                {
+                    CommitEdit(sceneEditor, "Change Speed");
+                }
+            }
+            if (type->bHasSelect)
+            {
+                int active = node.ActiveIndex;
+                if (ImGui::InputInt("Active", &active))
+                {
+                    BeginEdit();
+                    node.ActiveIndex = std::max(0, active);
+                    CommitEdit(sceneEditor, "Change Active Input");
+                }
+                ImGui::InputFloat("Blend Time", &node.BlendTimeSec, 0.05f, 0.1f, "%.2f");
+                if (ImGui::IsItemActivated())
+                {
+                    BeginEdit();
+                }
+                if (ImGui::IsItemDeactivatedAfterEdit())
+                {
+                    node.BlendTimeSec = std::max(0.0f, node.BlendTimeSec);
+                    CommitEdit(sceneEditor, "Change Blend Time");
+                }
+                // Input names, comma separated (In0, In1, ...): what the state machine selects by.
+                std::string joined;
+                for (size_t i = 0; i < node.InputNames.size(); ++i)
+                {
+                    joined += (i ? "," : "") + node.InputNames[i];
+                }
+                char namesBuffer[256] = {};
+                std::snprintf(namesBuffer, sizeof(namesBuffer), "%s", joined.c_str());
+                if (ImGui::InputText("Input Names", namesBuffer, sizeof(namesBuffer)))
+                {
+                    node.InputNames.clear();
+                    std::string current;
+                    for (const char* p = namesBuffer;; ++p)
+                    {
+                        if (*p == ',' || *p == 0)
+                        {
+                            node.InputNames.push_back(current);
+                            current.clear();
+                            if (*p == 0)
+                            {
+                                break;
+                            }
+                        }
+                        else if (*p != ' ')
+                        {
+                            current += *p;
+                        }
+                    }
+                }
+                if (ImGui::IsItemActivated())
+                {
+                    BeginEdit();
+                }
+                if (ImGui::IsItemDeactivatedAfterEdit())
+                {
+                    CommitEdit(sceneEditor, "Change Input Names");
+                }
+            }
+            if (type->bHasMask)
+            {
+                char maskBuffer[64] = {};
+                std::snprintf(maskBuffer, sizeof(maskBuffer), "%s", node.MaskRoot.c_str());
+                if (ImGui::InputText("Mask Root", maskBuffer, sizeof(maskBuffer)))
+                {
+                    node.MaskRoot = maskBuffer;
+                }
+                if (ImGui::IsItemActivated())
+                {
+                    BeginEdit();
+                }
+                if (ImGui::IsItemDeactivatedAfterEdit())
+                {
+                    CommitEdit(sceneEditor, "Change Mask Root");
+                }
+                int depth = node.BlendDepth;
+                if (ImGui::InputInt("Blend Depth", &depth))
+                {
+                    BeginEdit();
+                    node.BlendDepth = std::max(0, depth);
+                    CommitEdit(sceneEditor, "Change Blend Depth");
                 }
             }
             if (type->bHasLoop)
@@ -747,6 +965,7 @@ namespace RAnimation
             selected = scene.miModelInstances[std::clamp(scene.miSelectedInstance, 0, static_cast<int>(scene.miModelInstances.size()) - 1)].get();
         }
         const bool editMode = sceneEditor.IsEditMode();
+        FollowModelFamily(selected != nullptr ? selected->GetModel()->GetAssetFamily() : std::string());
 
         DrawToolbar(sceneEditor);
         if (!mStatusMessage.empty())

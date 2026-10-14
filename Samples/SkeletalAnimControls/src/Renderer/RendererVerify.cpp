@@ -193,6 +193,7 @@ bool Renderer::VerifyBoneMatrices(ModelAndInstanceData& scene, int instanceIndex
             uint32_t index = 0;
             float timeSec = 0.0f;
             float weight = 0.0f;
+            int maskRow = -1; // local row in work->maskRows
         };
         std::vector<MirrorTerm> terms;
         const HybridWorkCpu* work = nullptr;
@@ -209,7 +210,7 @@ bool Renderer::VerifyBoneMatrices(ModelAndInstanceData& scene, int instanceIndex
             work = &graph->Work();
             for (const HybridTermCpu& t : work->terms)
             {
-                terms.push_back({t.bSlot, t.index, t.timeSec, t.weight});
+                terms.push_back({t.bSlot, t.index, t.timeSec, t.weight, t.maskRow});
             }
         }
 
@@ -224,6 +225,7 @@ bool Renderer::VerifyBoneMatrices(ModelAndInstanceData& scene, int instanceIndex
             std::vector<Transform> mirror(nodeCount);
             std::vector<glm::quat> reference(nodeCount, glm::quat(1.0f, 0.0f, 0.0f, 0.0f));
             std::vector<bool> first(nodeCount, true);
+            std::vector<float> wsum(nodeCount, 0.0f);
             for (Transform& t : mirror)
             {
                 t.T = glm::vec3(0.0f);
@@ -256,13 +258,31 @@ bool Renderer::VerifyBoneMatrices(ModelAndInstanceData& scene, int instanceIndex
                         first[n] = false;
                     }
                     const glm::quat aligned = glm::dot(reference[n], v.R) < 0.0f ? -v.R : v.R;
-                    mirror[n].T += v.T * term.weight;
-                    mirror[n].S += v.S * term.weight;
-                    mirror[n].R += aligned * term.weight;
+                    float w = term.weight;
+                    if (term.maskRow >= 0 && work != nullptr &&
+                        static_cast<size_t>(term.maskRow) * nodeCount + n < work->maskRows.size())
+                    {
+                        w *= work->maskRows[static_cast<size_t>(term.maskRow) * nodeCount + n];
+                    }
+                    mirror[n].T += v.T * w;
+                    mirror[n].S += v.S * w;
+                    mirror[n].R += aligned * w;
+                    wsum[n] += w;
                 }
             }
-            for (Transform& t : mirror)
+            // Same per-node renormalisation as the kernel (masked terms make the sums differ per node).
+            for (uint32_t n = 0; n < nodeCount; ++n)
             {
+                Transform& t = mirror[n];
+                if (wsum[n] <= 0.0f)
+                {
+                    t.T = glm::vec3(0.0f);
+                    t.S = glm::vec3(1.0f);
+                    t.R = glm::quat(1.0f, 0.0f, 0.0f, 0.0f);
+                    continue;
+                }
+                t.T /= wsum[n];
+                t.S /= wsum[n];
                 t.R = glm::normalize(t.R);
             }
             compare(mirror, out.mirrorPositionError, out.mirrorElementError);

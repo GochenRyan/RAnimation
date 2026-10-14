@@ -112,7 +112,9 @@ namespace RAnimation
         bool Flatten(const AnimGraphInstance& instance,
                      int nodeId,
                      float weight,
+                     int maskRow,
                      std::vector<HybridSample>& out,
+                     std::vector<float>& maskRows,
                      std::string& outError,
                      int depth)
         {
@@ -141,7 +143,7 @@ namespace RAnimation
                     outError = fmt::format("CPU node {} has no upload slot", nodeId);
                     return false;
                 }
-                out.push_back({true, slot, weight, 0.0f});
+                out.push_back({true, slot, weight, 0.0f, maskRow});
                 return true;
             }
 
@@ -152,11 +154,11 @@ namespace RAnimation
                     outError = "Root.Result is not connected";
                     return false;
                 }
-                return Flatten(instance, root->Result.LinkID, weight, out, outError, depth + 1);
+                return Flatten(instance, root->Result.LinkID, weight, maskRow, out, maskRows, outError, depth + 1);
             }
             if (auto* clip = dynamic_cast<ClipPlayer*>(node))
             {
-                out.push_back({false, clip->ClipIndex, weight, clip->Time});
+                out.push_back({false, clip->ClipIndex, weight, clip->Time, maskRow});
                 return true;
             }
             if (auto* blend = dynamic_cast<TwoWayBlend*>(node))
@@ -167,8 +169,8 @@ namespace RAnimation
                     outError = fmt::format("TwoWayBlend {} has an unconnected input", nodeId);
                     return false;
                 }
-                return Flatten(instance, blend->A.LinkID, weight * (1.0f - alpha), out, outError, depth + 1) &&
-                       Flatten(instance, blend->B.LinkID, weight * alpha, out, outError, depth + 1);
+                return Flatten(instance, blend->A.LinkID, weight * (1.0f - alpha), maskRow, out, maskRows, outError, depth + 1) &&
+                       Flatten(instance, blend->B.LinkID, weight * alpha, maskRow, out, maskRows, outError, depth + 1);
             }
             if (auto* space = dynamic_cast<BlendSpace1D*>(node))
             {
@@ -185,22 +187,135 @@ namespace RAnimation
                 bool ok = true;
                 if (l.IsLinked())
                 {
-                    ok = Flatten(instance, l.LinkID, weight * (1.0f - frac), out, outError, depth + 1);
+                    ok = Flatten(instance, l.LinkID, weight * (1.0f - frac), maskRow, out, maskRows, outError, depth + 1);
                 }
                 if (ok && high != low && h.IsLinked())
                 {
-                    ok = Flatten(instance, h.LinkID, weight * frac, out, outError, depth + 1);
+                    ok = Flatten(instance, h.LinkID, weight * frac, maskRow, out, maskRows, outError, depth + 1);
                 }
                 return ok;
+            }
+            if (auto* slot = dynamic_cast<AnimSlot*>(node))
+            {
+                if (!slot->Base.IsLinked())
+                {
+                    outError = fmt::format("AnimSlot {} has no Base input", nodeId);
+                    return false;
+                }
+                const float montageWeight = slot->MontageWeight();
+                const float baseWeight = 1.0f - montageWeight;
+                if (baseWeight > TwoWayBlend::kSmallestRelevantWeight &&
+                    !Flatten(instance, slot->Base.LinkID, weight * baseWeight, maskRow, out, maskRows, outError, depth + 1))
+                {
+                    return false;
+                }
+                for (const MontagePlayback& p : slot->Playing)
+                {
+                    if (p.Weight() > TwoWayBlend::kSmallestRelevantWeight && p.Desc().clipIndex >= 0)
+                    {
+                        out.push_back({false, p.Desc().clipIndex, weight * p.Weight(), p.Time(), maskRow});
+                    }
+                }
+                return true;
+            }
+            if (auto* space2 = dynamic_cast<BlendSpace2D*>(node))
+            {
+                GridWeight weights[4];
+                const int count = space2->Resolve(weights);
+                if (count == 0)
+                {
+                    outError = fmt::format("BlendSpace2D {} has no samples", nodeId);
+                    return false;
+                }
+                for (int k = 0; k < count; ++k)
+                {
+                    const PoseLink& link = space2->Samples[static_cast<size_t>(weights[k].index)].Link;
+                    if (!link.IsLinked())
+                    {
+                        continue;
+                    }
+                    if (!Flatten(instance, link.LinkID, weight * weights[k].weight, maskRow, out, maskRows, outError, depth + 1))
+                    {
+                        return false;
+                    }
+                }
+                return true;
+            }
+            if (auto* select = dynamic_cast<CrossfadeSelect*>(node))
+            {
+                const auto& layers = select->Tracker().Layers();
+                if (layers.empty())
+                {
+                    // Before the first Update: the authored input alone.
+                    const int idx = select->ActiveIndex;
+                    if (idx < 0 || static_cast<size_t>(idx) >= select->Inputs.size() || !select->Inputs[static_cast<size_t>(idx)].IsLinked())
+                    {
+                        outError = fmt::format("CrossfadeSelect {} has no connected input {}", nodeId, idx);
+                        return false;
+                    }
+                    return Flatten(instance, select->Inputs[static_cast<size_t>(idx)].LinkID, weight, maskRow, out, maskRows, outError, depth + 1);
+                }
+                for (const auto& l : layers)
+                {
+                    if (l.index < 0 || static_cast<size_t>(l.index) >= select->Inputs.size())
+                    {
+                        continue;
+                    }
+                    const PoseLink& link = select->Inputs[static_cast<size_t>(l.index)];
+                    if (!link.IsLinked())
+                    {
+                        outError = fmt::format("CrossfadeSelect {} input {} is not connected", nodeId, l.index);
+                        return false;
+                    }
+                    if (!Flatten(instance, link.LinkID, weight * l.weight, maskRow, out, maskRows, outError, depth + 1))
+                    {
+                        return false;
+                    }
+                }
+                return true;
+            }
+            if (auto* layered = dynamic_cast<LayeredBlend*>(node))
+            {
+                if (!layered->Base.IsLinked())
+                {
+                    outError = fmt::format("LayeredBlend {} has no Base input", nodeId);
+                    return false;
+                }
+                const float alpha = std::clamp(layered->Alpha, 0.0f, 1.0f);
+                const uint32_t nodeCount = instance.NodeCount();
+                if (alpha <= TwoWayBlend::kSmallestRelevantWeight || !layered->Layer.IsLinked() ||
+                    layered->Mask.size() != nodeCount)
+                {
+                    // Layer off: the base shows through unchanged, no new rows.
+                    return Flatten(instance, layered->Base.LinkID, weight, maskRow, out, maskRows, outError, depth + 1);
+                }
+                // Two new factor rows: the parent's factor times (1 - alpha * mask) for the base path and
+                // times alpha * mask for the layer path. Scalar weights pass through unchanged.
+                const int baseRow = static_cast<int>(maskRows.size() / nodeCount);
+                const int layerRow = baseRow + 1;
+                maskRows.resize(maskRows.size() + 2u * nodeCount);
+                for (uint32_t n = 0; n < nodeCount; ++n)
+                {
+                    const float parent = maskRow >= 0 ? maskRows[static_cast<size_t>(maskRow) * nodeCount + n] : 1.0f;
+                    const float m = alpha * layered->Mask[n];
+                    maskRows[static_cast<size_t>(baseRow) * nodeCount + n] = parent * (1.0f - m);
+                    maskRows[static_cast<size_t>(layerRow) * nodeCount + n] = parent * m;
+                }
+                return Flatten(instance, layered->Base.LinkID, weight, baseRow, out, maskRows, outError, depth + 1) &&
+                       Flatten(instance, layered->Layer.LinkID, weight, layerRow, out, maskRows, outError, depth + 1);
             }
             outError = fmt::format("node {} ({}) cannot be flattened for the GPU", nodeId, node->TypeName());
             return false;
         }
     } // namespace
 
-    bool BuildHybridSamples(const AnimGraphInstance& instance, std::vector<HybridSample>& out, std::string& outError)
+    bool BuildHybridSamples(const AnimGraphInstance& instance,
+                            std::vector<HybridSample>& out,
+                            std::vector<float>& outMaskRows,
+                            std::string& outError)
     {
         out.clear();
+        outMaskRows.clear();
         outError.clear();
         const BakedGraph* baked = instance.Baked();
         if (baked == nullptr || baked->RootNodeId < 0)
@@ -208,7 +323,7 @@ namespace RAnimation
             outError = "graph is not baked";
             return false;
         }
-        return Flatten(instance, baked->RootNodeId, 1.0f, out, outError, 0);
+        return Flatten(instance, baked->RootNodeId, 1.0f, -1, out, outMaskRows, outError, 0);
     }
 
     void NormalizeHybrid(std::vector<HybridSample>& samples)
@@ -224,7 +339,8 @@ namespace RAnimation
             bool found = false;
             for (HybridSample& m : merged)
             {
-                if (m.bExternal == s.bExternal && m.Index == s.Index && (m.bExternal || m.TimeSec == s.TimeSec))
+                if (m.bExternal == s.bExternal && m.Index == s.Index && m.MaskRow == s.MaskRow &&
+                    (m.bExternal || m.TimeSec == s.TimeSec))
                 {
                     m.Weight += s.Weight;
                     found = true;
@@ -236,18 +352,6 @@ namespace RAnimation
                 merged.push_back(s);
             }
         }
-        float total = 0.0f;
-        for (const HybridSample& m : merged)
-        {
-            total += m.Weight;
-        }
-        if (total > 0.0f)
-        {
-            for (HybridSample& m : merged)
-            {
-                m.Weight /= total;
-            }
-        }
         samples.swap(merged);
     }
 
@@ -255,8 +359,15 @@ namespace RAnimation
                            const std::vector<HybridSample>& work,
                            int maxTerms,
                            int maxSlots,
-                           std::string& outError)
+                           std::string& outError,
+                           int maskRowCount,
+                           int maxMaskRows)
     {
+        if (maxMaskRows > 0 && maskRowCount > maxMaskRows)
+        {
+            outError = fmt::format("graph needs {} mask rows; at most {} per instance are supported", maskRowCount, maxMaskRows);
+            return false;
+        }
         if (static_cast<int>(work.size()) > maxTerms)
         {
             outError = fmt::format("graph flattens to {} GPU terms; the kernel accepts at most {} per Work", work.size(), maxTerms);

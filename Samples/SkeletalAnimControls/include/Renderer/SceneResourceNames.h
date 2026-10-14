@@ -19,6 +19,7 @@ namespace RAnimation
         inline constexpr const char* kBoneMatrixBuffer = "BoneMatrixBuffer";
         inline constexpr const char* kHybridWorkBuffer = "HybridWorkBuffer";
         inline constexpr const char* kHybridTermBuffer = "HybridTermBuffer";
+        inline constexpr const char* kHybridMaskBuffer = "HybridMaskBuffer";
         inline constexpr const char* kCrowdInstanceBuffer = "CrowdInstanceBuffer";
 
         inline constexpr const char* kCameraBufferView = "CameraBufferView";
@@ -34,6 +35,7 @@ namespace RAnimation
         inline constexpr const char* kBoneMatrixStorageView = "BoneMatrixStorageView";
         inline constexpr const char* kHybridWorkBufferView = "HybridWorkBufferView";
         inline constexpr const char* kHybridTermBufferView = "HybridTermBufferView";
+        inline constexpr const char* kHybridMaskBufferView = "HybridMaskBufferView";
         inline constexpr const char* kCrowdInstanceBufferView = "CrowdInstanceBufferView";
     } // namespace SceneResourceNames
 } // namespace RAnimation

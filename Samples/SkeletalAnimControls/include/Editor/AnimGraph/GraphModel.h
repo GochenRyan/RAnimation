@@ -69,6 +69,10 @@ namespace RAnimation
         float ParamMax = 1.0f;
         const char* ParamLabel = "Param"; // ImGui label
         bool bHasLoop = false;            // ClipPlayer: looping is a node property, never the clip's
+        bool bHasMask = false;            // LayeredBlend: MaskRoot + BlendDepth
+        bool bHasSelect = false;          // CrossfadeSelect: ActiveIndex + BlendTime + input names
+        bool bHasParam2 = false;          // BlendSpace2D: second input (speed)
+        bool bHasSlot = false;            // AnimSlot: slot name
     };
 
     inline const std::vector<NodeTypeDesc>& NodeTypeRegistry()
@@ -86,6 +90,24 @@ namespace RAnimation
                  {{"Sample0", PinType::Pose}, {"Sample1", PinType::Pose}, {"Sample2", PinType::Pose}},
                  {{"Pose", PinType::Pose}},
                  false, true, false, true, 0.5f, 1.0f, "Input"},
+                // LayeredBlend: Base everywhere, Layer where the bone mask (MaskRoot subtree) is set, scaled
+                // by Alpha. GPU: per-term mask rows in the kernel.
+                {"LayeredBlend",
+                 {{"Base", PinType::Pose}, {"Layer", PinType::Pose}},
+                 {{"Pose", PinType::Pose}},
+                 false, true, false, true, 1.0f, 1.0f, "Alpha", false, true},
+                // AnimSlot: Base passes through; montages played into the slot blend over it.
+                {"AnimSlot", {{"Base", PinType::Pose}}, {{"Pose", PinType::Pose}}, false, false, false, true, 0.0f, 1.0f, "Param", false, false, false, false, true},
+                // BlendSpace2D: polar grid, Param = direction (deg, wraps), Param2 = speed row.
+                {"BlendSpace2D",
+                 {{"Sample0", PinType::Pose}, {"Sample1", PinType::Pose}, {"Sample2", PinType::Pose}},
+                 {{"Pose", PinType::Pose}},
+                 false, true, false, true, 0.0f, 360.0f, "Direction", false, false, false, true},
+                // CrossfadeSelect: one active input, time-driven crossfade between the inputs in play.
+                {"CrossfadeSelect",
+                 {{"In0", PinType::Pose}, {"In1", PinType::Pose}, {"In2", PinType::Pose}},
+                 {{"Pose", PinType::Pose}},
+                 false, false, false, true, 0.0f, 1.0f, "Param", false, false, true},
                 {"SaveCachedPose", {{"Source", PinType::Pose}}, {}, false, false, true, false},
                 {"UseCachedPose", {}, {{"Pose", PinType::Pose}}, false, false, true, false},
 

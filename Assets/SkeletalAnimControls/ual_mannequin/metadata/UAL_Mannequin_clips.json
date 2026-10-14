@@ -1,0 +1,2290 @@
+{
+    "asset": "UAL_Mannequin",
+    "assetUsd": "UAL_Mannequin.asset.usda",
+    "model": "model/model.usda",
+    "layers": {
+        "skeleton": "model/skeleton.usda",
+        "geometry": "model/geometry.usda",
+        "skinning": "model/skinning.usda",
+        "material": "model/material.usda"
+    },
+    "clips": [
+        {
+            "name": "Armature|A_TPose",
+            "short": "A_TPose",
+            "source": "UAL1.fbx",
+            "file": "anim/Armature_A_TPose.anim.usda",
+            "start": 0,
+            "end": 75,
+            "loop": false
+        },
+        {
+            "name": "Armature|BackFlip",
+            "short": "BackFlip",
+            "source": "UAL1.fbx",
+            "file": "anim/Armature_BackFlip.anim.usda",
+            "start": 0,
+            "end": 58,
+            "loop": false
+        },
+        {
+            "name": "Armature|Celebration",
+            "short": "Celebration",
+            "source": "UAL1.fbx",
+            "file": "anim/Armature_Celebration.anim.usda",
+            "start": 0,
+            "end": 120,
+            "loop": false
+        },
+        {
+            "name": "Armature|Climb_Down_Loop",
+            "short": "Climb_Down_Loop",
+            "source": "UAL1.fbx",
+            "file": "anim/Armature_Climb_Down_Loop.anim.usda",
+            "start": 0,
+            "end": 38,
+            "loop": true
+        },
+        {
+            "name": "Armature|Climb_Enter",
+            "short": "Climb_Enter",
+            "source": "UAL1.fbx",
+            "file": "anim/Armature_Climb_Enter.anim.usda",
+            "start": 0,
+            "end": 44,
+            "loop": false
+        },
+        {
+            "name": "Armature|Climb_Exit",
+            "short": "Climb_Exit",
+            "source": "UAL1.fbx",
+            "file": "anim/Armature_Climb_Exit.anim.usda",
+            "start": 0,
+            "end": 44,
+            "loop": false
+        },
+        {
+            "name": "Armature|Climb_Idle_Loop",
+            "short": "Climb_Idle_Loop",
+            "source": "UAL1.fbx",
+            "file": "anim/Armature_Climb_Idle_Loop.anim.usda",
+            "start": 0,
+            "end": 88,
+            "loop": true
+        },
+        {
+            "name": "Armature|Climb_Left_Loop",
+            "short": "Climb_Left_Loop",
+            "source": "UAL1.fbx",
+            "file": "anim/Armature_Climb_Left_Loop.anim.usda",
+            "start": 0,
+            "end": 26,
+            "loop": true
+        },
+        {
+            "name": "Armature|Climb_Right_Loop",
+            "short": "Climb_Right_Loop",
+            "source": "UAL1.fbx",
+            "file": "anim/Armature_Climb_Right_Loop.anim.usda",
+            "start": 0,
+            "end": 26,
+            "loop": true
+        },
+        {
+            "name": "Armature|Climb_Up_Loop",
+            "short": "Climb_Up_Loop",
+            "source": "UAL1.fbx",
+            "file": "anim/Armature_Climb_Up_Loop.anim.usda",
+            "start": 0,
+            "end": 38,
+            "loop": true
+        },
+        {
+            "name": "Armature|ClimbLedge",
+            "short": "ClimbLedge",
+            "source": "UAL1.fbx",
+            "file": "anim/Armature_ClimbLedge.anim.usda",
+            "start": 0,
+            "end": 19,
+            "loop": false
+        },
+        {
+            "name": "Armature|Counter_Angry",
+            "short": "Counter_Angry",
+            "source": "UAL1.fbx",
+            "file": "anim/Armature_Counter_Angry.anim.usda",
+            "start": 0,
+            "end": 60,
+            "loop": false
+        },
+        {
+            "name": "Armature|Counter_Enter",
+            "short": "Counter_Enter",
+            "source": "UAL1.fbx",
+            "file": "anim/Armature_Counter_Enter.anim.usda",
+            "start": 0,
+            "end": 35,
+            "loop": false
+        },
+        {
+            "name": "Armature|Counter_Exit",
+            "short": "Counter_Exit",
+            "source": "UAL1.fbx",
+            "file": "anim/Armature_Counter_Exit.anim.usda",
+            "start": 0,
+            "end": 35,
+            "loop": false
+        },
+        {
+            "name": "Armature|Counter_Give",
+            "short": "Counter_Give",
+            "source": "UAL1.fbx",
+            "file": "anim/Armature_Counter_Give.anim.usda",
+            "start": 0,
+            "end": 131,
+            "loop": false
+        },
+        {
+            "name": "Armature|Counter_Idle_Loop",
+            "short": "Counter_Idle_Loop",
+            "source": "UAL1.fbx",
+            "file": "anim/Armature_Counter_Idle_Loop.anim.usda",
+            "start": 0,
+            "end": 80,
+            "loop": true
+        },
+        {
+            "name": "Armature|Counter_Show",
+            "short": "Counter_Show",
+            "source": "UAL1.fbx",
+            "file": "anim/Armature_Counter_Show.anim.usda",
+            "start": 0,
+            "end": 140,
+            "loop": false
+        },
+        {
+            "name": "Armature|Crawl_Bwd_Loop",
+            "short": "Crawl_Bwd_Loop",
+            "source": "UAL1.fbx",
+            "file": "anim/Armature_Crawl_Bwd_Loop.anim.usda",
+            "start": 0,
+            "end": 75,
+            "loop": true
+        },
+        {
+            "name": "Armature|Crawl_Enter",
+            "short": "Crawl_Enter",
+            "source": "UAL1.fbx",
+            "file": "anim/Armature_Crawl_Enter.anim.usda",
+            "start": 0,
+            "end": 64,
+            "loop": false
+        },
+        {
+            "name": "Armature|Crawl_Exit",
+            "short": "Crawl_Exit",
+            "source": "UAL1.fbx",
+            "file": "anim/Armature_Crawl_Exit.anim.usda",
+            "start": 0,
+            "end": 60,
+            "loop": false
+        },
+        {
+            "name": "Armature|Crawl_Fwd_Loop",
+            "short": "Crawl_Fwd_Loop",
+            "source": "UAL1.fbx",
+            "file": "anim/Armature_Crawl_Fwd_Loop.anim.usda",
+            "start": 0,
+            "end": 65,
+            "loop": true
+        },
+        {
+            "name": "Armature|Crawl_Idle_Loop",
+            "short": "Crawl_Idle_Loop",
+            "source": "UAL1.fbx",
+            "file": "anim/Armature_Crawl_Idle_Loop.anim.usda",
+            "start": 0,
+            "end": 70,
+            "loop": true
+        },
+        {
+            "name": "Armature|Crawl_Left_Loop",
+            "short": "Crawl_Left_Loop",
+            "source": "UAL1.fbx",
+            "file": "anim/Armature_Crawl_Left_Loop.anim.usda",
+            "start": 0,
+            "end": 38,
+            "loop": true
+        },
+        {
+            "name": "Armature|Crawl_Right_Loop",
+            "short": "Crawl_Right_Loop",
+            "source": "UAL1.fbx",
+            "file": "anim/Armature_Crawl_Right_Loop.anim.usda",
+            "start": 0,
+            "end": 38,
+            "loop": true
+        },
+        {
+            "name": "Armature|Crouch_Bwd_L_Loop",
+            "short": "Crouch_Bwd_L_Loop",
+            "source": "UAL1.fbx",
+            "file": "anim/Armature_Crouch_Bwd_L_Loop.anim.usda",
+            "start": 0,
+            "end": 60,
+            "loop": true
+        },
+        {
+            "name": "Armature|Crouch_Bwd_Loop",
+            "short": "Crouch_Bwd_Loop",
+            "source": "UAL1.fbx",
+            "file": "anim/Armature_Crouch_Bwd_Loop.anim.usda",
+            "start": 0,
+            "end": 60,
+            "loop": true
+        },
+        {
+            "name": "Armature|Crouch_Bwd_R_Loop",
+            "short": "Crouch_Bwd_R_Loop",
+            "source": "UAL1.fbx",
+            "file": "anim/Armature_Crouch_Bwd_R_Loop.anim.usda",
+            "start": 0,
+            "end": 71,
+            "loop": true
+        },
+        {
+            "name": "Armature|Crouch_Enter",
+            "short": "Crouch_Enter",
+            "source": "UAL1.fbx",
+            "file": "anim/Armature_Crouch_Enter.anim.usda",
+            "start": 0,
+            "end": 25,
+            "loop": false
+        },
+        {
+            "name": "Armature|Crouch_Exit",
+            "short": "Crouch_Exit",
+            "source": "UAL1.fbx",
+            "file": "anim/Armature_Crouch_Exit.anim.usda",
+            "start": 0,
+            "end": 25,
+            "loop": false
+        },
+        {
+            "name": "Armature|Crouch_Fwd_L_Loop",
+            "short": "Crouch_Fwd_L_Loop",
+            "source": "UAL1.fbx",
+            "file": "anim/Armature_Crouch_Fwd_L_Loop.anim.usda",
+            "start": 0,
+            "end": 60,
+            "loop": true
+        },
+        {
+            "name": "Armature|Crouch_Fwd_Loop",
+            "short": "Crouch_Fwd_Loop",
+            "source": "UAL1.fbx",
+            "file": "anim/Armature_Crouch_Fwd_Loop.anim.usda",
+            "start": 0,
+            "end": 60,
+            "loop": true
+        },
+        {
+            "name": "Armature|Crouch_Fwd_R_Loop",
+            "short": "Crouch_Fwd_R_Loop",
+            "source": "UAL1.fbx",
+            "file": "anim/Armature_Crouch_Fwd_R_Loop.anim.usda",
+            "start": 0,
+            "end": 60,
+            "loop": true
+        },
+        {
+            "name": "Armature|Crouch_Idle_Loop",
+            "short": "Crouch_Idle_Loop",
+            "source": "UAL1.fbx",
+            "file": "anim/Armature_Crouch_Idle_Loop.anim.usda",
+            "start": 0,
+            "end": 88,
+            "loop": true
+        },
+        {
+            "name": "Armature|Crouch_Left_Loop",
+            "short": "Crouch_Left_Loop",
+            "source": "UAL1.fbx",
+            "file": "anim/Armature_Crouch_Left_Loop.anim.usda",
+            "start": 0,
+            "end": 60,
+            "loop": true
+        },
+        {
+            "name": "Armature|Crouch_Right_Loop",
+            "short": "Crouch_Right_Loop",
+            "source": "UAL1.fbx",
+            "file": "anim/Armature_Crouch_Right_Loop.anim.usda",
+            "start": 0,
+            "end": 60,
+            "loop": true
+        },
+        {
+            "name": "Armature|Crying",
+            "short": "Crying",
+            "source": "UAL1.fbx",
+            "file": "anim/Armature_Crying.anim.usda",
+            "start": 0,
+            "end": 145,
+            "loop": false
+        },
+        {
+            "name": "Armature|Dance_Loop",
+            "short": "Dance_Loop",
+            "source": "UAL1.fbx",
+            "file": "anim/Armature_Dance_Loop.anim.usda",
+            "start": 0,
+            "end": 30,
+            "loop": true
+        },
+        {
+            "name": "Armature|Death01",
+            "short": "Death01",
+            "source": "UAL1.fbx",
+            "file": "anim/Armature_Death01.anim.usda",
+            "start": 0,
+            "end": 72,
+            "loop": false
+        },
+        {
+            "name": "Armature|Death02",
+            "short": "Death02",
+            "source": "UAL1.fbx",
+            "file": "anim/Armature_Death02.anim.usda",
+            "start": 0,
+            "end": 74,
+            "loop": false
+        },
+        {
+            "name": "Armature|Dodge_Left",
+            "short": "Dodge_Left",
+            "source": "UAL1.fbx",
+            "file": "anim/Armature_Dodge_Left.anim.usda",
+            "start": 0,
+            "end": 39,
+            "loop": false
+        },
+        {
+            "name": "Armature|Dodge_Right",
+            "short": "Dodge_Right",
+            "source": "UAL1.fbx",
+            "file": "anim/Armature_Dodge_Right.anim.usda",
+            "start": 0,
+            "end": 39,
+            "loop": false
+        },
+        {
+            "name": "Armature|Drink",
+            "short": "Drink",
+            "source": "UAL1.fbx",
+            "file": "anim/Armature_Drink.anim.usda",
+            "start": 0,
+            "end": 90,
+            "loop": false
+        },
+        {
+            "name": "Armature|Driving_Loop",
+            "short": "Driving_Loop",
+            "source": "UAL1.fbx",
+            "file": "anim/Armature_Driving_Loop.anim.usda",
+            "start": 0,
+            "end": 50,
+            "loop": true
+        },
+        {
+            "name": "Armature|Fixing_Kneeling",
+            "short": "Fixing_Kneeling",
+            "source": "UAL1.fbx",
+            "file": "anim/Armature_Fixing_Kneeling.anim.usda",
+            "start": 0,
+            "end": 156,
+            "loop": false
+        },
+        {
+            "name": "Armature|GroundSit_Enter",
+            "short": "GroundSit_Enter",
+            "source": "UAL1.fbx",
+            "file": "anim/Armature_GroundSit_Enter.anim.usda",
+            "start": 0,
+            "end": 75,
+            "loop": false
+        },
+        {
+            "name": "Armature|GroundSit_Exit",
+            "short": "GroundSit_Exit",
+            "source": "UAL1.fbx",
+            "file": "anim/Armature_GroundSit_Exit.anim.usda",
+            "start": 0,
+            "end": 65,
+            "loop": false
+        },
+        {
+            "name": "Armature|GroundSit_Idle_Loop",
+            "short": "GroundSit_Idle_Loop",
+            "source": "UAL1.fbx",
+            "file": "anim/Armature_GroundSit_Idle_Loop.anim.usda",
+            "start": 0,
+            "end": 40,
+            "loop": true
+        },
+        {
+            "name": "Armature|Hit_Chest",
+            "short": "Hit_Chest",
+            "source": "UAL1.fbx",
+            "file": "anim/Armature_Hit_Chest.anim.usda",
+            "start": 0,
+            "end": 10,
+            "loop": false
+        },
+        {
+            "name": "Armature|Hit_Head",
+            "short": "Hit_Head",
+            "source": "UAL1.fbx",
+            "file": "anim/Armature_Hit_Head.anim.usda",
+            "start": 0,
+            "end": 13,
+            "loop": false
+        },
+        {
+            "name": "Armature|Hit_Shoulder_L",
+            "short": "Hit_Shoulder_L",
+            "source": "UAL1.fbx",
+            "file": "anim/Armature_Hit_Shoulder_L.anim.usda",
+            "start": 0,
+            "end": 16,
+            "loop": false
+        },
+        {
+            "name": "Armature|Hit_Shoulder_R",
+            "short": "Hit_Shoulder_R",
+            "source": "UAL1.fbx",
+            "file": "anim/Armature_Hit_Shoulder_R.anim.usda",
+            "start": 0,
+            "end": 15,
+            "loop": false
+        },
+        {
+            "name": "Armature|Hit_Stomach",
+            "short": "Hit_Stomach",
+            "source": "UAL1.fbx",
+            "file": "anim/Armature_Hit_Stomach.anim.usda",
+            "start": 0,
+            "end": 20,
+            "loop": false
+        },
+        {
+            "name": "Armature|Idle_LookAround_Loop",
+            "short": "Idle_LookAround_Loop",
+            "source": "UAL1.fbx",
+            "file": "anim/Armature_Idle_LookAround_Loop.anim.usda",
+            "start": 0,
+            "end": 138,
+            "loop": true
+        },
+        {
+            "name": "Armature|Idle_Loop",
+            "short": "Idle_Loop",
+            "source": "UAL1.fbx",
+            "file": "anim/Armature_Idle_Loop.anim.usda",
+            "start": 0,
+            "end": 75,
+            "loop": true
+        },
+        {
+            "name": "Armature|Idle_Paper",
+            "short": "Idle_Paper",
+            "source": "UAL1.fbx",
+            "file": "anim/Armature_Idle_Paper.anim.usda",
+            "start": 0,
+            "end": 94,
+            "loop": false
+        },
+        {
+            "name": "Armature|Idle_Rock",
+            "short": "Idle_Rock",
+            "source": "UAL1.fbx",
+            "file": "anim/Armature_Idle_Rock.anim.usda",
+            "start": 0,
+            "end": 94,
+            "loop": false
+        },
+        {
+            "name": "Armature|Idle_Scissors",
+            "short": "Idle_Scissors",
+            "source": "UAL1.fbx",
+            "file": "anim/Armature_Idle_Scissors.anim.usda",
+            "start": 0,
+            "end": 94,
+            "loop": false
+        },
+        {
+            "name": "Armature|Idle_Talking_Loop",
+            "short": "Idle_Talking_Loop",
+            "source": "UAL1.fbx",
+            "file": "anim/Armature_Idle_Talking_Loop.anim.usda",
+            "start": 0,
+            "end": 88,
+            "loop": true
+        },
+        {
+            "name": "Armature|Idle_Tired_Loop",
+            "short": "Idle_Tired_Loop",
+            "source": "UAL1.fbx",
+            "file": "anim/Armature_Idle_Tired_Loop.anim.usda",
+            "start": 0,
+            "end": 69,
+            "loop": true
+        },
+        {
+            "name": "Armature|Idle_Torch_Loop",
+            "short": "Idle_Torch_Loop",
+            "source": "UAL1.fbx",
+            "file": "anim/Armature_Idle_Torch_Loop.anim.usda",
+            "start": 0,
+            "end": 38,
+            "loop": true
+        },
+        {
+            "name": "Armature|Interact",
+            "short": "Interact",
+            "source": "UAL1.fbx",
+            "file": "anim/Armature_Interact.anim.usda",
+            "start": 0,
+            "end": 60,
+            "loop": false
+        },
+        {
+            "name": "Armature|Jog_Bwd_L_Loop",
+            "short": "Jog_Bwd_L_Loop",
+            "source": "UAL1.fbx",
+            "file": "anim/Armature_Jog_Bwd_L_Loop.anim.usda",
+            "start": 0,
+            "end": 28,
+            "loop": true
+        },
+        {
+            "name": "Armature|Jog_Bwd_Loop",
+            "short": "Jog_Bwd_Loop",
+            "source": "UAL1.fbx",
+            "file": "anim/Armature_Jog_Bwd_Loop.anim.usda",
+            "start": 0,
+            "end": 28,
+            "loop": true
+        },
+        {
+            "name": "Armature|Jog_Bwd_R_Loop",
+            "short": "Jog_Bwd_R_Loop",
+            "source": "UAL1.fbx",
+            "file": "anim/Armature_Jog_Bwd_R_Loop.anim.usda",
+            "start": 0,
+            "end": 28,
+            "loop": true
+        },
+        {
+            "name": "Armature|Jog_Fwd_L_Loop",
+            "short": "Jog_Fwd_L_Loop",
+            "source": "UAL1.fbx",
+            "file": "anim/Armature_Jog_Fwd_L_Loop.anim.usda",
+            "start": 0,
+            "end": 28,
+            "loop": true
+        },
+        {
+            "name": "Armature|Jog_Fwd_LeanL_Loop",
+            "short": "Jog_Fwd_LeanL_Loop",
+            "source": "UAL1.fbx",
+            "file": "anim/Armature_Jog_Fwd_LeanL_Loop.anim.usda",
+            "start": 0,
+            "end": 28,
+            "loop": true
+        },
+        {
+            "name": "Armature|Jog_Fwd_LeanR_Loop",
+            "short": "Jog_Fwd_LeanR_Loop",
+            "source": "UAL1.fbx",
+            "file": "anim/Armature_Jog_Fwd_LeanR_Loop.anim.usda",
+            "start": 0,
+            "end": 28,
+            "loop": true
+        },
+        {
+            "name": "Armature|Jog_Fwd_Loop",
+            "short": "Jog_Fwd_Loop",
+            "source": "UAL1.fbx",
+            "file": "anim/Armature_Jog_Fwd_Loop.anim.usda",
+            "start": 0,
+            "end": 28,
+            "loop": true
+        },
+        {
+            "name": "Armature|Jog_Fwd_R_Loop",
+            "short": "Jog_Fwd_R_Loop",
+            "source": "UAL1.fbx",
+            "file": "anim/Armature_Jog_Fwd_R_Loop.anim.usda",
+            "start": 0,
+            "end": 28,
+            "loop": true
+        },
+        {
+            "name": "Armature|Jog_Left_Loop",
+            "short": "Jog_Left_Loop",
+            "source": "UAL1.fbx",
+            "file": "anim/Armature_Jog_Left_Loop.anim.usda",
+            "start": 0,
+            "end": 28,
+            "loop": true
+        },
+        {
+            "name": "Armature|Jog_Right_Loop",
+            "short": "Jog_Right_Loop",
+            "source": "UAL1.fbx",
+            "file": "anim/Armature_Jog_Right_Loop.anim.usda",
+            "start": 0,
+            "end": 28,
+            "loop": true
+        },
+        {
+            "name": "Armature|Jump_Land",
+            "short": "Jump_Land",
+            "source": "UAL1.fbx",
+            "file": "anim/Armature_Jump_Land.anim.usda",
+            "start": 0,
+            "end": 38,
+            "loop": false
+        },
+        {
+            "name": "Armature|Jump_Loop",
+            "short": "Jump_Loop",
+            "source": "UAL1.fbx",
+            "file": "anim/Armature_Jump_Loop.anim.usda",
+            "start": 0,
+            "end": 75,
+            "loop": true
+        },
+        {
+            "name": "Armature|Jump_Start",
+            "short": "Jump_Start",
+            "source": "UAL1.fbx",
+            "file": "anim/Armature_Jump_Start.anim.usda",
+            "start": 0,
+            "end": 40,
+            "loop": false
+        },
+        {
+            "name": "Armature|Kick",
+            "short": "Kick",
+            "source": "UAL1.fbx",
+            "file": "anim/Armature_Kick.anim.usda",
+            "start": 0,
+            "end": 33,
+            "loop": false
+        },
+        {
+            "name": "Armature|PickUp_Kneeling",
+            "short": "PickUp_Kneeling",
+            "source": "UAL1.fbx",
+            "file": "anim/Armature_PickUp_Kneeling.anim.usda",
+            "start": 0,
+            "end": 58,
+            "loop": false
+        },
+        {
+            "name": "Armature|PickUp_Table",
+            "short": "PickUp_Table",
+            "source": "UAL1.fbx",
+            "file": "anim/Armature_PickUp_Table.anim.usda",
+            "start": 0,
+            "end": 25,
+            "loop": false
+        },
+        {
+            "name": "Armature|Pistol_Aim_Down",
+            "short": "Pistol_Aim_Down",
+            "source": "UAL1.fbx",
+            "file": "anim/Armature_Pistol_Aim_Down.anim.usda",
+            "start": 0,
+            "end": 5,
+            "loop": false
+        },
+        {
+            "name": "Armature|Pistol_Aim_Neutral",
+            "short": "Pistol_Aim_Neutral",
+            "source": "UAL1.fbx",
+            "file": "anim/Armature_Pistol_Aim_Neutral.anim.usda",
+            "start": 0,
+            "end": 5,
+            "loop": false
+        },
+        {
+            "name": "Armature|Pistol_Aim_Up",
+            "short": "Pistol_Aim_Up",
+            "source": "UAL1.fbx",
+            "file": "anim/Armature_Pistol_Aim_Up.anim.usda",
+            "start": 0,
+            "end": 5,
+            "loop": false
+        },
+        {
+            "name": "Armature|Pistol_Idle_Loop",
+            "short": "Pistol_Idle_Loop",
+            "source": "UAL1.fbx",
+            "file": "anim/Armature_Pistol_Idle_Loop.anim.usda",
+            "start": 0,
+            "end": 50,
+            "loop": true
+        },
+        {
+            "name": "Armature|Pistol_Reload",
+            "short": "Pistol_Reload",
+            "source": "UAL1.fbx",
+            "file": "anim/Armature_Pistol_Reload.anim.usda",
+            "start": 0,
+            "end": 50,
+            "loop": false
+        },
+        {
+            "name": "Armature|Pistol_Shoot",
+            "short": "Pistol_Shoot",
+            "source": "UAL1.fbx",
+            "file": "anim/Armature_Pistol_Shoot.anim.usda",
+            "start": 0,
+            "end": 19,
+            "loop": false
+        },
+        {
+            "name": "Armature|Punch_Cross",
+            "short": "Punch_Cross",
+            "source": "UAL1.fbx",
+            "file": "anim/Armature_Punch_Cross.anim.usda",
+            "start": 0,
+            "end": 30,
+            "loop": false
+        },
+        {
+            "name": "Armature|Punch_Jab",
+            "short": "Punch_Jab",
+            "source": "UAL1.fbx",
+            "file": "anim/Armature_Punch_Jab.anim.usda",
+            "start": 0,
+            "end": 26,
+            "loop": false
+        },
+        {
+            "name": "Armature|PunchKick_Enter",
+            "short": "PunchKick_Enter",
+            "source": "UAL1.fbx",
+            "file": "anim/Armature_PunchKick_Enter.anim.usda",
+            "start": 0,
+            "end": 20,
+            "loop": false
+        },
+        {
+            "name": "Armature|PunchKick_Exit",
+            "short": "PunchKick_Exit",
+            "source": "UAL1.fbx",
+            "file": "anim/Armature_PunchKick_Exit.anim.usda",
+            "start": 0,
+            "end": 20,
+            "loop": false
+        },
+        {
+            "name": "Armature|Push_Enter",
+            "short": "Push_Enter",
+            "source": "UAL1.fbx",
+            "file": "anim/Armature_Push_Enter.anim.usda",
+            "start": 0,
+            "end": 20,
+            "loop": false
+        },
+        {
+            "name": "Armature|Push_Exit",
+            "short": "Push_Exit",
+            "source": "UAL1.fbx",
+            "file": "anim/Armature_Push_Exit.anim.usda",
+            "start": 0,
+            "end": 36,
+            "loop": false
+        },
+        {
+            "name": "Armature|Push_Loop",
+            "short": "Push_Loop",
+            "source": "UAL1.fbx",
+            "file": "anim/Armature_Push_Loop.anim.usda",
+            "start": 0,
+            "end": 80,
+            "loop": true
+        },
+        {
+            "name": "Armature|Roll",
+            "short": "Roll",
+            "source": "UAL1.fbx",
+            "file": "anim/Armature_Roll.anim.usda",
+            "start": 0,
+            "end": 44,
+            "loop": false
+        },
+        {
+            "name": "Armature|Sitting_Enter",
+            "short": "Sitting_Enter",
+            "source": "UAL1.fbx",
+            "file": "anim/Armature_Sitting_Enter.anim.usda",
+            "start": 0,
+            "end": 39,
+            "loop": false
+        },
+        {
+            "name": "Armature|Sitting_Exit",
+            "short": "Sitting_Exit",
+            "source": "UAL1.fbx",
+            "file": "anim/Armature_Sitting_Exit.anim.usda",
+            "start": 0,
+            "end": 31,
+            "loop": false
+        },
+        {
+            "name": "Armature|Sitting_Idle02_Loop",
+            "short": "Sitting_Idle02_Loop",
+            "source": "UAL1.fbx",
+            "file": "anim/Armature_Sitting_Idle02_Loop.anim.usda",
+            "start": 0,
+            "end": 75,
+            "loop": true
+        },
+        {
+            "name": "Armature|Sitting_Idle03_Loop",
+            "short": "Sitting_Idle03_Loop",
+            "source": "UAL1.fbx",
+            "file": "anim/Armature_Sitting_Idle03_Loop.anim.usda",
+            "start": 0,
+            "end": 125,
+            "loop": true
+        },
+        {
+            "name": "Armature|Sitting_Idle_Loop",
+            "short": "Sitting_Idle_Loop",
+            "source": "UAL1.fbx",
+            "file": "anim/Armature_Sitting_Idle_Loop.anim.usda",
+            "start": 0,
+            "end": 50,
+            "loop": true
+        },
+        {
+            "name": "Armature|Sitting_Nodding_Loop",
+            "short": "Sitting_Nodding_Loop",
+            "source": "UAL1.fbx",
+            "file": "anim/Armature_Sitting_Nodding_Loop.anim.usda",
+            "start": 0,
+            "end": 88,
+            "loop": true
+        },
+        {
+            "name": "Armature|Sitting_Talking_Loop",
+            "short": "Sitting_Talking_Loop",
+            "source": "UAL1.fbx",
+            "file": "anim/Armature_Sitting_Talking_Loop.anim.usda",
+            "start": 0,
+            "end": 88,
+            "loop": true
+        },
+        {
+            "name": "Armature|Spell_Double_Enter",
+            "short": "Spell_Double_Enter",
+            "source": "UAL1.fbx",
+            "file": "anim/Armature_Spell_Double_Enter.anim.usda",
+            "start": 0,
+            "end": 19,
+            "loop": false
+        },
+        {
+            "name": "Armature|Spell_Double_Exit",
+            "short": "Spell_Double_Exit",
+            "source": "UAL1.fbx",
+            "file": "anim/Armature_Spell_Double_Exit.anim.usda",
+            "start": 0,
+            "end": 19,
+            "loop": false
+        },
+        {
+            "name": "Armature|Spell_Double_Idle_Loop",
+            "short": "Spell_Double_Idle_Loop",
+            "source": "UAL1.fbx",
+            "file": "anim/Armature_Spell_Double_Idle_Loop.anim.usda",
+            "start": 0,
+            "end": 63,
+            "loop": true
+        },
+        {
+            "name": "Armature|Spell_Double_Shoot_Loop",
+            "short": "Spell_Double_Shoot_Loop",
+            "source": "UAL1.fbx",
+            "file": "anim/Armature_Spell_Double_Shoot_Loop.anim.usda",
+            "start": 0,
+            "end": 8,
+            "loop": true
+        },
+        {
+            "name": "Armature|Spell_Simple_Enter",
+            "short": "Spell_Simple_Enter",
+            "source": "UAL1.fbx",
+            "file": "anim/Armature_Spell_Simple_Enter.anim.usda",
+            "start": 0,
+            "end": 16,
+            "loop": false
+        },
+        {
+            "name": "Armature|Spell_Simple_Exit",
+            "short": "Spell_Simple_Exit",
+            "source": "UAL1.fbx",
+            "file": "anim/Armature_Spell_Simple_Exit.anim.usda",
+            "start": 0,
+            "end": 13,
+            "loop": false
+        },
+        {
+            "name": "Armature|Spell_Simple_Idle_Loop",
+            "short": "Spell_Simple_Idle_Loop",
+            "source": "UAL1.fbx",
+            "file": "anim/Armature_Spell_Simple_Idle_Loop.anim.usda",
+            "start": 0,
+            "end": 63,
+            "loop": true
+        },
+        {
+            "name": "Armature|Spell_Simple_Shoot",
+            "short": "Spell_Simple_Shoot",
+            "source": "UAL1.fbx",
+            "file": "anim/Armature_Spell_Simple_Shoot.anim.usda",
+            "start": 0,
+            "end": 15,
+            "loop": false
+        },
+        {
+            "name": "Armature|Sprint_Enter",
+            "short": "Sprint_Enter",
+            "source": "UAL1.fbx",
+            "file": "anim/Armature_Sprint_Enter.anim.usda",
+            "start": 0,
+            "end": 26,
+            "loop": false
+        },
+        {
+            "name": "Armature|Sprint_Exit",
+            "short": "Sprint_Exit",
+            "source": "UAL1.fbx",
+            "file": "anim/Armature_Sprint_Exit.anim.usda",
+            "start": 0,
+            "end": 50,
+            "loop": false
+        },
+        {
+            "name": "Armature|Sprint_Loop",
+            "short": "Sprint_Loop",
+            "source": "UAL1.fbx",
+            "file": "anim/Armature_Sprint_Loop.anim.usda",
+            "start": 0,
+            "end": 20,
+            "loop": true
+        },
+        {
+            "name": "Armature|Swim_Fwd_Loop",
+            "short": "Swim_Fwd_Loop",
+            "source": "UAL1.fbx",
+            "file": "anim/Armature_Swim_Fwd_Loop.anim.usda",
+            "start": 0,
+            "end": 40,
+            "loop": true
+        },
+        {
+            "name": "Armature|Swim_Idle_Loop",
+            "short": "Swim_Idle_Loop",
+            "source": "UAL1.fbx",
+            "file": "anim/Armature_Swim_Idle_Loop.anim.usda",
+            "start": 0,
+            "end": 100,
+            "loop": true
+        },
+        {
+            "name": "Armature|Sword_Attack",
+            "short": "Sword_Attack",
+            "source": "UAL1.fbx",
+            "file": "anim/Armature_Sword_Attack.anim.usda",
+            "start": 0,
+            "end": 46,
+            "loop": false
+        },
+        {
+            "name": "Armature|Sword_Attack_Standing",
+            "short": "Sword_Attack_Standing",
+            "source": "UAL1.fbx",
+            "file": "anim/Armature_Sword_Attack_Standing.anim.usda",
+            "start": 0,
+            "end": 46,
+            "loop": false
+        },
+        {
+            "name": "Armature|Sword_Enter",
+            "short": "Sword_Enter",
+            "source": "UAL1.fbx",
+            "file": "anim/Armature_Sword_Enter.anim.usda",
+            "start": 0,
+            "end": 39,
+            "loop": false
+        },
+        {
+            "name": "Armature|Sword_Exit",
+            "short": "Sword_Exit",
+            "source": "UAL1.fbx",
+            "file": "anim/Armature_Sword_Exit.anim.usda",
+            "start": 0,
+            "end": 39,
+            "loop": false
+        },
+        {
+            "name": "Armature|Sword_Idle",
+            "short": "Sword_Idle",
+            "source": "UAL1.fbx",
+            "file": "anim/Armature_Sword_Idle.anim.usda",
+            "start": 0,
+            "end": 50,
+            "loop": false
+        },
+        {
+            "name": "Armature|Turn90_L",
+            "short": "Turn90_L",
+            "source": "UAL1.fbx",
+            "file": "anim/Armature_Turn90_L.anim.usda",
+            "start": 0,
+            "end": 60,
+            "loop": false
+        },
+        {
+            "name": "Armature|Turn90_R",
+            "short": "Turn90_R",
+            "source": "UAL1.fbx",
+            "file": "anim/Armature_Turn90_R.anim.usda",
+            "start": 0,
+            "end": 60,
+            "loop": false
+        },
+        {
+            "name": "Armature|Walk_Formal_Loop",
+            "short": "Walk_Formal_Loop",
+            "source": "UAL1.fbx",
+            "file": "anim/Armature_Walk_Formal_Loop.anim.usda",
+            "start": 0,
+            "end": 40,
+            "loop": true
+        },
+        {
+            "name": "Armature|Walk_Loop",
+            "short": "Walk_Loop",
+            "source": "UAL1.fbx",
+            "file": "anim/Armature_Walk_Loop.anim.usda",
+            "start": 0,
+            "end": 40,
+            "loop": true
+        },
+        {
+            "name": "Armature|Bandage_Loop",
+            "short": "Bandage_Loop",
+            "source": "UAL2.fbx",
+            "file": "anim/Armature_Bandage_Loop.anim.usda",
+            "start": 0,
+            "end": 20,
+            "loop": true
+        },
+        {
+            "name": "Armature|Bow_Aim_Down",
+            "short": "Bow_Aim_Down",
+            "source": "UAL2.fbx",
+            "file": "anim/Armature_Bow_Aim_Down.anim.usda",
+            "start": 0,
+            "end": 40,
+            "loop": false
+        },
+        {
+            "name": "Armature|Bow_Aim_Neutral",
+            "short": "Bow_Aim_Neutral",
+            "source": "UAL2.fbx",
+            "file": "anim/Armature_Bow_Aim_Neutral.anim.usda",
+            "start": 0,
+            "end": 75,
+            "loop": false
+        },
+        {
+            "name": "Armature|Bow_Aim_Up",
+            "short": "Bow_Aim_Up",
+            "source": "UAL2.fbx",
+            "file": "anim/Armature_Bow_Aim_Up.anim.usda",
+            "start": 0,
+            "end": 40,
+            "loop": false
+        },
+        {
+            "name": "Armature|Bow_Notch",
+            "short": "Bow_Notch",
+            "source": "UAL2.fbx",
+            "file": "anim/Armature_Bow_Notch.anim.usda",
+            "start": 0,
+            "end": 75,
+            "loop": false
+        },
+        {
+            "name": "Armature|Bow_RapidShoot_Loop",
+            "short": "Bow_RapidShoot_Loop",
+            "source": "UAL2.fbx",
+            "file": "anim/Armature_Bow_RapidShoot_Loop.anim.usda",
+            "start": 0,
+            "end": 13,
+            "loop": true
+        },
+        {
+            "name": "Armature|Bow_Shoot",
+            "short": "Bow_Shoot",
+            "source": "UAL2.fbx",
+            "file": "anim/Armature_Bow_Shoot.anim.usda",
+            "start": 0,
+            "end": 20,
+            "loop": false
+        },
+        {
+            "name": "Armature|Chest_Open",
+            "short": "Chest_Open",
+            "source": "UAL2.fbx",
+            "file": "anim/Armature_Chest_Open.anim.usda",
+            "start": 0,
+            "end": 41,
+            "loop": false
+        },
+        {
+            "name": "Armature|ClimbUp_1m",
+            "short": "ClimbUp_1m",
+            "source": "UAL2.fbx",
+            "file": "anim/Armature_ClimbUp_1m.anim.usda",
+            "start": 0,
+            "end": 20,
+            "loop": false
+        },
+        {
+            "name": "Armature|ClimbUp_2m",
+            "short": "ClimbUp_2m",
+            "source": "UAL2.fbx",
+            "file": "anim/Armature_ClimbUp_2m.anim.usda",
+            "start": 0,
+            "end": 39,
+            "loop": false
+        },
+        {
+            "name": "Armature|Consume",
+            "short": "Consume",
+            "source": "UAL2.fbx",
+            "file": "anim/Armature_Consume.anim.usda",
+            "start": 0,
+            "end": 40,
+            "loop": false
+        },
+        {
+            "name": "Armature|DoubleJump",
+            "short": "DoubleJump",
+            "source": "UAL2.fbx",
+            "file": "anim/Armature_DoubleJump.anim.usda",
+            "start": 0,
+            "end": 27,
+            "loop": false
+        },
+        {
+            "name": "Armature|Farm_Harvest",
+            "short": "Farm_Harvest",
+            "source": "UAL2.fbx",
+            "file": "anim/Armature_Farm_Harvest.anim.usda",
+            "start": 0,
+            "end": 75,
+            "loop": false
+        },
+        {
+            "name": "Armature|Farm_PickingTree",
+            "short": "Farm_PickingTree",
+            "source": "UAL2.fbx",
+            "file": "anim/Armature_Farm_PickingTree.anim.usda",
+            "start": 0,
+            "end": 67,
+            "loop": false
+        },
+        {
+            "name": "Armature|Farm_PlantSeed",
+            "short": "Farm_PlantSeed",
+            "source": "UAL2.fbx",
+            "file": "anim/Armature_Farm_PlantSeed.anim.usda",
+            "start": 0,
+            "end": 83,
+            "loop": false
+        },
+        {
+            "name": "Armature|Farm_ScatteringSeeds",
+            "short": "Farm_ScatteringSeeds",
+            "source": "UAL2.fbx",
+            "file": "anim/Armature_Farm_ScatteringSeeds.anim.usda",
+            "start": 0,
+            "end": 47,
+            "loop": false
+        },
+        {
+            "name": "Armature|Farm_Watering",
+            "short": "Farm_Watering",
+            "source": "UAL2.fbx",
+            "file": "anim/Armature_Farm_Watering.anim.usda",
+            "start": 0,
+            "end": 114,
+            "loop": false
+        },
+        {
+            "name": "Armature|Fish_Cast",
+            "short": "Fish_Cast",
+            "source": "UAL2.fbx",
+            "file": "anim/Armature_Fish_Cast.anim.usda",
+            "start": 0,
+            "end": 55,
+            "loop": false
+        },
+        {
+            "name": "Armature|Fish_Cast_Idle_Loop",
+            "short": "Fish_Cast_Idle_Loop",
+            "source": "UAL2.fbx",
+            "file": "anim/Armature_Fish_Cast_Idle_Loop.anim.usda",
+            "start": 0,
+            "end": 70,
+            "loop": true
+        },
+        {
+            "name": "Armature|Fish_OH_Idle_Loop",
+            "short": "Fish_OH_Idle_Loop",
+            "source": "UAL2.fbx",
+            "file": "anim/Armature_Fish_OH_Idle_Loop.anim.usda",
+            "start": 0,
+            "end": 70,
+            "loop": true
+        },
+        {
+            "name": "Armature|Fish_Reel",
+            "short": "Fish_Reel",
+            "source": "UAL2.fbx",
+            "file": "anim/Armature_Fish_Reel.anim.usda",
+            "start": 0,
+            "end": 69,
+            "loop": false
+        },
+        {
+            "name": "Armature|Fish_Reel_Failed",
+            "short": "Fish_Reel_Failed",
+            "source": "UAL2.fbx",
+            "file": "anim/Armature_Fish_Reel_Failed.anim.usda",
+            "start": 0,
+            "end": 83,
+            "loop": false
+        },
+        {
+            "name": "Armature|GetOffWall_2m",
+            "short": "GetOffWall_2m",
+            "source": "UAL2.fbx",
+            "file": "anim/Armature_GetOffWall_2m.anim.usda",
+            "start": 0,
+            "end": 19,
+            "loop": false
+        },
+        {
+            "name": "Armature|Hit_Knockback",
+            "short": "Hit_Knockback",
+            "source": "UAL2.fbx",
+            "file": "anim/Armature_Hit_Knockback.anim.usda",
+            "start": 0,
+            "end": 25,
+            "loop": false
+        },
+        {
+            "name": "Armature|Idle_FoldArms_Loop",
+            "short": "Idle_FoldArms_Loop",
+            "source": "UAL2.fbx",
+            "file": "anim/Armature_Idle_FoldArms_Loop.anim.usda",
+            "start": 0,
+            "end": 75,
+            "loop": true
+        },
+        {
+            "name": "Armature|Idle_Lantern_Loop",
+            "short": "Idle_Lantern_Loop",
+            "source": "UAL2.fbx",
+            "file": "anim/Armature_Idle_Lantern_Loop.anim.usda",
+            "start": 0,
+            "end": 75,
+            "loop": true
+        },
+        {
+            "name": "Armature|Idle_No_Loop",
+            "short": "Idle_No_Loop",
+            "source": "UAL2.fbx",
+            "file": "anim/Armature_Idle_No_Loop.anim.usda",
+            "start": 0,
+            "end": 75,
+            "loop": true
+        },
+        {
+            "name": "Armature|Idle_Rail_Call",
+            "short": "Idle_Rail_Call",
+            "source": "UAL2.fbx",
+            "file": "anim/Armature_Idle_Rail_Call.anim.usda",
+            "start": 0,
+            "end": 75,
+            "loop": false
+        },
+        {
+            "name": "Armature|Idle_Rail_Loop",
+            "short": "Idle_Rail_Loop",
+            "source": "UAL2.fbx",
+            "file": "anim/Armature_Idle_Rail_Loop.anim.usda",
+            "start": 0,
+            "end": 75,
+            "loop": true
+        },
+        {
+            "name": "Armature|Idle_Shield_Break",
+            "short": "Idle_Shield_Break",
+            "source": "UAL2.fbx",
+            "file": "anim/Armature_Idle_Shield_Break.anim.usda",
+            "start": 0,
+            "end": 32,
+            "loop": false
+        },
+        {
+            "name": "Armature|Idle_Shield_Loop",
+            "short": "Idle_Shield_Loop",
+            "source": "UAL2.fbx",
+            "file": "anim/Armature_Idle_Shield_Loop.anim.usda",
+            "start": 0,
+            "end": 75,
+            "loop": true
+        },
+        {
+            "name": "Armature|Idle_TalkingPhone_Loop",
+            "short": "Idle_TalkingPhone_Loop",
+            "source": "UAL2.fbx",
+            "file": "anim/Armature_Idle_TalkingPhone_Loop.anim.usda",
+            "start": 0,
+            "end": 88,
+            "loop": true
+        },
+        {
+            "name": "Armature|IdleToLay",
+            "short": "IdleToLay",
+            "source": "UAL2.fbx",
+            "file": "anim/Armature_IdleToLay.anim.usda",
+            "start": 0,
+            "end": 90,
+            "loop": false
+        },
+        {
+            "name": "Armature|JogToFlip",
+            "short": "JogToFlip",
+            "source": "UAL2.fbx",
+            "file": "anim/Armature_JogToFlip.anim.usda",
+            "start": 0,
+            "end": 36,
+            "loop": false
+        },
+        {
+            "name": "Armature|KipUp",
+            "short": "KipUp",
+            "source": "UAL2.fbx",
+            "file": "anim/Armature_KipUp.anim.usda",
+            "start": 0,
+            "end": 35,
+            "loop": false
+        },
+        {
+            "name": "Armature|LayToIdle",
+            "short": "LayToIdle",
+            "source": "UAL2.fbx",
+            "file": "anim/Armature_LayToIdle.anim.usda",
+            "start": 0,
+            "end": 46,
+            "loop": false
+        },
+        {
+            "name": "Armature|LiftAir",
+            "short": "LiftAir",
+            "source": "UAL2.fbx",
+            "file": "anim/Armature_LiftAir.anim.usda",
+            "start": 0,
+            "end": 14,
+            "loop": false
+        },
+        {
+            "name": "Armature|LiftAir_Fall",
+            "short": "LiftAir_Fall",
+            "source": "UAL2.fbx",
+            "file": "anim/Armature_LiftAir_Fall.anim.usda",
+            "start": 0,
+            "end": 28,
+            "loop": false
+        },
+        {
+            "name": "Armature|LiftAir_Fall_Air_Loop",
+            "short": "LiftAir_Fall_Air_Loop",
+            "source": "UAL2.fbx",
+            "file": "anim/Armature_LiftAir_Fall_Air_Loop.anim.usda",
+            "start": 0,
+            "end": 39,
+            "loop": true
+        },
+        {
+            "name": "Armature|LiftAir_Fall_Impact",
+            "short": "LiftAir_Fall_Impact",
+            "source": "UAL2.fbx",
+            "file": "anim/Armature_LiftAir_Fall_Impact.anim.usda",
+            "start": 0,
+            "end": 20,
+            "loop": false
+        },
+        {
+            "name": "Armature|LiftAir_Hit_L",
+            "short": "LiftAir_Hit_L",
+            "source": "UAL2.fbx",
+            "file": "anim/Armature_LiftAir_Hit_L.anim.usda",
+            "start": 0,
+            "end": 15,
+            "loop": false
+        },
+        {
+            "name": "Armature|LiftAir_Hit_R",
+            "short": "LiftAir_Hit_R",
+            "source": "UAL2.fbx",
+            "file": "anim/Armature_LiftAir_Hit_R.anim.usda",
+            "start": 0,
+            "end": 15,
+            "loop": false
+        },
+        {
+            "name": "Armature|LiftAir_Idle_Loop",
+            "short": "LiftAir_Idle_Loop",
+            "source": "UAL2.fbx",
+            "file": "anim/Armature_LiftAir_Idle_Loop.anim.usda",
+            "start": 0,
+            "end": 60,
+            "loop": true
+        },
+        {
+            "name": "Armature|Melee_Combo",
+            "short": "Melee_Combo",
+            "source": "UAL2.fbx",
+            "file": "anim/Armature_Melee_Combo.anim.usda",
+            "start": 0,
+            "end": 68,
+            "loop": false
+        },
+        {
+            "name": "Armature|Melee_Hook",
+            "short": "Melee_Hook",
+            "source": "UAL2.fbx",
+            "file": "anim/Armature_Melee_Hook.anim.usda",
+            "start": 0,
+            "end": 14,
+            "loop": false
+        },
+        {
+            "name": "Armature|Melee_Hook_Rec",
+            "short": "Melee_Hook_Rec",
+            "source": "UAL2.fbx",
+            "file": "anim/Armature_Melee_Hook_Rec.anim.usda",
+            "start": 0,
+            "end": 18,
+            "loop": false
+        },
+        {
+            "name": "Armature|Melee_Knee",
+            "short": "Melee_Knee",
+            "source": "UAL2.fbx",
+            "file": "anim/Armature_Melee_Knee.anim.usda",
+            "start": 0,
+            "end": 26,
+            "loop": false
+        },
+        {
+            "name": "Armature|Melee_Knee_Rec",
+            "short": "Melee_Knee_Rec",
+            "source": "UAL2.fbx",
+            "file": "anim/Armature_Melee_Knee_Rec.anim.usda",
+            "start": 0,
+            "end": 7,
+            "loop": false
+        },
+        {
+            "name": "Armature|Melee_Uppercut",
+            "short": "Melee_Uppercut",
+            "source": "UAL2.fbx",
+            "file": "anim/Armature_Melee_Uppercut.anim.usda",
+            "start": 0,
+            "end": 32,
+            "loop": false
+        },
+        {
+            "name": "Armature|Mining_Loop",
+            "short": "Mining_Loop",
+            "source": "UAL2.fbx",
+            "file": "anim/Armature_Mining_Loop.anim.usda",
+            "start": 0,
+            "end": 27,
+            "loop": true
+        },
+        {
+            "name": "Armature|MonsterTransformation",
+            "short": "MonsterTransformation",
+            "source": "UAL2.fbx",
+            "file": "anim/Armature_MonsterTransformation.anim.usda",
+            "start": 0,
+            "end": 67,
+            "loop": false
+        },
+        {
+            "name": "Armature|NinjaJump_Double",
+            "short": "NinjaJump_Double",
+            "source": "UAL2.fbx",
+            "file": "anim/Armature_NinjaJump_Double.anim.usda",
+            "start": 0,
+            "end": 27,
+            "loop": false
+        },
+        {
+            "name": "Armature|NinjaJump_Idle_Loop",
+            "short": "NinjaJump_Idle_Loop",
+            "source": "UAL2.fbx",
+            "file": "anim/Armature_NinjaJump_Idle_Loop.anim.usda",
+            "start": 0,
+            "end": 60,
+            "loop": true
+        },
+        {
+            "name": "Armature|NinjaJump_Land",
+            "short": "NinjaJump_Land",
+            "source": "UAL2.fbx",
+            "file": "anim/Armature_NinjaJump_Land.anim.usda",
+            "start": 0,
+            "end": 38,
+            "loop": false
+        },
+        {
+            "name": "Armature|NinjaJump_Start",
+            "short": "NinjaJump_Start",
+            "source": "UAL2.fbx",
+            "file": "anim/Armature_NinjaJump_Start.anim.usda",
+            "start": 0,
+            "end": 29,
+            "loop": false
+        },
+        {
+            "name": "Armature|OverhandThrow",
+            "short": "OverhandThrow",
+            "source": "UAL2.fbx",
+            "file": "anim/Armature_OverhandThrow.anim.usda",
+            "start": 0,
+            "end": 40,
+            "loop": false
+        },
+        {
+            "name": "Armature|SafetyVault",
+            "short": "SafetyVault",
+            "source": "UAL2.fbx",
+            "file": "anim/Armature_SafetyVault.anim.usda",
+            "start": 0,
+            "end": 22,
+            "loop": false
+        },
+        {
+            "name": "Armature|Shield_Dash",
+            "short": "Shield_Dash",
+            "source": "UAL2.fbx",
+            "file": "anim/Armature_Shield_Dash.anim.usda",
+            "start": 0,
+            "end": 33,
+            "loop": false
+        },
+        {
+            "name": "Armature|Shield_OneShot",
+            "short": "Shield_OneShot",
+            "source": "UAL2.fbx",
+            "file": "anim/Armature_Shield_OneShot.anim.usda",
+            "start": 0,
+            "end": 25,
+            "loop": false
+        },
+        {
+            "name": "Armature|Slide_Exit",
+            "short": "Slide_Exit",
+            "source": "UAL2.fbx",
+            "file": "anim/Armature_Slide_Exit.anim.usda",
+            "start": 0,
+            "end": 15,
+            "loop": false
+        },
+        {
+            "name": "Armature|Slide_Loop",
+            "short": "Slide_Loop",
+            "source": "UAL2.fbx",
+            "file": "anim/Armature_Slide_Loop.anim.usda",
+            "start": 0,
+            "end": 60,
+            "loop": true
+        },
+        {
+            "name": "Armature|Slide_Start",
+            "short": "Slide_Start",
+            "source": "UAL2.fbx",
+            "file": "anim/Armature_Slide_Start.anim.usda",
+            "start": 0,
+            "end": 25,
+            "loop": false
+        },
+        {
+            "name": "Armature|Sprint_Shield_Loop",
+            "short": "Sprint_Shield_Loop",
+            "source": "UAL2.fbx",
+            "file": "anim/Armature_Sprint_Shield_Loop.anim.usda",
+            "start": 0,
+            "end": 20,
+            "loop": true
+        },
+        {
+            "name": "Armature|StepUp",
+            "short": "StepUp",
+            "source": "UAL2.fbx",
+            "file": "anim/Armature_StepUp.anim.usda",
+            "start": 0,
+            "end": 20,
+            "loop": false
+        },
+        {
+            "name": "Armature|Surprise",
+            "short": "Surprise",
+            "source": "UAL2.fbx",
+            "file": "anim/Armature_Surprise.anim.usda",
+            "start": 0,
+            "end": 74,
+            "loop": false
+        },
+        {
+            "name": "Armature|Sword_Aerial_A",
+            "short": "Sword_Aerial_A",
+            "source": "UAL2.fbx",
+            "file": "anim/Armature_Sword_Aerial_A.anim.usda",
+            "start": 0,
+            "end": 12,
+            "loop": false
+        },
+        {
+            "name": "Armature|Sword_Aerial_A_Rec",
+            "short": "Sword_Aerial_A_Rec",
+            "source": "UAL2.fbx",
+            "file": "anim/Armature_Sword_Aerial_A_Rec.anim.usda",
+            "start": 0,
+            "end": 13,
+            "loop": false
+        },
+        {
+            "name": "Armature|Sword_Aerial_B",
+            "short": "Sword_Aerial_B",
+            "source": "UAL2.fbx",
+            "file": "anim/Armature_Sword_Aerial_B.anim.usda",
+            "start": 0,
+            "end": 17,
+            "loop": false
+        },
+        {
+            "name": "Armature|Sword_Aerial_Combo_Loop",
+            "short": "Sword_Aerial_Combo_Loop",
+            "source": "UAL2.fbx",
+            "file": "anim/Armature_Sword_Aerial_Combo_Loop.anim.usda",
+            "start": 0,
+            "end": 30,
+            "loop": true
+        },
+        {
+            "name": "Armature|Sword_Aerial_Idle_Loop",
+            "short": "Sword_Aerial_Idle_Loop",
+            "source": "UAL2.fbx",
+            "file": "anim/Armature_Sword_Aerial_Idle_Loop.anim.usda",
+            "start": 0,
+            "end": 32,
+            "loop": true
+        },
+        {
+            "name": "Armature|Sword_Block",
+            "short": "Sword_Block",
+            "source": "UAL2.fbx",
+            "file": "anim/Armature_Sword_Block.anim.usda",
+            "start": 0,
+            "end": 37,
+            "loop": false
+        },
+        {
+            "name": "Armature|Sword_Dash",
+            "short": "Sword_Dash",
+            "source": "UAL2.fbx",
+            "file": "anim/Armature_Sword_Dash.anim.usda",
+            "start": 0,
+            "end": 47,
+            "loop": false
+        },
+        {
+            "name": "Armature|Sword_GroundPound",
+            "short": "Sword_GroundPound",
+            "source": "UAL2.fbx",
+            "file": "anim/Armature_Sword_GroundPound.anim.usda",
+            "start": 0,
+            "end": 35,
+            "loop": false
+        },
+        {
+            "name": "Armature|Sword_Heavy_A",
+            "short": "Sword_Heavy_A",
+            "source": "UAL2.fbx",
+            "file": "anim/Armature_Sword_Heavy_A.anim.usda",
+            "start": 0,
+            "end": 22,
+            "loop": false
+        },
+        {
+            "name": "Armature|Sword_Heavy_A_Rec",
+            "short": "Sword_Heavy_A_Rec",
+            "source": "UAL2.fbx",
+            "file": "anim/Armature_Sword_Heavy_A_Rec.anim.usda",
+            "start": 0,
+            "end": 30,
+            "loop": false
+        },
+        {
+            "name": "Armature|Sword_Heavy_B",
+            "short": "Sword_Heavy_B",
+            "source": "UAL2.fbx",
+            "file": "anim/Armature_Sword_Heavy_B.anim.usda",
+            "start": 0,
+            "end": 15,
+            "loop": false
+        },
+        {
+            "name": "Armature|Sword_Heavy_B_Rec",
+            "short": "Sword_Heavy_B_Rec",
+            "source": "UAL2.fbx",
+            "file": "anim/Armature_Sword_Heavy_B_Rec.anim.usda",
+            "start": 0,
+            "end": 23,
+            "loop": false
+        },
+        {
+            "name": "Armature|Sword_Heavy_C",
+            "short": "Sword_Heavy_C",
+            "source": "UAL2.fbx",
+            "file": "anim/Armature_Sword_Heavy_C.anim.usda",
+            "start": 0,
+            "end": 21,
+            "loop": false
+        },
+        {
+            "name": "Armature|Sword_Heavy_C_Rec",
+            "short": "Sword_Heavy_C_Rec",
+            "source": "UAL2.fbx",
+            "file": "anim/Armature_Sword_Heavy_C_Rec.anim.usda",
+            "start": 0,
+            "end": 17,
+            "loop": false
+        },
+        {
+            "name": "Armature|Sword_Heavy_Combo",
+            "short": "Sword_Heavy_Combo",
+            "source": "UAL2.fbx",
+            "file": "anim/Armature_Sword_Heavy_Combo.anim.usda",
+            "start": 0,
+            "end": 130,
+            "loop": false
+        },
+        {
+            "name": "Armature|Sword_Heavy_D",
+            "short": "Sword_Heavy_D",
+            "source": "UAL2.fbx",
+            "file": "anim/Armature_Sword_Heavy_D.anim.usda",
+            "start": 0,
+            "end": 70,
+            "loop": false
+        },
+        {
+            "name": "Armature|Sword_Light_A",
+            "short": "Sword_Light_A",
+            "source": "UAL2.fbx",
+            "file": "anim/Armature_Sword_Light_A.anim.usda",
+            "start": 0,
+            "end": 11,
+            "loop": false
+        },
+        {
+            "name": "Armature|Sword_Light_A_Rec",
+            "short": "Sword_Light_A_Rec",
+            "source": "UAL2.fbx",
+            "file": "anim/Armature_Sword_Light_A_Rec.anim.usda",
+            "start": 0,
+            "end": 15,
+            "loop": false
+        },
+        {
+            "name": "Armature|Sword_Light_B",
+            "short": "Sword_Light_B",
+            "source": "UAL2.fbx",
+            "file": "anim/Armature_Sword_Light_B.anim.usda",
+            "start": 0,
+            "end": 13,
+            "loop": false
+        },
+        {
+            "name": "Armature|Sword_Light_B_Rec",
+            "short": "Sword_Light_B_Rec",
+            "source": "UAL2.fbx",
+            "file": "anim/Armature_Sword_Light_B_Rec.anim.usda",
+            "start": 0,
+            "end": 17,
+            "loop": false
+        },
+        {
+            "name": "Armature|Sword_Light_C",
+            "short": "Sword_Light_C",
+            "source": "UAL2.fbx",
+            "file": "anim/Armature_Sword_Light_C.anim.usda",
+            "start": 0,
+            "end": 26,
+            "loop": false
+        },
+        {
+            "name": "Armature|Sword_Light_C_Rec",
+            "short": "Sword_Light_C_Rec",
+            "source": "UAL2.fbx",
+            "file": "anim/Armature_Sword_Light_C_Rec.anim.usda",
+            "start": 0,
+            "end": 21,
+            "loop": false
+        },
+        {
+            "name": "Armature|Sword_Light_Combo",
+            "short": "Sword_Light_Combo",
+            "source": "UAL2.fbx",
+            "file": "anim/Armature_Sword_Light_Combo.anim.usda",
+            "start": 0,
+            "end": 102,
+            "loop": false
+        },
+        {
+            "name": "Armature|Sword_Light_D",
+            "short": "Sword_Light_D",
+            "source": "UAL2.fbx",
+            "file": "anim/Armature_Sword_Light_D.anim.usda",
+            "start": 0,
+            "end": 50,
+            "loop": false
+        },
+        {
+            "name": "Armature|Sword_Regular_A",
+            "short": "Sword_Regular_A",
+            "source": "UAL2.fbx",
+            "file": "anim/Armature_Sword_Regular_A.anim.usda",
+            "start": 0,
+            "end": 13,
+            "loop": false
+        },
+        {
+            "name": "Armature|Sword_Regular_A_Rec",
+            "short": "Sword_Regular_A_Rec",
+            "source": "UAL2.fbx",
+            "file": "anim/Armature_Sword_Regular_A_Rec.anim.usda",
+            "start": 0,
+            "end": 29,
+            "loop": false
+        },
+        {
+            "name": "Armature|Sword_Regular_B",
+            "short": "Sword_Regular_B",
+            "source": "UAL2.fbx",
+            "file": "anim/Armature_Sword_Regular_B.anim.usda",
+            "start": 0,
+            "end": 16,
+            "loop": false
+        },
+        {
+            "name": "Armature|Sword_Regular_B_Rec",
+            "short": "Sword_Regular_B_Rec",
+            "source": "UAL2.fbx",
+            "file": "anim/Armature_Sword_Regular_B_Rec.anim.usda",
+            "start": 0,
+            "end": 31,
+            "loop": false
+        },
+        {
+            "name": "Armature|Sword_Regular_C",
+            "short": "Sword_Regular_C",
+            "source": "UAL2.fbx",
+            "file": "anim/Armature_Sword_Regular_C.anim.usda",
+            "start": 0,
+            "end": 60,
+            "loop": false
+        },
+        {
+            "name": "Armature|Sword_Regular_Combo",
+            "short": "Sword_Regular_Combo",
+            "source": "UAL2.fbx",
+            "file": "anim/Armature_Sword_Regular_Combo.anim.usda",
+            "start": 0,
+            "end": 90,
+            "loop": false
+        },
+        {
+            "name": "Armature|Sword_UpperCut",
+            "short": "Sword_UpperCut",
+            "source": "UAL2.fbx",
+            "file": "anim/Armature_Sword_UpperCut.anim.usda",
+            "start": 0,
+            "end": 21,
+            "loop": false
+        },
+        {
+            "name": "Armature|TreeChopping_Loop",
+            "short": "TreeChopping_Loop",
+            "source": "UAL2.fbx",
+            "file": "anim/Armature_TreeChopping_Loop.anim.usda",
+            "start": 0,
+            "end": 29,
+            "loop": true
+        },
+        {
+            "name": "Armature|Turn180_L",
+            "short": "Turn180_L",
+            "source": "UAL2.fbx",
+            "file": "anim/Armature_Turn180_L.anim.usda",
+            "start": 0,
+            "end": 50,
+            "loop": false
+        },
+        {
+            "name": "Armature|Turn180_R",
+            "short": "Turn180_R",
+            "source": "UAL2.fbx",
+            "file": "anim/Armature_Turn180_R.anim.usda",
+            "start": 0,
+            "end": 50,
+            "loop": false
+        },
+        {
+            "name": "Armature|Walk_Bwd_L_Loop",
+            "short": "Walk_Bwd_L_Loop",
+            "source": "UAL2.fbx",
+            "file": "anim/Armature_Walk_Bwd_L_Loop.anim.usda",
+            "start": 0,
+            "end": 40,
+            "loop": true
+        },
+        {
+            "name": "Armature|Walk_Bwd_Loop",
+            "short": "Walk_Bwd_Loop",
+            "source": "UAL2.fbx",
+            "file": "anim/Armature_Walk_Bwd_Loop.anim.usda",
+            "start": 0,
+            "end": 40,
+            "loop": true
+        },
+        {
+            "name": "Armature|Walk_Bwd_R_Loop",
+            "short": "Walk_Bwd_R_Loop",
+            "source": "UAL2.fbx",
+            "file": "anim/Armature_Walk_Bwd_R_Loop.anim.usda",
+            "start": 0,
+            "end": 40,
+            "loop": true
+        },
+        {
+            "name": "Armature|Walk_Carry_Loop",
+            "short": "Walk_Carry_Loop",
+            "source": "UAL2.fbx",
+            "file": "anim/Armature_Walk_Carry_Loop.anim.usda",
+            "start": 0,
+            "end": 60,
+            "loop": true
+        },
+        {
+            "name": "Armature|Walk_Fwd_L_Loop",
+            "short": "Walk_Fwd_L_Loop",
+            "source": "UAL2.fbx",
+            "file": "anim/Armature_Walk_Fwd_L_Loop.anim.usda",
+            "start": 0,
+            "end": 40,
+            "loop": true
+        },
+        {
+            "name": "Armature|Walk_Fwd_Loop",
+            "short": "Walk_Fwd_Loop",
+            "source": "UAL2.fbx",
+            "file": "anim/Armature_Walk_Fwd_Loop.anim.usda",
+            "start": 0,
+            "end": 40,
+            "loop": true
+        },
+        {
+            "name": "Armature|Walk_Fwd_R_Loop",
+            "short": "Walk_Fwd_R_Loop",
+            "source": "UAL2.fbx",
+            "file": "anim/Armature_Walk_Fwd_R_Loop.anim.usda",
+            "start": 0,
+            "end": 40,
+            "loop": true
+        },
+        {
+            "name": "Armature|Walk_L_Loop",
+            "short": "Walk_L_Loop",
+            "source": "UAL2.fbx",
+            "file": "anim/Armature_Walk_L_Loop.anim.usda",
+            "start": 0,
+            "end": 40,
+            "loop": true
+        },
+        {
+            "name": "Armature|Walk_R_Loop",
+            "short": "Walk_R_Loop",
+            "source": "UAL2.fbx",
+            "file": "anim/Armature_Walk_R_Loop.anim.usda",
+            "start": 0,
+            "end": 40,
+            "loop": true
+        },
+        {
+            "name": "Armature|WallRun_Jump_L",
+            "short": "WallRun_Jump_L",
+            "source": "UAL2.fbx",
+            "file": "anim/Armature_WallRun_Jump_L.anim.usda",
+            "start": 0,
+            "end": 22,
+            "loop": false
+        },
+        {
+            "name": "Armature|WallRun_Jump_R",
+            "short": "WallRun_Jump_R",
+            "source": "UAL2.fbx",
+            "file": "anim/Armature_WallRun_Jump_R.anim.usda",
+            "start": 0,
+            "end": 22,
+            "loop": false
+        },
+        {
+            "name": "Armature|WallRun_L_Loop",
+            "short": "WallRun_L_Loop",
+            "source": "UAL2.fbx",
+            "file": "anim/Armature_WallRun_L_Loop.anim.usda",
+            "start": 0,
+            "end": 22,
+            "loop": true
+        },
+        {
+            "name": "Armature|WallRun_R_Loop",
+            "short": "WallRun_R_Loop",
+            "source": "UAL2.fbx",
+            "file": "anim/Armature_WallRun_R_Loop.anim.usda",
+            "start": 0,
+            "end": 22,
+            "loop": true
+        },
+        {
+            "name": "Armature|Yes",
+            "short": "Yes",
+            "source": "UAL2.fbx",
+            "file": "anim/Armature_Yes.anim.usda",
+            "start": 0,
+            "end": 75,
+            "loop": false
+        },
+        {
+            "name": "Armature|Zombie_Bite",
+            "short": "Zombie_Bite",
+            "source": "UAL2.fbx",
+            "file": "anim/Armature_Zombie_Bite.anim.usda",
+            "start": 0,
+            "end": 45,
+            "loop": false
+        },
+        {
+            "name": "Armature|Zombie_Idle_Loop",
+            "short": "Zombie_Idle_Loop",
+            "source": "UAL2.fbx",
+            "file": "anim/Armature_Zombie_Idle_Loop.anim.usda",
+            "start": 0,
+            "end": 40,
+            "loop": true
+        },
+        {
+            "name": "Armature|Zombie_Run_Bwd_L_Loop",
+            "short": "Zombie_Run_Bwd_L_Loop",
+            "source": "UAL2.fbx",
+            "file": "anim/Armature_Zombie_Run_Bwd_L_Loop.anim.usda",
+            "start": 0,
+            "end": 22,
+            "loop": true
+        },
+        {
+            "name": "Armature|Zombie_Run_Bwd_Loop",
+            "short": "Zombie_Run_Bwd_Loop",
+            "source": "UAL2.fbx",
+            "file": "anim/Armature_Zombie_Run_Bwd_Loop.anim.usda",
+            "start": 0,
+            "end": 22,
+            "loop": true
+        },
+        {
+            "name": "Armature|Zombie_Run_Bwd_R_Loop",
+            "short": "Zombie_Run_Bwd_R_Loop",
+            "source": "UAL2.fbx",
+            "file": "anim/Armature_Zombie_Run_Bwd_R_Loop.anim.usda",
+            "start": 0,
+            "end": 22,
+            "loop": true
+        },
+        {
+            "name": "Armature|Zombie_Run_Fwd_L_Loop",
+            "short": "Zombie_Run_Fwd_L_Loop",
+            "source": "UAL2.fbx",
+            "file": "anim/Armature_Zombie_Run_Fwd_L_Loop.anim.usda",
+            "start": 0,
+            "end": 22,
+            "loop": true
+        },
+        {
+            "name": "Armature|Zombie_Run_Fwd_Loop",
+            "short": "Zombie_Run_Fwd_Loop",
+            "source": "UAL2.fbx",
+            "file": "anim/Armature_Zombie_Run_Fwd_Loop.anim.usda",
+            "start": 0,
+            "end": 22,
+            "loop": true
+        },
+        {
+            "name": "Armature|Zombie_Run_Fwd_R_Loop",
+            "short": "Zombie_Run_Fwd_R_Loop",
+            "source": "UAL2.fbx",
+            "file": "anim/Armature_Zombie_Run_Fwd_R_Loop.anim.usda",
+            "start": 0,
+            "end": 22,
+            "loop": true
+        },
+        {
+            "name": "Armature|Zombie_Run_L_Loop",
+            "short": "Zombie_Run_L_Loop",
+            "source": "UAL2.fbx",
+            "file": "anim/Armature_Zombie_Run_L_Loop.anim.usda",
+            "start": 0,
+            "end": 22,
+            "loop": true
+        },
+        {
+            "name": "Armature|Zombie_Run_R_Loop",
+            "short": "Zombie_Run_R_Loop",
+            "source": "UAL2.fbx",
+            "file": "anim/Armature_Zombie_Run_R_Loop.anim.usda",
+            "start": 0,
+            "end": 22,
+            "loop": true
+        },
+        {
+            "name": "Armature|Zombie_Scratch",
+            "short": "Zombie_Scratch",
+            "source": "UAL2.fbx",
+            "file": "anim/Armature_Zombie_Scratch.anim.usda",
+            "start": 0,
+            "end": 54,
+            "loop": false
+        },
+        {
+            "name": "Armature|Zombie_Spawn",
+            "short": "Zombie_Spawn",
+            "source": "UAL2.fbx",
+            "file": "anim/Armature_Zombie_Spawn.anim.usda",
+            "start": 0,
+            "end": 85,
+            "loop": false
+        },
+        {
+            "name": "Armature|Zombie_Walk_Bwd_L_Loop",
+            "short": "Zombie_Walk_Bwd_L_Loop",
+            "source": "UAL2.fbx",
+            "file": "anim/Armature_Zombie_Walk_Bwd_L_Loop.anim.usda",
+            "start": 0,
+            "end": 40,
+            "loop": true
+        },
+        {
+            "name": "Armature|Zombie_Walk_Bwd_Loop",
+            "short": "Zombie_Walk_Bwd_Loop",
+            "source": "UAL2.fbx",
+            "file": "anim/Armature_Zombie_Walk_Bwd_Loop.anim.usda",
+            "start": 0,
+            "end": 40,
+            "loop": true
+        },
+        {
+            "name": "Armature|Zombie_Walk_Bwd_R_Loop",
+            "short": "Zombie_Walk_Bwd_R_Loop",
+            "source": "UAL2.fbx",
+            "file": "anim/Armature_Zombie_Walk_Bwd_R_Loop.anim.usda",
+            "start": 0,
+            "end": 40,
+            "loop": true
+        },
+        {
+            "name": "Armature|Zombie_Walk_Fwd_L_Loop",
+            "short": "Zombie_Walk_Fwd_L_Loop",
+            "source": "UAL2.fbx",
+            "file": "anim/Armature_Zombie_Walk_Fwd_L_Loop.anim.usda",
+            "start": 0,
+            "end": 40,
+            "loop": true
+        },
+        {
+            "name": "Armature|Zombie_Walk_Fwd_Loop",
+            "short": "Zombie_Walk_Fwd_Loop",
+            "source": "UAL2.fbx",
+            "file": "anim/Armature_Zombie_Walk_Fwd_Loop.anim.usda",
+            "start": 0,
+            "end": 40,
+            "loop": true
+        },
+        {
+            "name": "Armature|Zombie_Walk_Fwd_R_Loop",
+            "short": "Zombie_Walk_Fwd_R_Loop",
+            "source": "UAL2.fbx",
+            "file": "anim/Armature_Zombie_Walk_Fwd_R_Loop.anim.usda",
+            "start": 0,
+            "end": 40,
+            "loop": true
+        },
+        {
+            "name": "Armature|Zombie_Walk_L_Loop",
+            "short": "Zombie_Walk_L_Loop",
+            "source": "UAL2.fbx",
+            "file": "anim/Armature_Zombie_Walk_L_Loop.anim.usda",
+            "start": 0,
+            "end": 40,
+            "loop": true
+        },
+        {
+            "name": "Armature|Zombie_Walk_R_Loop",
+            "short": "Zombie_Walk_R_Loop",
+            "source": "UAL2.fbx",
+            "file": "anim/Armature_Zombie_Walk_R_Loop.anim.usda",
+            "start": 0,
+            "end": 40,
+            "loop": true
+        }
+    ]
+}

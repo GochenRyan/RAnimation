@@ -24,9 +24,35 @@ namespace RAnimation
             {
                 return {"A", "B"};
             }
-            if (d.Type == "BlendSpace1D")
+            if (d.Type == "LayeredBlend")
             {
-                size_t count = d.SamplePositions.size();
+                return {"Base", "Layer"};
+            }
+            if (d.Type == "AnimSlot")
+            {
+                return {"Base"};
+            }
+            if (d.Type == "CrossfadeSelect")
+            {
+                size_t count = d.InputNames.size();
+                for (const auto& [pin, src] : d.Inputs)
+                {
+                    if (pin.rfind("In", 0) == 0 && pin.size() > 2)
+                    {
+                        const size_t idx = static_cast<size_t>(std::atoi(pin.c_str() + 2));
+                        count = std::max(count, idx + 1);
+                    }
+                }
+                std::vector<std::string> pins;
+                for (size_t i = 0; i < count; ++i)
+                {
+                    pins.push_back("In" + std::to_string(i));
+                }
+                return pins;
+            }
+            if (d.Type == "BlendSpace1D" || d.Type == "BlendSpace2D")
+            {
+                size_t count = d.Type == "BlendSpace1D" ? d.SamplePositions.size() : d.SamplePositions2.size() / 2;
                 for (const auto& [pin, src] : d.Inputs)
                 {
                     if (pin.rfind("Sample", 0) == 0)
@@ -148,6 +174,17 @@ namespace RAnimation
                     if (d.SamplePositions[k] < d.SamplePositions[k - 1])
                     {
                         errors.push_back(where + ": sample positions must be ascending");
+                        break;
+                    }
+                }
+            }
+            if (!d.Name.empty())
+            {
+                for (int j = 0; j < i; ++j)
+                {
+                    if (desc.Nodes[static_cast<size_t>(j)].Name == d.Name)
+                    {
+                        errors.push_back(fmt::format("{}: node name '{}' is also used by node {}", where, d.Name, j));
                         break;
                     }
                 }
@@ -325,6 +362,48 @@ namespace RAnimation
             node->Input = d.Param;
             return node;
         }
+        if (d.Type == "AnimSlot")
+        {
+            auto node = std::make_unique<AnimSlot>();
+            node->SlotName = d.SlotName;
+            return node;
+        }
+        if (d.Type == "BlendSpace2D")
+        {
+            auto node = std::make_unique<BlendSpace2D>();
+            const std::vector<std::string> pins = PoseInputPins(d);
+            node->Samples.resize(pins.size());
+            for (size_t i = 0; i < pins.size(); ++i)
+            {
+                if (2 * i + 1 < d.SamplePositions2.size())
+                {
+                    node->Samples[i].Position = {d.SamplePositions2[2 * i], d.SamplePositions2[2 * i + 1]};
+                }
+            }
+            node->InputX = d.Param;
+            node->InputY = d.Param2;
+            node->bWrapX = d.bWrapX;
+            return node;
+        }
+        if (d.Type == "CrossfadeSelect")
+        {
+            auto node = std::make_unique<CrossfadeSelect>();
+            const std::vector<std::string> pins = PoseInputPins(d);
+            node->Inputs.resize(pins.size());
+            node->InputNames = d.InputNames;
+            node->InputNames.resize(pins.size());
+            node->ActiveIndex = d.ActiveIndex;
+            node->BlendTimeSec = std::max(0.0f, d.BlendTimeSec);
+            return node;
+        }
+        if (d.Type == "LayeredBlend")
+        {
+            auto node = std::make_unique<LayeredBlend>();
+            node->Alpha = d.Param;
+            node->MaskRoot = d.MaskRoot;
+            node->BlendDepth = std::max(0, d.BlendDepth);
+            return node;
+        }
         if (d.Type == "SaveCachedPose")
         {
             auto node = std::make_unique<SaveCachedPose>();
@@ -353,8 +432,48 @@ namespace RAnimation
         }
     }
 
-    std::unique_ptr<BakedGraph> GraphBaker::Bake(const GraphDesc& desc, const Model& model, std::string& outError)
+    bool GraphBaker::ResolveClipNames(GraphDesc& desc, const Model& model, std::string& outError)
     {
+        for (size_t i = 0; i < desc.Nodes.size(); ++i)
+        {
+            NodeDesc& d = desc.Nodes[i];
+            if (d.Type != "ClipPlayer" || d.ClipName.empty())
+            {
+                continue;
+            }
+            const int32_t index = model.FindClipIndex(d.ClipName);
+            if (index < 0)
+            {
+                outError = fmt::format("node {} (ClipPlayer): clip '{}' not found in model '{}'",
+                                       i,
+                                       d.ClipName,
+                                       model.GetModelFileName());
+                return false;
+            }
+            d.ClipIndex = index;
+        }
+        return true;
+    }
+
+    std::unique_ptr<BakedGraph> GraphBaker::Bake(const GraphDesc& sourceDesc, const Model& model, std::string& outError)
+    {
+        GraphDesc desc = sourceDesc;
+        if (!ResolveClipNames(desc, model, outError))
+        {
+            return nullptr;
+        }
+        for (size_t i = 0; i < desc.Nodes.size(); ++i)
+        {
+            const NodeDesc& d = desc.Nodes[i];
+            if (d.Type == "LayeredBlend" && model.FindNodeIndex(d.MaskRoot) < 0)
+            {
+                outError = fmt::format("node {} (LayeredBlend): mask root '{}' not found in model '{}'",
+                                       i,
+                                       d.MaskRoot,
+                                       model.GetModelFileName());
+                return nullptr;
+            }
+        }
         const std::vector<std::string> errors = Validate(desc, static_cast<int>(model.GetAnimClips().size()));
         if (!errors.empty())
         {

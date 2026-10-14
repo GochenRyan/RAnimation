@@ -17,6 +17,57 @@ namespace RAnimation
     AnimGraphInstance::AnimGraphInstance() = default;
     AnimGraphInstance::~AnimGraphInstance() = default;
 
+    AnimNode* AnimGraphInstance::FindNode(std::string_view name) const
+    {
+        if (!mAsset || !mBaked)
+        {
+            return nullptr;
+        }
+        const int id = mAsset->RuntimeDesc.FindNodeByName(name);
+        return id >= 0 ? GetNode(id) : nullptr;
+    }
+
+    AnimSlot* AnimGraphInstance::FindSlot(std::string_view slotName) const
+    {
+        if (!mBaked)
+        {
+            return nullptr;
+        }
+        for (const auto& node : mBaked->Storage)
+        {
+            if (auto* slot = dynamic_cast<AnimSlot*>(node.get()); slot != nullptr && slot->SlotName == slotName)
+            {
+                return slot;
+            }
+        }
+        return nullptr;
+    }
+
+    bool AnimGraphInstance::PlayMontage(std::string_view slotName, const MontageDesc& desc)
+    {
+        AnimSlot* slot = FindSlot(slotName);
+        return slot != nullptr && mModel != nullptr && slot->Play(desc, *mModel);
+    }
+
+    bool AnimGraphInstance::StopMontage(std::string_view slotName, float blendOutSec)
+    {
+        AnimSlot* slot = FindSlot(slotName);
+        if (slot == nullptr)
+        {
+            return false;
+        }
+        slot->Stop(blendOutSec);
+        return true;
+    }
+
+    void AnimGraphInstance::DispatchNotify(std::string_view slotName, std::string_view notifyName)
+    {
+        if (OnNotify)
+        {
+            OnNotify(slotName, notifyName);
+        }
+    }
+
     AnimNode* AnimGraphInstance::GetNode(int id) const
     {
         return mBaked ? mBaked->Get(id) : nullptr;

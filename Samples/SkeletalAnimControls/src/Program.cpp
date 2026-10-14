@@ -5,6 +5,7 @@
 #include <fmt/base.h>
 
 #include <Application/Application.h>
+#include <StateMachine/StateMachineSelfTest.h>
 
 using namespace RAnimation;
 
@@ -14,6 +15,13 @@ using namespace RAnimation;
 //   --graph <file.animgraph.usda>  assign this graph to every animated instance
 //   --crowd <N>               spawn N extra instances of the first model (grid, random clip/phase)
 //   --frames <N>              render N frames, print the GPU/CPU statistics, then exit 0
+//   --verify                  compare GPU skinning matrices with the CPU pose at the final frame
+//   --fixed-dt <sec>          use a fixed frame delta instead of wall-clock time (deterministic runs)
+//   --controller              attach the character state machine to the first instance and drive it with a
+//                             scripted input sequence (implies --fixed-dt 1/60 and --frames 420); the
+//                             transition log is checked at the end (exit 1 on mismatch)
+//   --save-statemachine <f>   write the built-in character state machine as <f> (.statemachine.usda)
+//   --selftest                run the state-machine self test (no window, no GPU) and exit with the failure count
 int main(int argc, char* argv[])
 {
     SmokeTestOptions smoke;
@@ -21,7 +29,23 @@ int main(int argc, char* argv[])
     {
         const std::string arg = argv[i];
         const bool hasValue = i + 1 < argc;
-        if (arg == "--scene" && hasValue)
+        if (arg == "--selftest")
+        {
+            return RunStateMachineSelfTests();
+        }
+        else if (arg == "--fixed-dt" && hasValue)
+        {
+            smoke.fixedDeltaTime = static_cast<float>(std::atof(argv[++i]));
+        }
+        else if (arg == "--controller")
+        {
+            smoke.controller = true;
+        }
+        else if (arg == "--save-statemachine" && hasValue)
+        {
+            smoke.saveStateMachinePath = argv[++i];
+        }
+        else if (arg == "--scene" && hasValue)
         {
             smoke.scenePath = argv[++i];
         }

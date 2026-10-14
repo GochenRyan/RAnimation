@@ -246,8 +246,19 @@ namespace RAnimation
         {
             NodeDesc d;
             d.Type = n.Type;
+            d.Name = n.Name;
             d.ClipIndex = n.ClipIndex;
+            d.ClipName = n.ClipName;
             d.CacheName = n.CacheName;
+            d.SlotName = n.SlotName;
+            d.MaskRoot = n.MaskRoot;
+            d.BlendDepth = n.BlendDepth;
+            d.ActiveIndex = n.ActiveIndex;
+            d.BlendTimeSec = n.BlendTimeSec;
+            d.InputNames = n.InputNames;
+            d.Param2 = n.Param2;
+            d.bWrapX = n.bWrapX;
+            d.SamplePositions2 = n.SamplePositions2;
             d.bLooping = n.bLooping;
             if (n.Type == "ClipPlayer")
             {
@@ -257,6 +268,10 @@ namespace RAnimation
             else
             {
                 d.Param = n.Param;
+            }
+            if (n.Type == "BlendSpace2D" && d.SamplePositions2.empty())
+            {
+                d.SamplePositions2 = {0.0f, 0.0f, 0.0f, 1.0f, 180.0f, 1.0f}; // idle, forward, backward
             }
             if (n.Type == "BlendSpace1D")
             {
@@ -306,8 +321,19 @@ namespace RAnimation
             EditorNode n;
             n.Id = NextId++;
             n.Type = d.Type;
+            n.Name = d.Name;
             n.ClipIndex = d.ClipIndex;
+            n.ClipName = d.ClipName;
             n.CacheName = d.CacheName;
+            n.SlotName = d.SlotName;
+            n.MaskRoot = d.MaskRoot;
+            n.BlendDepth = d.BlendDepth;
+            n.ActiveIndex = d.ActiveIndex;
+            n.BlendTimeSec = d.BlendTimeSec;
+            n.InputNames = d.InputNames;
+            n.Param2 = d.Param2;
+            n.bWrapX = d.bWrapX;
+            n.SamplePositions2 = d.SamplePositions2;
             n.bLooping = d.bLooping;
             n.Param = d.Type == "ClipPlayer" ? d.PlayRate : d.Param;
             if (i < layout.NodePos.size())

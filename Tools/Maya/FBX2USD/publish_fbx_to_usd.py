@@ -399,6 +399,17 @@ def get_hierarchy_nodes(root: str) -> List[str]:
     return nodes
 
 
+def get_skeleton_joint_names(root_joint: str) -> List[str]:
+    """Short names of every joint under root_joint, in hierarchy order (used to compare sources)."""
+    return [_short_name(node) for node in get_hierarchy_nodes(root_joint) if cmds.nodeType(node) == "joint"]
+
+
+def _is_loop_take(take_name: str) -> bool:
+    """Looping clips end in `_Loop` (Quaternius UAL convention); idle / walk / run kept for older assets."""
+    base = take_name.lower().split("|")[-1]
+    return base.endswith("_loop") or base in ("idle", "walk", "run")
+
+
 def get_key_range(root_joint: str) -> Optional[Tuple[int, int]]:
     """Get min and max keyframe range from the skeleton hierarchy."""
     key_times = []
@@ -1315,7 +1326,8 @@ def validate_model_layers(paths: Dict[str, str]) -> None:
                 raise RuntimeError("Material binding leaked into geometry.usda: {}".format(prop.GetPath()))
 
     has_skinning_opinion = False
-    for prim in skinning_stage.Traverse():
+    # The skinning layer is overlay-only (over prims), which Traverse() skips; TraverseAll() visits them.
+    for prim in skinning_stage.TraverseAll():
         for prop in prim.GetProperties():
             if _is_skinning_property_name(prop.GetName()):
                 has_skinning_opinion = True
@@ -1483,12 +1495,22 @@ def publish_fbx_to_usd(
     make_previews: bool = False,
     keep_intermediate_full_model: bool = False,
     make_reference_example: bool = False,
+    extra_fbx_paths: Optional[List[str]] = None,
+    take_filter: Optional[str] = None,
 ) -> None:
-    """Publish FBX into split, referenceable USD source layers."""
+    """Publish FBX into split, referenceable USD source layers.
+
+    extra_fbx_paths: more FBX files whose takes are appended to the same asset. The model comes from
+    fbx_path; every take of every file must carry the same joint names as that model (hard error
+    otherwise). A take whose safe name was already exported is skipped (e.g. A_TPose in two files).
+    take_filter: optional regular expression; only takes whose name matches (re.search) are exported.
+    """
     ensure_plugins()
 
     fbx_path = os.path.abspath(fbx_path)
     output_dir = os.path.abspath(output_dir)
+    source_fbx_paths = [fbx_path] + [os.path.abspath(p) for p in (extra_fbx_paths or []) if p]
+    take_pattern = re.compile(take_filter) if take_filter else None
 
     if asset_name is None:
         asset_name = _safe_name(os.path.splitext(os.path.basename(fbx_path))[0])
@@ -1587,13 +1609,17 @@ def publish_fbx_to_usd(
             output_clips.append(clip_record)
 
     else:
-        takes = get_fbx_takes(fbx_path)
-        if not takes:
-            raise RuntimeError("No FBX takes found.")
-
-        print("FBX takes:")
-        for take in takes:
-            print("  [{index}] {name}".format(**take))
+        # (source fbx, take) pairs in file order; the model is exported from the first take of fbx_path.
+        sources: List[Tuple[str, Dict[str, Any]]] = []
+        for source_path in source_fbx_paths:
+            source_takes = get_fbx_takes(source_path)
+            if not source_takes:
+                raise RuntimeError("No FBX takes found in {}".format(source_path))
+            print("FBX takes in {}:".format(source_path))
+            for take in source_takes:
+                print("  [{index}] {name}".format(**take))
+                sources.append((source_path, take))
+        takes = [take for path, take in sources if path == fbx_path]
 
         model_layers = _export_model_layers(
             fbx_path=fbx_path,
@@ -1624,10 +1650,30 @@ def publish_fbx_to_usd(
 
         validate_asset_usd(asset_usd)
 
-        for take in takes:
-            import_fbx(fbx_path, take_index=take["index"])
+        reference_joints: Optional[List[str]] = None
+        exported_safe_names: set = set()
+        for source_path, take in sources:
+            if take_pattern is not None and not take_pattern.search(take["name"]):
+                print("Skip (filtered):", take["name"])
+                continue
+            if take["safe_name"] in exported_safe_names:
+                print("Skip (duplicate take name):", take["name"], "from", source_path)
+                continue
+
+            import_fbx(source_path, take_index=take["index"])
 
             real_root_joint = find_root_joint(root_joint)
+            joints = get_skeleton_joint_names(real_root_joint)
+            if reference_joints is None:
+                reference_joints = joints
+                print("Skeleton: {} joints under {}".format(len(joints), _short_name(real_root_joint)))
+            elif joints != reference_joints:
+                missing = sorted(set(reference_joints) - set(joints))
+                extra = sorted(set(joints) - set(reference_joints))
+                raise RuntimeError(
+                    "Skeleton mismatch in take '{}' of {}: {} joints vs {} in the model; missing {} extra {}".format(
+                        take["name"], source_path, len(joints), len(reference_joints), missing[:8], extra[:8]))
+
             key_range = get_key_range(real_root_joint)
 
             if key_range is None:
@@ -1646,16 +1692,18 @@ def publish_fbx_to_usd(
                 clean_anim=clean_anim,
             )
 
-            clip_base_name = take["name"].lower().split("|")[-1]
-            loop = clip_base_name in ("idle", "walk", "run")
+            loop = _is_loop_take(take["name"])
 
             clip_record = {
                 "name": take["name"],
+                "short": take["name"].split("|")[-1],
+                "source": os.path.basename(source_path),
                 "file": _rel_path(anim_usd, output_dir),
                 "start": start_frame,
                 "end": end_frame,
                 "loop": loop,
             }
+            exported_safe_names.add(take["safe_name"])
 
             if make_previews:
                 preview_usd = os.path.join(preview_dir, "{}.preview.usda".format(take["safe_name"]))
@@ -1728,6 +1776,9 @@ def main() -> None:
     parser.add_argument("--preview", action="store_true")
     parser.add_argument("--keep-intermediate-full-model", action="store_true")
     parser.add_argument("--reference-example", action="store_true")
+    parser.add_argument("--extra-fbx", action="append", default=[],
+                        help="additional FBX with the same skeleton; its takes join the asset (repeatable)")
+    parser.add_argument("--take-filter", default=None, help="regex; only matching take names are exported")
 
     args = parser.parse_args()
 
@@ -1742,6 +1793,8 @@ def main() -> None:
         make_previews=args.preview,
         keep_intermediate_full_model=args.keep_intermediate_full_model,
         make_reference_example=args.reference_example,
+        extra_fbx_paths=args.extra_fbx,
+        take_filter=args.take_filter,
     )
 
 

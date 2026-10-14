@@ -1,11 +1,14 @@
 // TrsTextureBaker: bakes a UsdSkel asset's clips into a .trstex (RGBA16F TRS texture + clip table).
 //
-//   TrsTextureBaker <Asset.asset.usda> [-o out.trstex] [--rate 30] [--force] [--check] [--selftest]
+//   TrsTextureBaker <Asset.asset.usda> [-o out.trstex] [--rate 30] [--max-rows 16384] [--force] [--check] [--selftest]
 //
 // Default output is <asset dir>/baked/<Stem>.trstex. The bake is fingerprint-gated: when the existing file
 // was baked from identical source data (and the same rate/version/layout) the tool prints "up to date" and
 // exits 0 without touching the file. --check only validates (and prints the resampling error against the
 // CPU sampler), --force always rewrites, --selftest runs the format/formula tests and exits.
+// --max-rows is the texture height budget (sum of all clips' rows): the default 16384 is the D3D12
+// Texture2D limit (D3D12_REQ_TEXTURE2D_U_OR_V_DIMENSION) and the common Vulkan desktop value; the bake
+// fails early with the longest clips listed instead of producing a file the runtime cannot upload.
 
 #include <algorithm>
 #include <cmath>
@@ -37,6 +40,7 @@ namespace
         std::string assetPath;
         std::string outPath;
         float rate = kTrsTexDefaultSampleRate;
+        uint32_t maxRows = 16384; // D3D12_REQ_TEXTURE2D_U_OR_V_DIMENSION
         bool force = false;
         bool check = false;
         bool selftest = false;
@@ -44,7 +48,7 @@ namespace
 
     void PrintUsage()
     {
-        fmt::print("usage: TrsTextureBaker <Asset.asset.usda> [-o out.trstex] [--rate 30] [--force] [--check] [--selftest]\n");
+        fmt::print("usage: TrsTextureBaker <Asset.asset.usda> [-o out.trstex] [--rate 30] [--max-rows 16384] [--force] [--check] [--selftest]\n");
     }
 
     bool ParseArgs(int argc, char** argv, Options& o)
@@ -59,6 +63,10 @@ namespace
             else if (a == "--rate" && i + 1 < argc)
             {
                 o.rate = static_cast<float>(std::atof(argv[++i]));
+            }
+            else if (a == "--max-rows" && i + 1 < argc)
+            {
+                o.maxRows = static_cast<uint32_t>(std::atoi(argv[++i]));
             }
             else if (a == "--force")
             {
@@ -327,13 +335,48 @@ int main(int argc, char** argv)
         }
     }
 
+    // Height budget: every clip contributes RowCountFor() rows; a texture taller than the device limit
+    // cannot be created, so refuse here and name the clips that cost the most.
+    const std::vector<TrsBakeClipDesc> clipDescs = BuildBakeClipDescs(loaded);
+    {
+        std::vector<std::pair<uint32_t, std::string>> rowsPerClip;
+        uint64_t totalRows = 0;
+        for (const TrsBakeClipDesc& d : clipDescs)
+        {
+            const uint32_t rows = BoneTrsTexture::RowCountFor(d.durationFrames, d.ticksPerSecond, opt.rate);
+            rowsPerClip.emplace_back(rows, d.name);
+            totalRows += rows;
+        }
+        fmt::print("{} clips, {} nodes -> {} rows at {:.1f} Hz (budget {})\n",
+                   clipDescs.size(),
+                   loaded.nodes.size(),
+                   totalRows,
+                   opt.rate,
+                   opt.maxRows);
+        if (opt.maxRows > 0 && totalRows > opt.maxRows)
+        {
+            std::sort(rowsPerClip.begin(), rowsPerClip.end(), [](const auto& a, const auto& b) { return a.first > b.first; });
+            fmt::print(stderr,
+                       fg(fmt::color::red),
+                       "texture would be {} rows tall, above the --max-rows budget of {}; longest clips:\n",
+                       totalRows,
+                       opt.maxRows);
+            for (size_t i = 0; i < rowsPerClip.size() && i < 10; ++i)
+            {
+                fmt::print(stderr, "  {:>6} rows  {}\n", rowsPerClip[i].first, rowsPerClip[i].second);
+            }
+            fmt::print(stderr, "bake a subset, lower --rate, or raise --max-rows for devices that allow it\n");
+            return 1;
+        }
+    }
+
     BoneTrsTexture tex;
     std::string err;
     const uint32_t nodeCount = static_cast<uint32_t>(loaded.nodes.size());
     std::vector<Transform> scratch(nodeCount);
     const bool baked = tex.Bake(
             nodeCount,
-            BuildBakeClipDescs(loaded),
+            clipDescs,
             opt.rate,
             [&](uint32_t clipIndex, float timeSec, TrsNodeTransform* out)
             {

@@ -1,0 +1,41 @@
+#usda 1.0
+(
+    customLayerData = {
+        dictionary ranim = {
+            int animGraphVersion = 1
+            string doc = "Walking through a full-body slot named FullBody. Idle until a montage is played into the slot (AnimGraphInstance::PlayMontage); then the montage blends over the walk with its own envelope."
+        }
+    }
+    defaultPrim = "AnimGraph"
+)
+
+def Scope "AnimGraph"
+{
+    custom int ranim:outputNode = 2
+
+    def Scope "Node_0"
+    {
+        custom int ranim:clipIndex = 9
+        custom string ranim:clipName = "Armature|Walking"
+        custom float2 ranim:editorPos = (60, 160)
+        custom bool ranim:looping = 1
+        custom float ranim:playRate = 1
+        custom string ranim:type = "ClipPlayer"
+    }
+
+    def Scope "Node_1"
+    {
+        custom float2 ranim:editorPos = (400, 160)
+        custom rel ranim:in:Base = </AnimGraph/Node_0>
+        custom string ranim:name = "FullBody"
+        custom string ranim:slotName = "FullBody"
+        custom string ranim:type = "AnimSlot"
+    }
+
+    def Scope "Node_2"
+    {
+        custom float2 ranim:editorPos = (740, 160)
+        custom rel ranim:in:Result = </AnimGraph/Node_1>
+        custom string ranim:type = "Root"
+    }
+}

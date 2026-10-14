@@ -1,0 +1,473 @@
+#usda 1.0
+(
+    customLayerData = {
+        dictionary ranim = {
+            string doc = "Controllable character: Locomotion {Stand, Crouch, Sprint, Turn, Airborne, Dead} || Action {Free, UpperBodyBusy, FullBodyBusy} || Weapon {Unarmed, Pistol}. Montages and graph inputs by name; model data in <Stem>.profile.json."
+            int stateMachineVersion = 1
+        }
+    }
+    defaultPrim = "StateMachine"
+)
+
+def Scope "StateMachine"
+{
+    custom string[] ranim:events = ["Action", "ToggleWeapon", "Die", "Notify"]
+    custom string ranim:name = "character"
+    custom rel ranim:root = </StateMachine/States/Root>
+
+    def Scope "States"
+    {
+        def Scope "Root"
+        {
+            custom string ranim:completionPolicy = "All"
+            custom string ranim:kind = "Parallel"
+            custom int ranim:order = 0
+            custom string ranim:stateType = "Parallel"
+
+            def Scope "Locomotion"
+            {
+                custom rel ranim:initialChild = </StateMachine/States/Root/Locomotion/Stand>
+                custom string ranim:kind = "Single"
+                custom int ranim:order = 0
+                custom string ranim:stateType = "Single"
+
+                def Scope "Stand"
+                {
+                    custom string ranim:kind = "Leaf"
+                    custom int ranim:order = 0
+                    custom string ranim:param:locoSelect = "stand"
+                    custom string ranim:param:row = "stand"
+                    custom string ranim:stateType = "LocomotionState"
+                }
+
+                def Scope "Crouch"
+                {
+                    custom string ranim:kind = "Leaf"
+                    custom int ranim:order = 1
+                    custom string ranim:param:locoSelect = "crouch"
+                    custom string ranim:param:row = "crouch"
+                    custom string ranim:stateType = "LocomotionState"
+                }
+
+                def Scope "Sprint"
+                {
+                    custom rel ranim:initialChild = </StateMachine/States/Root/Locomotion/Sprint/SprintEnter>
+                    custom string ranim:kind = "Single"
+                    custom int ranim:order = 2
+                    custom string ranim:stateType = "Single"
+
+                    def Scope "SprintEnter"
+                    {
+                        custom string ranim:kind = "Leaf"
+                        custom int ranim:order = 0
+                        custom bool ranim:param:dead = 0
+                        custom bool ranim:param:keepMoving = 1
+                        custom string ranim:param:locoSelect = "sprint_enter"
+                        custom bool ranim:param:restart = 1
+                        custom string ranim:stateType = "SelectState"
+                    }
+
+                    def Scope "SprintLoop"
+                    {
+                        custom string ranim:kind = "Leaf"
+                        custom int ranim:order = 1
+                        custom string ranim:param:locoSelect = "sprint_loop"
+                        custom string ranim:param:row = "sprint"
+                        custom string ranim:stateType = "LocomotionState"
+                    }
+
+                    def Scope "SprintExit"
+                    {
+                        custom string ranim:kind = "Leaf"
+                        custom int ranim:order = 2
+                        custom bool ranim:param:dead = 0
+                        custom bool ranim:param:keepMoving = 0
+                        custom string ranim:param:locoSelect = "sprint_exit"
+                        custom bool ranim:param:restart = 1
+                        custom string ranim:stateType = "SelectState"
+                    }
+                }
+
+                def Scope "Turn"
+                {
+                    custom rel ranim:initialChild = </StateMachine/States/Root/Locomotion/Turn/TurnLeft>
+                    custom string ranim:kind = "Single"
+                    custom int ranim:order = 3
+                    custom string ranim:stateType = "Single"
+
+                    def Scope "TurnLeft"
+                    {
+                        custom string ranim:kind = "Leaf"
+                        custom int ranim:order = 0
+                        custom bool ranim:param:dead = 0
+                        custom bool ranim:param:keepMoving = 0
+                        custom string ranim:param:locoSelect = "turn90_l"
+                        custom bool ranim:param:restart = 1
+                        custom string ranim:stateType = "SelectState"
+                    }
+
+                    def Scope "TurnRight"
+                    {
+                        custom string ranim:kind = "Leaf"
+                        custom int ranim:order = 1
+                        custom bool ranim:param:dead = 0
+                        custom bool ranim:param:keepMoving = 0
+                        custom string ranim:param:locoSelect = "turn90_r"
+                        custom bool ranim:param:restart = 1
+                        custom string ranim:stateType = "SelectState"
+                    }
+                }
+
+                def Scope "Airborne"
+                {
+                    custom rel ranim:initialChild = </StateMachine/States/Root/Locomotion/Airborne/JumpStart>
+                    custom string ranim:kind = "Single"
+                    custom int ranim:order = 4
+                    custom string ranim:stateType = "Single"
+
+                    def Scope "JumpStart"
+                    {
+                        custom string ranim:kind = "Leaf"
+                        custom int ranim:order = 0
+                        custom bool ranim:param:dead = 0
+                        custom bool ranim:param:keepMoving = 1
+                        custom string ranim:param:locoSelect = "jump_start"
+                        custom bool ranim:param:restart = 1
+                        custom string ranim:stateType = "SelectState"
+                    }
+
+                    def Scope "JumpLoop"
+                    {
+                        custom string ranim:kind = "Leaf"
+                        custom int ranim:order = 1
+                        custom bool ranim:param:dead = 0
+                        custom bool ranim:param:keepMoving = 1
+                        custom string ranim:param:locoSelect = "jump_loop"
+                        custom bool ranim:param:restart = 1
+                        custom string ranim:stateType = "SelectState"
+                    }
+
+                    def Scope "JumpLand"
+                    {
+                        custom string ranim:kind = "Leaf"
+                        custom int ranim:order = 2
+                        custom bool ranim:param:dead = 0
+                        custom bool ranim:param:keepMoving = 0
+                        custom string ranim:param:locoSelect = "jump_land"
+                        custom bool ranim:param:restart = 1
+                        custom string ranim:stateType = "SelectState"
+                    }
+                }
+
+                def Scope "Dead"
+                {
+                    custom string ranim:kind = "Leaf"
+                    custom int ranim:order = 5
+                    custom bool ranim:param:dead = 1
+                    custom bool ranim:param:keepMoving = 0
+                    custom string ranim:param:locoSelect = "death"
+                    custom bool ranim:param:restart = 1
+                    custom string ranim:stateType = "SelectState"
+                }
+            }
+
+            def Scope "Action"
+            {
+                custom rel ranim:initialChild = </StateMachine/States/Root/Action/Free>
+                custom string ranim:kind = "Single"
+                custom int ranim:order = 1
+                custom string ranim:stateType = "Single"
+
+                def Scope "Free"
+                {
+                    custom string ranim:kind = "Leaf"
+                    custom int ranim:order = 0
+                    custom string ranim:stateType = "Leaf"
+                }
+
+                def Scope "UpperBodyBusy"
+                {
+                    custom string ranim:kind = "Leaf"
+                    custom int ranim:order = 1
+                    custom string ranim:param:slot = "UpperBody"
+                    custom string ranim:stateType = "SlotBusyState"
+                }
+
+                def Scope "FullBodyBusy"
+                {
+                    custom string ranim:kind = "Leaf"
+                    custom int ranim:order = 2
+                    custom string ranim:param:slot = "FullBody"
+                    custom string ranim:stateType = "SlotBusyState"
+                }
+            }
+
+            def Scope "Weapon"
+            {
+                custom rel ranim:initialChild = </StateMachine/States/Root/Weapon/Unarmed>
+                custom string ranim:kind = "Single"
+                custom int ranim:order = 2
+                custom string ranim:stateType = "Single"
+
+                def Scope "Unarmed"
+                {
+                    custom string ranim:kind = "Leaf"
+                    custom int ranim:order = 0
+                    custom float ranim:param:alpha = 0
+                    custom string ranim:stateType = "WeaponState"
+                }
+
+                def Scope "Pistol"
+                {
+                    custom string ranim:kind = "Leaf"
+                    custom int ranim:order = 1
+                    custom float ranim:param:alpha = 1
+                    custom string ranim:stateType = "WeaponState"
+                }
+            }
+        }
+    }
+
+    def Scope "Transitions"
+    {
+        def Scope "T_0"
+        {
+            custom string ranim:guard = "WantCrouch"
+            custom string ranim:name = "Stand_to_Crouch"
+            custom int ranim:priority = 0
+            custom rel ranim:source = </StateMachine/States/Root/Locomotion/Stand>
+            custom rel ranim:target = </StateMachine/States/Root/Locomotion/Crouch>
+        }
+
+        def Scope "T_1"
+        {
+            custom string ranim:guard = "WantStand"
+            custom string ranim:name = "Crouch_to_Stand"
+            custom int ranim:priority = 0
+            custom rel ranim:source = </StateMachine/States/Root/Locomotion/Crouch>
+            custom rel ranim:target = </StateMachine/States/Root/Locomotion/Stand>
+        }
+
+        def Scope "T_2"
+        {
+            custom string ranim:guard = "WantSprint"
+            custom string ranim:name = "Stand_to_SprintEnter"
+            custom int ranim:priority = 0
+            custom rel ranim:source = </StateMachine/States/Root/Locomotion/Stand>
+            custom rel ranim:target = </StateMachine/States/Root/Locomotion/Sprint/SprintEnter>
+        }
+
+        def Scope "T_3"
+        {
+            custom string ranim:name = "SprintEnter_to_SprintLoop"
+            custom int ranim:priority = 0
+            custom rel ranim:source = </StateMachine/States/Root/Locomotion/Sprint/SprintEnter>
+            custom rel ranim:target = </StateMachine/States/Root/Locomotion/Sprint/SprintLoop>
+        }
+
+        def Scope "T_4"
+        {
+            custom string ranim:guard = "StopSprint"
+            custom string ranim:name = "SprintLoop_to_SprintExit"
+            custom int ranim:priority = 0
+            custom rel ranim:source = </StateMachine/States/Root/Locomotion/Sprint/SprintLoop>
+            custom rel ranim:target = </StateMachine/States/Root/Locomotion/Sprint/SprintExit>
+        }
+
+        def Scope "T_5"
+        {
+            custom string ranim:name = "SprintExit_to_Stand"
+            custom int ranim:priority = 0
+            custom rel ranim:source = </StateMachine/States/Root/Locomotion/Sprint/SprintExit>
+            custom rel ranim:target = </StateMachine/States/Root/Locomotion/Stand>
+        }
+
+        def Scope "T_6"
+        {
+            custom string ranim:guard = "WantTurnLeft"
+            custom string ranim:name = "Stand_to_TurnLeft"
+            custom int ranim:priority = 0
+            custom rel ranim:source = </StateMachine/States/Root/Locomotion/Stand>
+            custom rel ranim:target = </StateMachine/States/Root/Locomotion/Turn/TurnLeft>
+        }
+
+        def Scope "T_7"
+        {
+            custom string ranim:guard = "WantTurnRight"
+            custom string ranim:name = "Stand_to_TurnRight"
+            custom int ranim:priority = 0
+            custom rel ranim:source = </StateMachine/States/Root/Locomotion/Stand>
+            custom rel ranim:target = </StateMachine/States/Root/Locomotion/Turn/TurnRight>
+        }
+
+        def Scope "T_8"
+        {
+            custom string ranim:name = "TurnLeft_to_Stand"
+            custom int ranim:priority = 0
+            custom rel ranim:source = </StateMachine/States/Root/Locomotion/Turn/TurnLeft>
+            custom rel ranim:target = </StateMachine/States/Root/Locomotion/Stand>
+        }
+
+        def Scope "T_9"
+        {
+            custom string ranim:name = "TurnRight_to_Stand"
+            custom int ranim:priority = 0
+            custom rel ranim:source = </StateMachine/States/Root/Locomotion/Turn/TurnRight>
+            custom rel ranim:target = </StateMachine/States/Root/Locomotion/Stand>
+        }
+
+        def Scope "T_10"
+        {
+            custom string ranim:guard = "Airborne"
+            custom string ranim:name = "Locomotion_to_JumpStart"
+            custom int ranim:priority = 10
+            custom rel ranim:source = </StateMachine/States/Root/Locomotion>
+            custom rel ranim:target = </StateMachine/States/Root/Locomotion/Airborne/JumpStart>
+        }
+
+        def Scope "T_11"
+        {
+            custom string ranim:name = "JumpStart_to_JumpLoop"
+            custom int ranim:priority = 0
+            custom rel ranim:source = </StateMachine/States/Root/Locomotion/Airborne/JumpStart>
+            custom rel ranim:target = </StateMachine/States/Root/Locomotion/Airborne/JumpLoop>
+        }
+
+        def Scope "T_12"
+        {
+            custom string ranim:guard = "Grounded"
+            custom string ranim:name = "JumpStart_to_JumpLand"
+            custom int ranim:priority = 5
+            custom rel ranim:source = </StateMachine/States/Root/Locomotion/Airborne/JumpStart>
+            custom rel ranim:target = </StateMachine/States/Root/Locomotion/Airborne/JumpLand>
+        }
+
+        def Scope "T_13"
+        {
+            custom string ranim:guard = "Grounded"
+            custom string ranim:name = "JumpLoop_to_JumpLand"
+            custom int ranim:priority = 0
+            custom rel ranim:source = </StateMachine/States/Root/Locomotion/Airborne/JumpLoop>
+            custom rel ranim:target = </StateMachine/States/Root/Locomotion/Airborne/JumpLand>
+        }
+
+        def Scope "T_14"
+        {
+            custom string ranim:name = "JumpLand_to_Stand"
+            custom int ranim:priority = 0
+            custom rel ranim:source = </StateMachine/States/Root/Locomotion/Airborne/JumpLand>
+            custom rel ranim:target = </StateMachine/States/Root/Locomotion/Stand>
+        }
+
+        def Scope "T_15"
+        {
+            custom string ranim:guard = "Alive"
+            custom string ranim:name = "Locomotion_to_Dead"
+            custom int ranim:priority = 20
+            custom rel ranim:source = </StateMachine/States/Root/Locomotion>
+            custom rel ranim:target = </StateMachine/States/Root/Locomotion/Dead>
+            custom string ranim:trigger = "Die"
+        }
+
+        def Scope "T_16"
+        {
+            custom string ranim:action = "RememberMontage"
+            custom string ranim:guard = "ActionUpperBody"
+            custom string ranim:name = "Free_to_UpperBodyBusy"
+            custom int ranim:priority = 10
+            custom rel ranim:source = </StateMachine/States/Root/Action/Free>
+            custom rel ranim:target = </StateMachine/States/Root/Action/UpperBodyBusy>
+            custom string ranim:trigger = "Action"
+        }
+
+        def Scope "T_17"
+        {
+            custom string ranim:action = "RememberMontage"
+            custom string ranim:guard = "ActionFullBody"
+            custom string ranim:name = "Free_to_FullBodyBusy"
+            custom int ranim:priority = 10
+            custom rel ranim:source = </StateMachine/States/Root/Action/Free>
+            custom rel ranim:target = </StateMachine/States/Root/Action/FullBodyBusy>
+            custom string ranim:trigger = "Action"
+        }
+
+        def Scope "T_18"
+        {
+            custom string ranim:name = "UpperBodyBusy_to_Free"
+            custom int ranim:priority = 0
+            custom rel ranim:source = </StateMachine/States/Root/Action/UpperBodyBusy>
+            custom rel ranim:target = </StateMachine/States/Root/Action/Free>
+        }
+
+        def Scope "T_19"
+        {
+            custom string ranim:name = "FullBodyBusy_to_Free"
+            custom int ranim:priority = 0
+            custom rel ranim:source = </StateMachine/States/Root/Action/FullBodyBusy>
+            custom rel ranim:target = </StateMachine/States/Root/Action/Free>
+        }
+
+        def Scope "T_20"
+        {
+            custom string ranim:action = "RememberMontage"
+            custom string ranim:guard = "ActionOutranksUpper"
+            custom string ranim:name = "UpperBodyBusy_to_UpperBodyBusy"
+            custom int ranim:priority = 10
+            custom rel ranim:source = </StateMachine/States/Root/Action/UpperBodyBusy>
+            custom rel ranim:target = </StateMachine/States/Root/Action/UpperBodyBusy>
+            custom string ranim:trigger = "Action"
+        }
+
+        def Scope "T_21"
+        {
+            custom string ranim:action = "RememberMontage"
+            custom string ranim:guard = "ActionOutranksFull"
+            custom string ranim:name = "FullBodyBusy_to_FullBodyBusy"
+            custom int ranim:priority = 10
+            custom rel ranim:source = </StateMachine/States/Root/Action/FullBodyBusy>
+            custom rel ranim:target = </StateMachine/States/Root/Action/FullBodyBusy>
+            custom string ranim:trigger = "Action"
+        }
+
+        def Scope "T_22"
+        {
+            custom string ranim:action = "RememberMontage"
+            custom string ranim:guard = "ActionOutranksFull"
+            custom string ranim:name = "UpperBodyBusy_to_FullBodyBusy"
+            custom int ranim:priority = 10
+            custom rel ranim:source = </StateMachine/States/Root/Action/UpperBodyBusy>
+            custom rel ranim:target = </StateMachine/States/Root/Action/FullBodyBusy>
+            custom string ranim:trigger = "Action"
+        }
+
+        def Scope "T_23"
+        {
+            custom string ranim:action = "RememberMontage"
+            custom string ranim:guard = "ActionOutranksUpper"
+            custom string ranim:name = "FullBodyBusy_to_UpperBodyBusy"
+            custom int ranim:priority = 10
+            custom rel ranim:source = </StateMachine/States/Root/Action/FullBodyBusy>
+            custom rel ranim:target = </StateMachine/States/Root/Action/UpperBodyBusy>
+            custom string ranim:trigger = "Action"
+        }
+
+        def Scope "T_24"
+        {
+            custom string ranim:name = "Unarmed_to_Pistol"
+            custom int ranim:priority = 5
+            custom rel ranim:source = </StateMachine/States/Root/Weapon/Unarmed>
+            custom rel ranim:target = </StateMachine/States/Root/Weapon/Pistol>
+            custom string ranim:trigger = "ToggleWeapon"
+        }
+
+        def Scope "T_25"
+        {
+            custom string ranim:name = "Pistol_to_Unarmed"
+            custom int ranim:priority = 5
+            custom rel ranim:source = </StateMachine/States/Root/Weapon/Pistol>
+            custom rel ranim:target = </StateMachine/States/Root/Weapon/Unarmed>
+            custom string ranim:trigger = "ToggleWeapon"
+        }
+    }
+}
+

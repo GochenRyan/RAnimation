@@ -411,11 +411,15 @@ namespace
                 }
             }
 
-            // up to 4 bone influences from the per-point block
+            // The 4 strongest bone influences from the per-point block. Exporters may author more (UAL
+            // uses 7 per vertex, mostly zero); the vertex format and the skinning shader take 4, so keep
+            // the heaviest ones and renormalise rather than the first four in authoring order.
             if (influencesPerPoint > 0)
             {
                 const int base = pointIndex * influencesPerPoint;
-                for (int k = 0; k < influencesPerPoint && k < 4; ++k)
+                std::vector<std::pair<float, int>> influences; // weight, element index
+                influences.reserve(static_cast<size_t>(influencesPerPoint));
+                for (int k = 0; k < influencesPerPoint; ++k)
                 {
                     const int idx = base + k;
                     if (idx < 0 || idx >= static_cast<int>(jointIndices.size()) ||
@@ -423,8 +427,16 @@ namespace
                     {
                         break;
                     }
-                    v.boneNumber[k] = static_cast<uint32_t>(remapBone(jointIndices[static_cast<size_t>(idx)]));
-                    v.boneWeight[k] = jointWeights[static_cast<size_t>(idx)];
+                    influences.emplace_back(jointWeights[static_cast<size_t>(idx)], idx);
+                }
+                std::stable_sort(influences.begin(),
+                                 influences.end(),
+                                 [](const auto& a, const auto& b) { return a.first > b.first; });
+                for (size_t k = 0; k < influences.size() && k < 4; ++k)
+                {
+                    const int idx = influences[k].second;
+                    v.boneNumber[static_cast<int>(k)] = static_cast<uint32_t>(remapBone(jointIndices[static_cast<size_t>(idx)]));
+                    v.boneWeight[static_cast<int>(k)] = influences[k].first;
                 }
 
                 const float sum = v.boneWeight.x + v.boneWeight.y + v.boneWeight.z + v.boneWeight.w;

@@ -113,6 +113,8 @@ set "PUBLISH_CLEAN_ANIM=%clean_anim%"
 set "PUBLISH_PREVIEW=%preview%"
 set "PUBLISH_KEEP_INTERMEDIATE_FULL_MODEL=%keep_intermediate_full_model%"
 set "PUBLISH_REFERENCE_EXAMPLE=%reference_example%"
+set "PUBLISH_EXTRA_FBX_PATHS=%extra_fbx_paths%"
+set "PUBLISH_TAKE_FILTER=%take_filter%"
 
 rem ------------------------------------------------------------
 rem Generate temporary Python runner.
@@ -153,6 +155,8 @@ set "RUNNER=%TEMP%\maya_publish_fbx_to_usd_%RANDOM%.py"
 >> "%RUNNER%" echo     make_previews=bool_from_ini(os.environ.get("PUBLISH_PREVIEW", "false"), False),
 >> "%RUNNER%" echo     keep_intermediate_full_model=bool_from_ini(os.environ.get("PUBLISH_KEEP_INTERMEDIATE_FULL_MODEL", "false"), False),
 >> "%RUNNER%" echo     make_reference_example=bool_from_ini(os.environ.get("PUBLISH_REFERENCE_EXAMPLE", "false"), False),
+>> "%RUNNER%" echo     extra_fbx_paths=[p.strip() for p in os.environ.get("PUBLISH_EXTRA_FBX_PATHS", "").split(";") if p.strip()],
+>> "%RUNNER%" echo     take_filter=none_if_empty(os.environ.get("PUBLISH_TAKE_FILTER", "")),
 >> "%RUNNER%" echo )
 
 set "RUNNER_MAYA=%RUNNER:\=/%"
@@ -165,6 +169,8 @@ echo [INFO] Asset: %asset_name%
 echo [INFO] Root Joint: %root_joint%
 echo [INFO] Mesh Root: %mesh_root%
 echo [INFO] Clips JSON: %clips_json%
+echo [INFO] Extra FBX: %extra_fbx_paths%
+echo [INFO] Take filter: "%take_filter%"
 echo [INFO] Preview: %preview%
 echo [INFO] Reference Example: %reference_example%
 echo.

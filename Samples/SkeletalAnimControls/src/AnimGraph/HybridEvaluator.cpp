@@ -18,14 +18,22 @@ namespace RAnimation
         }
         // Static limits are known from the plan alone; term count is checked every frame (weights move).
         std::vector<HybridSample> probe;
+        std::vector<float> probeRows;
         std::string err;
-        if (!BuildHybridSamples(mInstance, probe, err))
+        if (!BuildHybridSamples(mInstance, probe, probeRows, err))
         {
             mError = err;
             return;
         }
         NormalizeHybrid(probe);
-        if (!CheckHybridLimits(mInstance.Plan(), probe, static_cast<int>(kMaxTermsPerWork), static_cast<int>(kMaxSlotsPerWork), err))
+        const int probeRowCount = mInstance.NodeCount() > 0 ? static_cast<int>(probeRows.size() / mInstance.NodeCount()) : 0;
+        if (!CheckHybridLimits(mInstance.Plan(),
+                               probe,
+                               static_cast<int>(kMaxTermsPerWork),
+                               static_cast<int>(kMaxSlotsPerWork),
+                               err,
+                               probeRowCount,
+                               static_cast<int>(kMaxMaskRowsPerWork)))
         {
             mError = err;
         }
@@ -57,14 +65,21 @@ namespace RAnimation
 
         // GPU half: flatten to weighted terms using the nodes' current state.
         std::string err;
-        if (!BuildHybridSamples(mInstance, mSamples, err))
+        if (!BuildHybridSamples(mInstance, mSamples, out.maskRows, err))
         {
             mError = err;
             out.Clear();
             return;
         }
         NormalizeHybrid(mSamples);
-        if (!CheckHybridLimits(plan, mSamples, static_cast<int>(kMaxTermsPerWork), static_cast<int>(kMaxSlotsPerWork), err))
+        out.maskRowCount = out.nodeCount > 0 ? static_cast<uint32_t>(out.maskRows.size() / out.nodeCount) : 0u;
+        if (!CheckHybridLimits(plan,
+                               mSamples,
+                               static_cast<int>(kMaxTermsPerWork),
+                               static_cast<int>(kMaxSlotsPerWork),
+                               err,
+                               static_cast<int>(out.maskRowCount),
+                               static_cast<int>(kMaxMaskRowsPerWork)))
         {
             mError = err;
             out.Clear();
@@ -72,7 +87,7 @@ namespace RAnimation
         }
         for (const HybridSample& s : mSamples)
         {
-            out.terms.push_back({s.bExternal, static_cast<uint32_t>(s.Index), s.TimeSec, s.Weight});
+            out.terms.push_back({s.bExternal, static_cast<uint32_t>(s.Index), s.TimeSec, s.Weight, s.MaskRow});
         }
     }
 

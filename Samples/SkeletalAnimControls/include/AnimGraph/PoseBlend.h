@@ -1,5 +1,8 @@
 #pragma once
 
+#include <algorithm>
+#include <vector>
+
 #include <glm/glm.hpp>
 #include <glm/gtc/quaternion.hpp>
 
@@ -32,6 +35,61 @@ namespace RAnimation
             out.bones[i] = BlendTransform(a.bones[i], b.bones[i], alpha);
         }
     }
+
+    // Flattened weighted sum of several poses, the CPU twin of the kernel's inner loop: hemisphere
+    // alignment towards the first added pose, then per-node division by the summed weight (so weights
+    // need not sum to 1). Finish() leaves identity on nodes that received no weight.
+    class PoseAccumulator
+    {
+    public:
+        explicit PoseAccumulator(Pose& out) : mOut(out), mFirst(true), mWeight(out.count, 0.0f)
+        {
+            for (uint32_t i = 0; i < mOut.count; ++i)
+            {
+                mOut[i].T = glm::vec3(0.0f);
+                mOut[i].S = glm::vec3(0.0f);
+                mOut[i].R = glm::quat(0.0f, 0.0f, 0.0f, 0.0f);
+            }
+        }
+
+        void Add(const Pose& pose, float weight)
+        {
+            if (mFirst)
+            {
+                mReference.assign(pose.bones, pose.bones + std::min(pose.count, mOut.count));
+                mFirst = false;
+            }
+            for (uint32_t i = 0; i < mOut.count && i < pose.count; ++i)
+            {
+                const glm::quat aligned = AlignHemisphere(mReference[i].R, pose[i].R);
+                mOut[i].T += pose[i].T * weight;
+                mOut[i].S += pose[i].S * weight;
+                mOut[i].R += aligned * weight;
+                mWeight[i] += weight;
+            }
+        }
+
+        void Finish()
+        {
+            for (uint32_t i = 0; i < mOut.count; ++i)
+            {
+                if (mWeight[i] <= 0.0f)
+                {
+                    mOut[i] = Transform{};
+                    continue;
+                }
+                mOut[i].T /= mWeight[i];
+                mOut[i].S /= mWeight[i];
+                mOut[i].R = glm::normalize(mOut[i].R);
+            }
+        }
+
+    private:
+        Pose& mOut;
+        bool mFirst;
+        std::vector<Transform> mReference;
+        std::vector<float> mWeight;
+    };
 
     inline void CopyPose(const Pose& from, Pose& to)
     {
