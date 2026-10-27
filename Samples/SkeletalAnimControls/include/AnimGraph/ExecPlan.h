@@ -72,9 +72,10 @@ namespace RAnimation
                             std::vector<float>& outMaskRows,
                             std::string& outError);
 
-    // Merge terms with the same source and mask row, drop zero weights. No global normalisation: with
-    // per-node masks the weights no longer sum to the same value on every node, so the kernel (and the
-    // verify mirror) renormalise per node instead.
+    // Merge terms with the same source and mask row, drop zero weights. No normalisation: Flatten already
+    // conserves weight (LayeredBlend splits the parent row into complementary rows, so every node sums to
+    // the same total, 1). The kernel and the verify mirror still divide by the per-node sum as a safety net
+    // for what Flatten drops (pruned branches, unconnected BlendSpace2D samples) and rounding.
     void NormalizeHybrid(std::vector<HybridSample>& samples);
 
     // The kernel's per-Work capacity is fixed (kMaxTermsPerWork, kMaxSlotsPerWork); graphs beyond it are

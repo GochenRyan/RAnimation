@@ -192,4 +192,24 @@ namespace RAnimation
         float mOutStartWeight = 1.0f;
         float mOutElapsed = 0.0f;
     };
+
+    // The interrupt rule of AnimSlot::Play, free of nodes so --selftest runs the real thing: refused while a
+    // higher-priority montage owns the slot, otherwise every playing montage fades out over the new one's
+    // blend-in. desc must already be resolved (clipIndex, durationSec).
+    inline bool StartMontage(std::vector<MontagePlayback>& playing, const MontageDesc& desc)
+    {
+        for (const MontagePlayback& p : playing)
+        {
+            if (!p.Finished() && !p.BlendingOut() && p.Desc().priority > desc.priority)
+            {
+                return false; // something more important owns the slot
+            }
+        }
+        for (MontagePlayback& p : playing)
+        {
+            p.Stop(desc.blendInSec); // the old one fades out as fast as the new one fades in
+        }
+        playing.emplace_back(desc);
+        return true;
+    }
 } // namespace RAnimation

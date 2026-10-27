@@ -5,8 +5,9 @@
 //   thread group = one Work record (a character, an NPC or a crowd track), thread = node.
 //   Each term is either a row-interpolated sample of the baked TRS texture or a CPU-uploaded slot pose;
 //   terms are blended with a flattened weighted nlerp and composed into the node's local T*R*S matrix.
-//   A term may carry a mask row (LayeredBlend): its weight is multiplied by a per-node factor, and the sum
-//   is renormalised per node so masked-out contributions do not darken the result.
+//   A term may carry a mask row (LayeredBlend): its weight is multiplied by a per-node factor. The rows are
+//   complementary, so the per-node sum is already 1; dividing by it only absorbs what Flatten dropped
+//   (pruned branches) and rounding.
 // The tiers only differ in how the CPU issues the dispatch (see HybridEvalComputePass::Record).
 
 struct Constants

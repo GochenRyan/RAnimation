@@ -270,7 +270,7 @@ bool Renderer::VerifyBoneMatrices(ModelAndInstanceData& scene, int instanceIndex
                     wsum[n] += w;
                 }
             }
-            // Same per-node renormalisation as the kernel (masked terms make the sums differ per node).
+            // Same per-node division by the weight sum as the kernel (a safety net: Flatten already sums to 1).
             for (uint32_t n = 0; n < nodeCount; ++n)
             {
                 Transform& t = mirror[n];

@@ -328,7 +328,7 @@ namespace RAnimation
 
     void NormalizeHybrid(std::vector<HybridSample>& samples)
     {
-        // merge same source (same kind + index + time), drop zero weights, renormalise
+        // merge same source (same kind + index + time + mask row), drop zero weights; no renormalisation here
         std::vector<HybridSample> merged;
         for (const HybridSample& s : samples)
         {

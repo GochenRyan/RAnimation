@@ -277,19 +277,7 @@ namespace RAnimation
             return false;
         }
         desc.durationSec = ClipDurationSeconds(*model.GetAnimClips()[static_cast<size_t>(desc.clipIndex)]);
-        for (const MontagePlayback& p : Playing)
-        {
-            if (!p.Finished() && !p.BlendingOut() && p.Desc().priority > desc.priority)
-            {
-                return false; // something more important owns the slot
-            }
-        }
-        for (MontagePlayback& p : Playing)
-        {
-            p.Stop(desc.blendInSec); // the old one fades out as fast as the new one fades in
-        }
-        Playing.emplace_back(desc);
-        return true;
+        return StartMontage(Playing, desc);
     }
 
     void AnimSlot::Stop(float blendOutSec)

@@ -948,6 +948,107 @@ namespace RAnimation
             loop.Advance(0.05f, nullptr);
             Check(loop.Finished(), "and finishes when it reaches 0");
         }
+
+        // ExecPlan::Flatten gives an AnimSlot's base 1 - min(1, sum) and every montage its own weight, so the
+        // slot's terms only add up to 1 while the montage sum stays <= 1. Under a LayeredBlend mask anything
+        // above 1 would tilt partially masked bones towards the layer on the GPU, while the CPU tier
+        // renormalises inside the slot. Drive the real interrupt rule (StartMontage) through every case.
+        void TestMontageOverlap()
+        {
+            fmt::print("\n[montage overlap]\n");
+            struct Event
+            {
+                int frame;
+                bool stop;      // Stop(stopSec) instead of a new montage
+                MontageDesc desc;
+                float stopSec;
+            };
+            auto montage = [](float durationSec, float blendIn, float blendOut, float playRate = 1.0f)
+            {
+                MontageDesc d;
+                d.durationSec = durationSec;
+                d.blendInSec = blendIn;
+                d.blendOutSec = blendOut;
+                d.playRate = playRate;
+                return d;
+            };
+            auto run = [](const std::vector<Event>& events, int frames, float& maxSum, float& maxTotalError)
+            {
+                std::vector<MontagePlayback> playing;
+                maxSum = 0.0f;
+                maxTotalError = 0.0f;
+                for (int f = 0; f < frames; ++f)
+                {
+                    for (const Event& e : events)
+                    {
+                        if (e.frame != f)
+                        {
+                            continue;
+                        }
+                        if (e.stop)
+                        {
+                            for (MontagePlayback& p : playing)
+                            {
+                                p.Stop(e.stopSec);
+                            }
+                        }
+                        else
+                        {
+                            StartMontage(playing, e.desc);
+                        }
+                    }
+                    // AnimSlot::Update_AnyThread: advance, drop finished, then Flatten reads the weights
+                    for (MontagePlayback& p : playing)
+                    {
+                        p.Advance(1.0f / 60.0f, nullptr);
+                    }
+                    playing.erase(std::remove_if(playing.begin(), playing.end(), [](const MontagePlayback& p) { return p.Finished(); }),
+                                  playing.end());
+                    float sum = 0.0f;
+                    for (const MontagePlayback& p : playing)
+                    {
+                        sum += p.Weight();
+                    }
+                    const float total = (1.0f - std::min(1.0f, sum)) + sum; // what Flatten emits for the slot
+                    maxSum = std::max(maxSum, sum);
+                    maxTotalError = std::max(maxTotalError, std::fabs(total - 1.0f));
+                }
+            };
+            struct Case
+            {
+                const char* what;
+                std::vector<Event> events;
+            };
+            std::vector<Case> cases;
+            cases.push_back({"interrupt during hold", {{0, false, montage(1.0f, 0.1f, 0.2f), 0}, {30, false, montage(1.0f, 0.1f, 0.2f), 0}}});
+            cases.push_back({"interrupt mid blend-in (old at 0.5)",
+                             {{0, false, montage(1.0f, 0.1f, 0.2f), 0}, {3, false, montage(1.0f, 0.1f, 0.2f), 0}}});
+            cases.push_back({"interrupt during the natural blend-out, shorter blend-in",
+                             {{0, false, montage(0.5f, 0.1f, 0.3f), 0}, {18, false, montage(1.0f, 0.1f, 0.2f), 0}}});
+            cases.push_back({"interrupt during the natural blend-out, longer blend-in",
+                             {{0, false, montage(0.5f, 0.1f, 0.3f), 0}, {18, false, montage(1.0f, 0.5f, 0.2f), 0}}});
+            cases.push_back({"interrupt after Stop(0.5)",
+                             {{0, false, montage(2.0f, 0.1f, 0.2f), 0}, {20, true, {}, 0.5f}, {25, false, montage(1.0f, 0.1f, 0.2f), 0}}});
+            cases.push_back({"interrupt after Stop(0.05) with a 0.3 s blend-in",
+                             {{0, false, montage(2.0f, 0.1f, 0.2f), 0}, {20, true, {}, 0.05f}, {21, false, montage(1.0f, 0.3f, 0.2f), 0}}});
+            cases.push_back({"play rate 2, then a blend-in 0 interrupt",
+                             {{0, false, montage(1.0f, 0.1f, 0.2f, 2.0f), 0}, {4, false, montage(1.0f, 0.0f, 0.2f), 0}}});
+            Case chain{"a new montage every 2 frames (10 overlapping)", {}};
+            for (int i = 0; i < 10; ++i)
+            {
+                chain.events.push_back({i * 2, false, montage(1.0f, 0.1f + 0.05f * static_cast<float>(i % 3), 0.2f), 0});
+            }
+            cases.push_back(chain);
+
+            for (const Case& c : cases)
+            {
+                float maxSum = 0.0f;
+                float maxTotalError = 0.0f;
+                run(c.events, 120, maxSum, maxTotalError);
+                Check(maxSum <= 1.0f + 1e-5f && maxTotalError <= 1e-5f,
+                      fmt::format("{}: montage sum peaks at {:.4f}, flattened slot total off by {:.6f}", c.what, maxSum, maxTotalError));
+            }
+        }
     } // namespace
 
     int RunStateMachineSelfTests()
@@ -967,6 +1068,7 @@ namespace RAnimation
         TestCrossfade();
         TestPolarGrid();
         TestMontage();
+        TestMontageOverlap();
         fmt::print("\nResult: {}/{} passed\n", gChecks - gFails, gChecks);
         return gFails;
     }
