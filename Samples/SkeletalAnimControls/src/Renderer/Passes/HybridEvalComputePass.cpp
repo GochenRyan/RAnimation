@@ -140,7 +140,7 @@ namespace RAnimation
         DescriptorPoolRequirements req = {};
         // set 0 per queued frame + fallback set 1 + kMaxTrsTextureModels pre-allocated set 1s
         req.descriptorSetMaxNum = queuedFrameNum + 1 + kMaxTrsTextureModels;
-        req.structuredBufferMaxNum = queuedFrameNum * 3 + 1 + kMaxTrsTextureModels;
+        req.structuredBufferMaxNum = queuedFrameNum * 4 + 1 + kMaxTrsTextureModels;
         req.storageStructuredBufferMaxNum = queuedFrameNum;
         req.textureMaxNum = 1 + kMaxTrsTextureModels;
         return req;

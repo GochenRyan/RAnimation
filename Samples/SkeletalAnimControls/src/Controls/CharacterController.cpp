@@ -805,10 +805,10 @@ namespace RAnimation
         if (canMove && magnitude > 0.0f && mAnim.moveSpeed > 0.0f)
         {
             speed = mAnim.moveSpeed;
-            // local move direction (x right, z forward) rotated by the facing yaw; the model faces +Z at yaw 0
             const glm::vec3 local(mInput.moveX / magnitude, 0.0f, mInput.moveY / magnitude);
+            // Character local basis: forward -Z, right +X, up +Y.
             const float yaw = glm::radians(mMotion.yawDeg);
-            const glm::vec3 forward(std::sin(yaw), 0.0f, std::cos(yaw));
+            const glm::vec3 forward(-std::sin(yaw), 0.0f, -std::cos(yaw));
             const glm::vec3 right(std::cos(yaw), 0.0f, -std::sin(yaw));
             velocity = (forward * local.z + right * local.x) * speed;
         }
