@@ -10,6 +10,7 @@
       "name": "vcpkg",
       "displayName": "vcpkg (OpenUSD)",
       "description": "Configures with the vcpkg toolchain so the manifest's OpenUSD dependency resolves. Requires VCPKG_ROOT to be set (run setup_vcpkg.bat once, or point it at an existing vcpkg).",
+      "generator": "Visual Studio 17 2022",
       "binaryDir": "${sourceDir}/build",
       "cacheVariables": {
         "CMAKE_TOOLCHAIN_FILE": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",

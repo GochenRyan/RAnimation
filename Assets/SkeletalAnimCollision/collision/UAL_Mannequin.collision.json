@@ -1,0 +1,372 @@
+{
+  "skeleton": "UAL_Mannequin",
+  "units": "m",
+  "space": "bone-local (bind rotation normalised, translation in metres)",
+  "margin": 0.05,
+  "headExtra": 0.08,
+  "shapes": [
+    {
+      "bone": "pelvis",
+      "center": [
+        0.0,
+        0.05092,
+        0.03073
+      ],
+      "type": "box",
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "halfExtents": [
+        0.14365,
+        0.11703,
+        0.12027
+      ]
+    },
+    {
+      "bone": "spine_01",
+      "center": [
+        0.0,
+        0.07699,
+        0.02516
+      ],
+      "type": "capsule",
+      "rotation": [
+        0.0,
+        0.0,
+        -0.7071067811865475,
+        0.7071067811865475
+      ],
+      "halfHeight": 0.01458,
+      "radius": 0.11467
+    },
+    {
+      "bone": "spine_02",
+      "center": [
+        0.0,
+        0.07619,
+        0.00946
+      ],
+      "type": "capsule",
+      "rotation": [
+        0.0,
+        0.0,
+        -0.7071067811865475,
+        0.7071067811865475
+      ],
+      "halfHeight": 0.04328,
+      "radius": 0.11858
+    },
+    {
+      "bone": "spine_03",
+      "center": [
+        -0.0,
+        0.10036,
+        -0.01016
+      ],
+      "type": "capsule",
+      "rotation": [
+        0.0,
+        0.0,
+        -0.7071067811865475,
+        0.7071067811865475
+      ],
+      "halfHeight": 0.02844,
+      "radius": 0.16499,
+      "merged": [
+        "clavicle_l",
+        "clavicle_r"
+      ]
+    },
+    {
+      "bone": "neck_01",
+      "center": [
+        0.0,
+        0.04434,
+        -0.03622
+      ],
+      "type": "capsule",
+      "rotation": [
+        0.0,
+        0.0,
+        -0.7071067811865475,
+        0.7071067811865475
+      ],
+      "halfHeight": 0.00524,
+      "radius": 0.0953
+    },
+    {
+      "bone": "Head",
+      "center": [
+        0.0,
+        0.12227,
+        -0.00624
+      ],
+      "type": "sphere",
+      "radius": 0.15655
+    },
+    {
+      "bone": "upperarm_l",
+      "center": [
+        -0.00619,
+        0.10154,
+        0.00221
+      ],
+      "type": "capsule",
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "halfHeight": 0.10033,
+      "radius": 0.07828
+    },
+    {
+      "bone": "lowerarm_l",
+      "center": [
+        0.0078,
+        0.13385,
+        -0.00242
+      ],
+      "type": "capsule",
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "halfHeight": 0.07031,
+      "radius": 0.06307
+    },
+    {
+      "bone": "hand_l",
+      "center": [
+        0.03378,
+        0.11874,
+        0.01813
+      ],
+      "type": "box",
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "halfExtents": [
+        0.05895,
+        0.12032,
+        0.0778
+      ],
+      "merged": [
+        "index_01_l",
+        "index_02_l",
+        "index_03_l",
+        "middle_01_l",
+        "middle_02_l",
+        "middle_03_l",
+        "pinky_01_l",
+        "pinky_02_l",
+        "pinky_03_l",
+        "ring_01_l",
+        "ring_02_l",
+        "ring_03_l",
+        "thumb_01_l",
+        "thumb_02_l",
+        "thumb_03_l"
+      ]
+    },
+    {
+      "bone": "upperarm_r",
+      "center": [
+        0.00619,
+        0.10155,
+        0.00226
+      ],
+      "type": "capsule",
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "halfHeight": 0.10034,
+      "radius": 0.07828
+    },
+    {
+      "bone": "lowerarm_r",
+      "center": [
+        -0.0078,
+        0.13385,
+        -0.00242
+      ],
+      "type": "capsule",
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "halfHeight": 0.07031,
+      "radius": 0.06307
+    },
+    {
+      "bone": "hand_r",
+      "center": [
+        -0.03378,
+        0.11874,
+        0.01813
+      ],
+      "type": "box",
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "halfExtents": [
+        0.05895,
+        0.12032,
+        0.0778
+      ],
+      "merged": [
+        "index_01_r",
+        "index_02_r",
+        "index_03_r",
+        "middle_01_r",
+        "middle_02_r",
+        "middle_03_r",
+        "pinky_01_r",
+        "pinky_02_r",
+        "pinky_03_r",
+        "ring_01_r",
+        "ring_02_r",
+        "ring_03_r",
+        "thumb_01_r",
+        "thumb_02_r",
+        "thumb_03_r"
+      ]
+    },
+    {
+      "bone": "thigh_l",
+      "center": [
+        0.0027,
+        0.16618,
+        -0.00566
+      ],
+      "type": "capsule",
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "halfHeight": 0.14417,
+      "radius": 0.09704
+    },
+    {
+      "bone": "calf_l",
+      "center": [
+        0.00448,
+        0.21734,
+        0.01699
+      ],
+      "type": "capsule",
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "halfHeight": 0.14528,
+      "radius": 0.07446
+    },
+    {
+      "bone": "foot_l",
+      "center": [
+        0.00995,
+        0.11201,
+        0.02395
+      ],
+      "type": "box",
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "halfExtents": [
+        0.05917,
+        0.15213,
+        0.09091
+      ],
+      "merged": [
+        "ball_l"
+      ]
+    },
+    {
+      "bone": "thigh_r",
+      "center": [
+        -0.0027,
+        0.16618,
+        -0.00566
+      ],
+      "type": "capsule",
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "halfHeight": 0.14417,
+      "radius": 0.09704
+    },
+    {
+      "bone": "calf_r",
+      "center": [
+        -0.00447,
+        0.21734,
+        0.017
+      ],
+      "type": "capsule",
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "halfHeight": 0.14529,
+      "radius": 0.07445
+    },
+    {
+      "bone": "foot_r",
+      "center": [
+        -0.00991,
+        0.11201,
+        0.02394
+      ],
+      "type": "box",
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "halfExtents": [
+        0.05922,
+        0.15213,
+        0.09093
+      ],
+      "merged": [
+        "ball_r"
+      ]
+    }
+  ],
+  "wholeBody": {
+    "type": "capsule",
+    "halfHeight": 0.609,
+    "radius": 0.35
+  }
+}
