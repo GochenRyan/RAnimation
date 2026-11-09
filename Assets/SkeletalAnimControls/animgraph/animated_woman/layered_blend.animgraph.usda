@@ -1,0 +1,56 @@
+#usda 1.0
+(
+    customLayerData = {
+        dictionary ranim = {
+            int animGraphVersion = 1
+            string doc = "Layered blend: Walking everywhere, Punch on the upper body (mask root Spine1, blend depth 1, alpha 1). Verifies the per-term mask rows of the kernel against the CPU mirror."
+        }
+    }
+    defaultPrim = "AnimGraph"
+)
+
+def Scope "AnimGraph"
+{
+    custom int ranim:outputNode = 3
+
+    def Scope "Node_0"
+    {
+        custom int ranim:clipIndex = 9
+        custom string ranim:clipName = "Armature|Walking"
+        custom float2 ranim:editorPos = (60, 60)
+        custom bool ranim:looping = 1
+        custom string ranim:name = "Base"
+        custom float ranim:playRate = 1
+        custom string ranim:type = "ClipPlayer"
+    }
+
+    def Scope "Node_1"
+    {
+        custom int ranim:clipIndex = 5
+        custom string ranim:clipName = "Armature|Punch"
+        custom float2 ranim:editorPos = (60, 260)
+        custom bool ranim:looping = 1
+        custom string ranim:name = "Layer"
+        custom float ranim:playRate = 1
+        custom string ranim:type = "ClipPlayer"
+    }
+
+    def Scope "Node_2"
+    {
+        custom int ranim:blendDepth = 1
+        custom float2 ranim:editorPos = (400, 160)
+        custom rel ranim:in:Base = </AnimGraph/Node_0>
+        custom rel ranim:in:Layer = </AnimGraph/Node_1>
+        custom string ranim:maskRoot = "Spine1"
+        custom string ranim:name = "UpperBody"
+        custom float ranim:param = 1
+        custom string ranim:type = "LayeredBlend"
+    }
+
+    def Scope "Node_3"
+    {
+        custom float2 ranim:editorPos = (740, 160)
+        custom rel ranim:in:Result = </AnimGraph/Node_2>
+        custom string ranim:type = "Root"
+    }
+}

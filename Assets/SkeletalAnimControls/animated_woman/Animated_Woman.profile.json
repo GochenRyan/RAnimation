@@ -1,0 +1,42 @@
+{
+    "graph": "../animgraph/animated_woman/woman_character.animgraph.usda",
+    "speeds": {
+        "walk": 1.2,
+        "jog": 3.0,
+        "sprint": 4.0,
+        "crouch": 0.9,
+        "jump": 4.0,
+        "gravity": 9.81,
+        "turnDegPerSec": 120
+    },
+    "blend": {
+        "loco": 0.2,
+        "speedRate": 6.0,
+        "directionRate": 540.0,
+        "alphaRate": 4.0
+    },
+    "upperBodyMaskRoot": "Spine",
+    "montages": {
+        "punch": {
+            "clip": "Punch",
+            "slot": "UpperBody",
+            "blendIn": 0.1,
+            "blendOut": 0.2,
+            "priority": 10,
+            "notifies": [
+                {
+                    "time": 0.3,
+                    "name": "HitWindow"
+                }
+            ]
+        },
+        "hit": {
+            "clip": "Jump2",
+            "slot": "FullBody",
+            "blendIn": 0.05,
+            "blendOut": 0.2,
+            "priority": 20,
+            "lockMove": true
+        }
+    }
+}

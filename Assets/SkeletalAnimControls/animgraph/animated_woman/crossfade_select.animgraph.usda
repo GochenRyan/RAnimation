@@ -1,0 +1,65 @@
+#usda 1.0
+(
+    customLayerData = {
+        dictionary ranim = {
+            int animGraphVersion = 1
+            string doc = "Crossfade selector over three branches (idle / walk / jump by name), active = walk, 0.3 s crossfade. The branch names are what a state machine selects by."
+        }
+    }
+    defaultPrim = "AnimGraph"
+)
+
+def Scope "AnimGraph"
+{
+    custom int ranim:outputNode = 4
+
+    def Scope "Node_0"
+    {
+        custom int ranim:clipIndex = 1
+        custom string ranim:clipName = "Armature|Idle"
+        custom float2 ranim:editorPos = (60, 40)
+        custom bool ranim:looping = 1
+        custom float ranim:playRate = 1
+        custom string ranim:type = "ClipPlayer"
+    }
+
+    def Scope "Node_1"
+    {
+        custom int ranim:clipIndex = 9
+        custom string ranim:clipName = "Armature|Walking"
+        custom float2 ranim:editorPos = (60, 220)
+        custom bool ranim:looping = 1
+        custom float ranim:playRate = 1
+        custom string ranim:type = "ClipPlayer"
+    }
+
+    def Scope "Node_2"
+    {
+        custom int ranim:clipIndex = 2
+        custom string ranim:clipName = "Armature|Jump"
+        custom float2 ranim:editorPos = (60, 400)
+        custom bool ranim:looping = 0
+        custom float ranim:playRate = 1
+        custom string ranim:type = "ClipPlayer"
+    }
+
+    def Scope "Node_3"
+    {
+        custom int ranim:activeIndex = 1
+        custom float ranim:blendTime = 0.3
+        custom float2 ranim:editorPos = (400, 220)
+        custom rel ranim:in:In0 = </AnimGraph/Node_0>
+        custom rel ranim:in:In1 = </AnimGraph/Node_1>
+        custom rel ranim:in:In2 = </AnimGraph/Node_2>
+        custom string[] ranim:inputNames = ["idle", "walk", "jump"]
+        custom string ranim:name = "LocoSelect"
+        custom string ranim:type = "CrossfadeSelect"
+    }
+
+    def Scope "Node_4"
+    {
+        custom float2 ranim:editorPos = (740, 220)
+        custom rel ranim:in:Result = </AnimGraph/Node_3>
+        custom string ranim:type = "Root"
+    }
+}

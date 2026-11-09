@@ -38,3 +38,7 @@
 	path = Packages/imgui
 	url = https://github.com/ocornut/imgui.git
 	branch = docking
+[submodule "Packages/imgui-node-editor"]
+	path = Packages/imgui-node-editor
+	url = https://github.com/GochenRyan/imgui-node-editor.git
+	branch = ranim-imgui-1.92

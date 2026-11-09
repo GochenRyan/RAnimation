@@ -1,0 +1,252 @@
+#usda 1.0
+(
+    customLayerData = {
+        dictionary ranim = {
+            int animGraphVersion = 1
+            string doc = "Resident character graph for animated_woman (regression model: one clip per ring, Jump2 / Jump / Running stand in for the jump phases). Same node names as ual_character so the shared state machine drives both."
+        }
+    }
+    defaultPrim = "AnimGraph"
+)
+
+def Scope "AnimGraph"
+{
+    custom int ranim:outputNode = 21
+
+    def Scope "Node_0"
+    {
+        custom bool ranim:looping = 1
+        custom float ranim:playRate = 1
+        custom float2 ranim:editorPos = (60, 40)
+        custom int ranim:clipIndex = 0
+        custom string ranim:clipName = "Idle"
+        custom string ranim:type = "ClipPlayer"
+    }
+
+    def Scope "Node_1"
+    {
+        custom bool ranim:looping = 1
+        custom float ranim:playRate = 1
+        custom float2 ranim:editorPos = (60, 100)
+        custom int ranim:clipIndex = 0
+        custom string ranim:clipName = "Walking"
+        custom string ranim:type = "ClipPlayer"
+    }
+
+    def Scope "Node_2"
+    {
+        custom bool ranim:looping = 1
+        custom float ranim:playRate = 1
+        custom float2 ranim:editorPos = (60, 160)
+        custom int ranim:clipIndex = 0
+        custom string ranim:clipName = "Running"
+        custom string ranim:type = "ClipPlayer"
+    }
+
+    def Scope "Node_3"
+    {
+        custom bool ranim:wrapX = 1
+        custom float ranim:param = 0
+        custom float ranim:param2 = 0
+        custom float2 ranim:editorPos = (400, 130)
+        custom float2[] ranim:samplePositions2 = [(0, 0), (0, 1.2), (0, 3)]
+        custom rel ranim:in:Sample0 = </AnimGraph/Node_0>
+        custom rel ranim:in:Sample1 = </AnimGraph/Node_1>
+        custom rel ranim:in:Sample2 = </AnimGraph/Node_2>
+        custom string ranim:name = "Stand"
+        custom string ranim:type = "BlendSpace2D"
+    }
+
+    def Scope "Node_4"
+    {
+        custom bool ranim:looping = 1
+        custom float ranim:playRate = 1
+        custom float2 ranim:editorPos = (60, 220)
+        custom int ranim:clipIndex = 0
+        custom string ranim:clipName = "Idle"
+        custom string ranim:type = "ClipPlayer"
+    }
+
+    def Scope "Node_5"
+    {
+        custom bool ranim:looping = 1
+        custom float ranim:playRate = 1
+        custom float2 ranim:editorPos = (60, 280)
+        custom int ranim:clipIndex = 0
+        custom string ranim:clipName = "Walking"
+        custom string ranim:type = "ClipPlayer"
+    }
+
+    def Scope "Node_6"
+    {
+        custom bool ranim:wrapX = 1
+        custom float ranim:param = 0
+        custom float ranim:param2 = 0
+        custom float2 ranim:editorPos = (400, 280)
+        custom float2[] ranim:samplePositions2 = [(0, 0), (0, 0.9)]
+        custom rel ranim:in:Sample0 = </AnimGraph/Node_4>
+        custom rel ranim:in:Sample1 = </AnimGraph/Node_5>
+        custom string ranim:name = "Crouch"
+        custom string ranim:type = "BlendSpace2D"
+    }
+
+    def Scope "Node_7"
+    {
+        custom bool ranim:looping = 0
+        custom float ranim:playRate = 1
+        custom float2 ranim:editorPos = (60, 340)
+        custom int ranim:clipIndex = 0
+        custom string ranim:clipName = "Running"
+        custom string ranim:type = "ClipPlayer"
+    }
+
+    def Scope "Node_8"
+    {
+        custom bool ranim:looping = 1
+        custom float ranim:playRate = 1
+        custom float2 ranim:editorPos = (60, 400)
+        custom int ranim:clipIndex = 0
+        custom string ranim:clipName = "Running"
+        custom string ranim:type = "ClipPlayer"
+    }
+
+    def Scope "Node_9"
+    {
+        custom bool ranim:looping = 0
+        custom float ranim:playRate = 1
+        custom float2 ranim:editorPos = (60, 460)
+        custom int ranim:clipIndex = 0
+        custom string ranim:clipName = "Walking"
+        custom string ranim:type = "ClipPlayer"
+    }
+
+    def Scope "Node_10"
+    {
+        custom bool ranim:looping = 0
+        custom float ranim:playRate = 1
+        custom float2 ranim:editorPos = (60, 520)
+        custom int ranim:clipIndex = 0
+        custom string ranim:clipName = "Walking"
+        custom string ranim:type = "ClipPlayer"
+    }
+
+    def Scope "Node_11"
+    {
+        custom bool ranim:looping = 0
+        custom float ranim:playRate = 1
+        custom float2 ranim:editorPos = (60, 580)
+        custom int ranim:clipIndex = 0
+        custom string ranim:clipName = "Walking"
+        custom string ranim:type = "ClipPlayer"
+    }
+
+    def Scope "Node_12"
+    {
+        custom bool ranim:looping = 0
+        custom float ranim:playRate = 1
+        custom float2 ranim:editorPos = (60, 640)
+        custom int ranim:clipIndex = 0
+        custom string ranim:clipName = "Jump2"
+        custom string ranim:type = "ClipPlayer"
+    }
+
+    def Scope "Node_13"
+    {
+        custom bool ranim:looping = 1
+        custom float ranim:playRate = 1
+        custom float2 ranim:editorPos = (60, 700)
+        custom int ranim:clipIndex = 0
+        custom string ranim:clipName = "Jump"
+        custom string ranim:type = "ClipPlayer"
+    }
+
+    def Scope "Node_14"
+    {
+        custom bool ranim:looping = 0
+        custom float ranim:playRate = 1
+        custom float2 ranim:editorPos = (60, 760)
+        custom int ranim:clipIndex = 0
+        custom string ranim:clipName = "Running"
+        custom string ranim:type = "ClipPlayer"
+    }
+
+    def Scope "Node_15"
+    {
+        custom bool ranim:looping = 0
+        custom float ranim:playRate = 1
+        custom float2 ranim:editorPos = (60, 820)
+        custom int ranim:clipIndex = 0
+        custom string ranim:clipName = "Death"
+        custom string ranim:type = "ClipPlayer"
+    }
+
+    def Scope "Node_16"
+    {
+        custom float ranim:blendTime = 0.2
+        custom float2 ranim:editorPos = (800, 400)
+        custom int ranim:activeIndex = 0
+        custom rel ranim:in:In0 = </AnimGraph/Node_3>
+        custom rel ranim:in:In1 = </AnimGraph/Node_6>
+        custom rel ranim:in:In10 = </AnimGraph/Node_15>
+        custom rel ranim:in:In2 = </AnimGraph/Node_7>
+        custom rel ranim:in:In3 = </AnimGraph/Node_8>
+        custom rel ranim:in:In4 = </AnimGraph/Node_9>
+        custom rel ranim:in:In5 = </AnimGraph/Node_10>
+        custom rel ranim:in:In6 = </AnimGraph/Node_11>
+        custom rel ranim:in:In7 = </AnimGraph/Node_12>
+        custom rel ranim:in:In8 = </AnimGraph/Node_13>
+        custom rel ranim:in:In9 = </AnimGraph/Node_14>
+        custom string ranim:name = "LocoSelect"
+        custom string ranim:type = "CrossfadeSelect"
+        custom string[] ranim:inputNames = ["stand", "crouch", "sprint_enter", "sprint_loop", "sprint_exit", "turn90_l", "turn90_r", "jump_start", "jump_loop", "jump_land", "death"]
+    }
+
+    def Scope "Node_17"
+    {
+        custom bool ranim:looping = 1
+        custom float ranim:playRate = 1
+        custom float2 ranim:editorPos = (400, 880)
+        custom int ranim:clipIndex = 0
+        custom string ranim:clipName = "Idle"
+        custom string ranim:name = "UpperBase"
+        custom string ranim:type = "ClipPlayer"
+    }
+
+    def Scope "Node_18"
+    {
+        custom float2 ranim:editorPos = (800, 940)
+        custom rel ranim:in:Base = </AnimGraph/Node_17>
+        custom string ranim:name = "UpperBody"
+        custom string ranim:slotName = "UpperBody"
+        custom string ranim:type = "AnimSlot"
+    }
+
+    def Scope "Node_19"
+    {
+        custom float ranim:param = 0
+        custom float2 ranim:editorPos = (1100, 500)
+        custom int ranim:blendDepth = 2
+        custom rel ranim:in:Base = </AnimGraph/Node_16>
+        custom rel ranim:in:Layer = </AnimGraph/Node_18>
+        custom string ranim:maskRoot = "Spine"
+        custom string ranim:name = "UpperBodyLayer"
+        custom string ranim:type = "LayeredBlend"
+    }
+
+    def Scope "Node_20"
+    {
+        custom float2 ranim:editorPos = (1400, 500)
+        custom rel ranim:in:Base = </AnimGraph/Node_19>
+        custom string ranim:name = "FullBody"
+        custom string ranim:slotName = "FullBody"
+        custom string ranim:type = "AnimSlot"
+    }
+
+    def Scope "Node_21"
+    {
+        custom float2 ranim:editorPos = (1700, 500)
+        custom rel ranim:in:Result = </AnimGraph/Node_20>
+        custom string ranim:type = "Root"
+    }
+
+}

@@ -61,6 +61,5 @@ cmake -S "%REPO_ROOT%." -B "%REPO_ROOT%build" ^
   -DVCPKG_TARGET_TRIPLET=x64-windows || exit /b 1
 
 echo.
-echo [setup_vcpkg] Configure done. Build with:
-echo     cmake --build "%REPO_ROOT%build" --config Release --target SkeletalAnimHelper
+echo [setup_vcpkg] Configure done.
 endlocal

@@ -1,0 +1,195 @@
+#usda 1.0
+(
+    defaultPrim = "Animated_Woman_AssetRoot"
+    framesPerSecond = 24
+    timeCodesPerSecond = 24
+)
+
+def "Animated_Woman_AssetRoot"
+{
+    def Scope "mtl"
+    {
+        rel proxyPrim (
+            doc = '''The proxyPrim relationship allows us to link a
+        prim whose purpose is "render" to its (single target)
+        purpose="proxy" prim.  This is entirely optional, but can be
+        useful in several scenarios:
+        
+        - In a pipeline that does pruning (for complexity management)
+        by deactivating prims composed from asset references, when we
+        deactivate a purpose="render" prim, we will be able to discover
+        and additionally deactivate its associated purpose="proxy" prim,
+        so that preview renders reflect the pruning accurately.
+        
+        - DCC importers may be able to make more aggressive optimizations
+        for interactive processing and display if they can discover the proxy
+        for a given render prim.
+        
+        - With a little more work, a Hydra-based application will be able
+        to map a picked proxy prim back to its render geometry for selection.
+
+        \\note It is only valid to author the proxyPrim relationship on
+        prims whose purpose is "render".'''
+        )
+        uniform token purpose = "default" (
+            allowedTokens = ["default", "render", "proxy", "guide"]
+            doc = """Purpose is a classification of geometry into categories that 
+        can each be independently included or excluded from traversals of prims 
+        on a stage, such as rendering or bounding-box computation traversals.
+
+        See for more detail about how 
+        purpose is computed and used."""
+        )
+        token visibility = "inherited" (
+            allowedTokens = ["inherited", "invisible"]
+            doc = '''Visibility is meant to be the simplest form of "pruning" 
+        visibility that is supported by most DCC apps.  Visibility is 
+        animatable, allowing a sub-tree of geometry to be present for some 
+        segment of a shot, and absent from others; unlike the action of 
+        deactivating geometry prims, invisible geometry is still 
+        available for inspection, for positioning, for defining volumes, etc.'''
+        )
+
+        def Material "WomanSG"
+        {
+            string inputs:base_color_texture:varname = "st"
+            token outputs:displacement (
+                displayGroup = "Outputs"
+                doc = '''Represents the universal "displacement" output terminal of a 
+        material.'''
+            )
+            token outputs:surface (
+                displayGroup = "Outputs"
+                doc = '''Represents the universal "surface" output terminal of a
+        material.'''
+            )
+            token outputs:volume (
+                displayGroup = "Outputs"
+                doc = '''Represents the universal "volume" output terminal of a
+        material.'''
+            )
+
+            def Shader "Material"
+            {
+                uniform token info:id = "UsdPreviewSurface" (
+                    doc = """The id is an identifier for the type or purpose of the 
+        shader. E.g.: Texture or FractalFloat.
+        The use of this id will depend on the render context: some will turn it
+        into an actual shader path, some will use it to generate shader source 
+        code dynamically.
+        
+        \\sa SetShaderId()
+        """
+                )
+                uniform token info:implementationSource = "id" (
+                    allowedTokens = ["id", "sourceAsset", "sourceCode"]
+                    doc = """Specifies the attribute that should be consulted to get the 
+        shader's implementation or its source code.
+
+        * If set to \"id\", the \"info:id\" attribute's value is used to 
+        determine the shader source from the shader registry.
+        * If set to \"sourceAsset\", the resolved value of the \"info:sourceAsset\" 
+        attribute corresponding to the desired implementation (or source-type)
+        is used to locate the shader source.  A source asset file may also
+        specify multiple shader definitions, so there is an optional attribute
+        \"info:sourceAsset:subIdentifier\" whose value should be used to indicate
+        a particular shader definition from a source asset file.
+        * If set to \"sourceCode\", the value of \"info:sourceCode\" attribute 
+        corresponding to the desired implementation (or source type) is used as 
+        the shader source.
+        """
+                )
+                color3f inputs:diffuseColor
+                normal3f inputs:normal = (1, 1, 1)
+                float inputs:roughness = 0.48421746
+                color3f inputs:specularColor = (0, 0, 0)
+                int inputs:useSpecularWorkflow = 1
+                token outputs:displacement
+                token outputs:surface
+            }
+
+            def Shader "base_color_texture"
+            {
+                uniform token info:id = "UsdUVTexture" (
+                    doc = """The id is an identifier for the type or purpose of the 
+        shader. E.g.: Texture or FractalFloat.
+        The use of this id will depend on the render context: some will turn it
+        into an actual shader path, some will use it to generate shader source 
+        code dynamically.
+        
+        \\sa SetShaderId()
+        """
+                )
+                uniform token info:implementationSource = "id" (
+                    allowedTokens = ["id", "sourceAsset", "sourceCode"]
+                    doc = """Specifies the attribute that should be consulted to get the 
+        shader's implementation or its source code.
+
+        * If set to \"id\", the \"info:id\" attribute's value is used to 
+        determine the shader source from the shader registry.
+        * If set to \"sourceAsset\", the resolved value of the \"info:sourceAsset\" 
+        attribute corresponding to the desired implementation (or source-type)
+        is used to locate the shader source.  A source asset file may also
+        specify multiple shader definitions, so there is an optional attribute
+        \"info:sourceAsset:subIdentifier\" whose value should be used to indicate
+        a particular shader definition from a source asset file.
+        * If set to \"sourceCode\", the value of \"info:sourceCode\" attribute 
+        corresponding to the desired implementation (or source type) is used as 
+        the shader source.
+        """
+                )
+                float4 inputs:fallback = (0.5, 0.5, 0.5, 1)
+                asset inputs:file = @../textures/LightSkin.png@ (
+                    colorSpace = "sRGB"
+                )
+                token inputs:sourceColorSpace = "sRGB"
+                float2 inputs:st
+                token inputs:wrapS = "repeat"
+                token inputs:wrapT = "repeat"
+                float3 outputs:rgb
+            }
+
+            def Shader "place2dTexture1"
+            {
+                uniform token info:id = "UsdPrimvarReader_float2" (
+                    doc = """The id is an identifier for the type or purpose of the 
+        shader. E.g.: Texture or FractalFloat.
+        The use of this id will depend on the render context: some will turn it
+        into an actual shader path, some will use it to generate shader source 
+        code dynamically.
+        
+        \\sa SetShaderId()
+        """
+                )
+                uniform token info:implementationSource = "id" (
+                    allowedTokens = ["id", "sourceAsset", "sourceCode"]
+                    doc = """Specifies the attribute that should be consulted to get the 
+        shader's implementation or its source code.
+
+        * If set to \"id\", the \"info:id\" attribute's value is used to 
+        determine the shader source from the shader registry.
+        * If set to \"sourceAsset\", the resolved value of the \"info:sourceAsset\" 
+        attribute corresponding to the desired implementation (or source-type)
+        is used to locate the shader source.  A source asset file may also
+        specify multiple shader definitions, so there is an optional attribute
+        \"info:sourceAsset:subIdentifier\" whose value should be used to indicate
+        a particular shader definition from a source asset file.
+        * If set to \"sourceCode\", the value of \"info:sourceCode\" attribute 
+        corresponding to the desired implementation (or source type) is used as 
+        the shader source.
+        """
+                )
+                string inputs:varname
+                float2 outputs:result
+            }
+        }
+    }
+
+    over "Woman" (
+        apiSchemas = ["SkelBindingAPI", "MaterialBindingAPI"]
+    )
+    {
+        rel material:binding = </Animated_Woman_AssetRoot/mtl/WomanSG>
+    }
+}
+

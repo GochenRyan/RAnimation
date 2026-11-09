@@ -1,0 +1,18 @@
+#usda 1.0
+(
+    customLayerData = {
+        string assetName = "UAL_Mannequin"
+        string clips = "metadata/UAL_Mannequin_clips.json"
+        string model = "model/model.usda"
+    }
+    defaultPrim = "UAL_Mannequin_AssetRoot"
+    metersPerUnit = 1
+    upAxis = "Y"
+)
+
+def SkelRoot "UAL_Mannequin_AssetRoot" (
+    prepend references = @model/model.usda@</UAL_Mannequin_AssetRoot>
+)
+{
+}
+

@@ -62,10 +62,16 @@ function(ranim_target_use_usd target)
 
         # Deploy the USD plugin resource tree next to the exe so _Bin/<Config> is relocatable. The runtime
         # prefers <exeDir>/usd and only falls back to RANIM_USD_PLUGIN_DIR (the vcpkg tree) if absent.
-        add_custom_command(TARGET ${target} POST_BUILD
-            COMMAND ${CMAKE_COMMAND} -E copy_directory_if_different
-                    "${RANIM_USD_PLUGIN_DIR}" "$<TARGET_FILE_DIR:${target}>/usd"
-            COMMENT "Deploying USD plugin tree to $<TARGET_FILE_DIR:${target}>/usd"
-            VERBATIM)
+        # One shared custom target instead of a POST_BUILD per executable: several USD executables share
+        # _Bin/<Config>, and parallel POST_BUILD copies into the same tree can race.
+        if(NOT TARGET ranim_deploy_usd_plugins)
+            add_custom_target(ranim_deploy_usd_plugins
+                COMMAND ${CMAKE_COMMAND} -E copy_directory_if_different
+                        "${RANIM_USD_PLUGIN_DIR}" "${CMAKE_SOURCE_DIR}/_Bin/$<CONFIG>/usd"
+                COMMENT "Deploying USD plugin tree to _Bin/$<CONFIG>/usd"
+                VERBATIM)
+            set_target_properties(ranim_deploy_usd_plugins PROPERTIES FOLDER "Tools")
+        endif()
+        add_dependencies(${target} ranim_deploy_usd_plugins)
     endif()
 endfunction()
