@@ -82,8 +82,11 @@ if(RANIM_HAS_USD)
     # links the library and depends on the baked asset.
     add_subdirectory(Tools/TrsTexture)
     add_subdirectory(Samples/SkeletalAnimControls)
+    # SkeletalAnimCollision = SkeletalAnimControls + Jolt Physics; shares the Controls assets/bake step.
+    include(CMake/jolt_options.cmake)
+    add_subdirectory(Samples/SkeletalAnimCollision)
 else()
-    message(STATUS "Skipping USD-dependent targets (OpenUSD not found): SkeletalAnimHelper, SkeletalAnimControls, TrsTextureBaker.")
+    message(STATUS "Skipping USD-dependent targets (OpenUSD not found): SkeletalAnimHelper, SkeletalAnimControls, SkeletalAnimCollision, TrsTextureBaker, Jolt.")
 endif()
 
 function(get_all_targets result dir)

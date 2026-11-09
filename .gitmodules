@@ -42,3 +42,6 @@
 	path = Packages/imgui-node-editor
 	url = https://github.com/GochenRyan/imgui-node-editor.git
 	branch = ranim-imgui-1.92
+[submodule "Packages/JoltPhysics"]
+	path = Packages/JoltPhysics
+	url = https://github.com/jrouwe/JoltPhysics.git
