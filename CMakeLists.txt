@@ -85,8 +85,11 @@ if(RANIM_HAS_USD)
     # SkeletalAnimCollision = SkeletalAnimControls + Jolt Physics; shares the Controls assets/bake step.
     include(CMake/jolt_options.cmake)
     add_subdirectory(Samples/SkeletalAnimCollision)
+    # SkeletalAnimBehavior = SkeletalAnimCollision + instance behavior; shares the Controls assets/bake
+    # step and the Collision sample's collision JSON. Only its shaders live under Assets/SkeletalAnimBehavior.
+    add_subdirectory(Samples/SkeletalAnimBehavior)
 else()
-    message(STATUS "Skipping USD-dependent targets (OpenUSD not found): SkeletalAnimHelper, SkeletalAnimControls, SkeletalAnimCollision, TrsTextureBaker, Jolt.")
+    message(STATUS "Skipping USD-dependent targets (OpenUSD not found): SkeletalAnimHelper, SkeletalAnimControls, SkeletalAnimCollision, SkeletalAnimBehavior, TrsTextureBaker, Jolt.")
 endif()
 
 function(get_all_targets result dir)
