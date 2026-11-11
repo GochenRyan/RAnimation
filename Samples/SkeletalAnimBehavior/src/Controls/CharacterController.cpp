@@ -65,6 +65,10 @@ namespace RAnimation
             {
                 return {};
             }
+            if (const auto* a = std::any_cast<ActionPayload>(&event->payload))
+            {
+                return a->montage;
+            }
             if (const auto* s = std::any_cast<std::string>(&event->payload))
             {
                 return *s;
@@ -74,6 +78,24 @@ namespace RAnimation
                 return *c;
             }
             return {};
+        }
+
+        // The request id an "Action" / "CancelAction" event carries (0 = untracked / any).
+        RequestId EventRequest(const Event* event)
+        {
+            if (event == nullptr)
+            {
+                return 0;
+            }
+            if (const auto* a = std::any_cast<ActionPayload>(&event->payload))
+            {
+                return a->request;
+            }
+            if (const auto* r = std::any_cast<RequestId>(&event->payload))
+            {
+                return *r;
+            }
+            return 0;
         }
 
         int SlotIndex(const std::string& slot) { return slot == CharacterController::kFullBodySlot ? kSlotFull : kSlotUpper; }
@@ -215,6 +237,8 @@ namespace RAnimation
                 anim->pendingMontage.clear();
                 anim->slotRequests.push_back({slot, montage});
                 anim->currentMontage[SlotIndex(slot)] = montage;
+                anim->currentRequest[SlotIndex(slot)] = anim->pendingRequest;
+                anim->pendingRequest = 0;
                 const CharacterProfile* profile = ProfileOf(ctx);
                 const ProfileMontage* pm = profile != nullptr ? profile->FindMontage(montage) : nullptr;
                 anim->movementLock = pm != nullptr && pm->desc.lockMovement;
@@ -233,7 +257,15 @@ namespace RAnimation
                 if (AnimParams* anim = AnimOf(ctx))
                 {
                     const std::string slot = GetParams().Get<std::string>("slot", CharacterController::kUpperBodySlot);
-                    anim->currentMontage[SlotIndex(slot)].clear();
+                    const int index = SlotIndex(slot);
+                    // Leaving because the slot ran empty = completed; any other exit (CancelAction, a higher
+                    // priority montage replacing this one) = cancelled.
+                    if (anim->currentRequest[index] != 0)
+                    {
+                        anim->endedRequests.emplace_back(anim->currentRequest[index], IsDone(ctx));
+                        anim->currentRequest[index] = 0;
+                    }
+                    anim->currentMontage[index].clear();
                     anim->movementLock = false;
                 }
             }
@@ -301,6 +333,25 @@ namespace RAnimation
                 }
             }
             return !any || incoming->desc.priority > current;
+        }
+
+        // "CancelAction" addresses this slot's request (or every request) and the montage allows it (D4).
+        bool CancelMatches(StateContext& ctx, const Event* event, const char* slot)
+        {
+            const CharacterProfile* profile = ProfileOf(ctx);
+            const AnimParams* anim = AnimOf(ctx);
+            if (anim == nullptr)
+            {
+                return false;
+            }
+            const int index = SlotIndex(slot);
+            const RequestId wanted = EventRequest(event);
+            if (wanted != 0 && wanted != anim->currentRequest[index])
+            {
+                return false;
+            }
+            const ProfileMontage* pm = profile != nullptr ? profile->FindMontage(anim->currentMontage[index]) : nullptr;
+            return pm == nullptr || pm->cancelable;
         }
     } // namespace
 
@@ -382,6 +433,27 @@ namespace RAnimation
                                     if (AnimParams* anim = AnimOf(ctx))
                                     {
                                         anim->pendingMontage = EventMontage(ctx.CurrentEvent());
+                                        anim->pendingRequest = EventRequest(ctx.CurrentEvent());
+                                    }
+                                });
+        registry.RegisterGuard("CancelUpperBody",
+                               [](StateContext& ctx, const Event* e) { return CancelMatches(ctx, e, kUpperBodySlot); });
+        registry.RegisterGuard("CancelFullBody",
+                               [](StateContext& ctx, const Event* e) { return CancelMatches(ctx, e, kFullBodySlot); });
+        registry.RegisterAction("StopUpperBodySlot",
+                                [](StateContext& ctx)
+                                {
+                                    if (AnimParams* anim = AnimOf(ctx))
+                                    {
+                                        anim->stopSlots.push_back(kUpperBodySlot);
+                                    }
+                                });
+        registry.RegisterAction("StopFullBodySlot",
+                                [](StateContext& ctx)
+                                {
+                                    if (AnimParams* anim = AnimOf(ctx))
+                                    {
+                                        anim->stopSlots.push_back(kFullBodySlot);
                                     }
                                 });
         registry.RegisterGuard("ActionUpperBody",
@@ -480,6 +552,7 @@ namespace RAnimation
         const EventId evAction = def->RegisterEvent("Action");
         const EventId evToggleWeapon = def->RegisterEvent("ToggleWeapon");
         const EventId evDie = def->RegisterEvent("Die");
+        const EventId evCancel = def->RegisterEvent("CancelAction");
         def->RegisterEvent("Notify"); // montage notifies, for guards of future transitions
 
         auto add = [&](StateId from, StateId to, const char* guard, EventId trigger = kInvalidEventId, int priority = 0,
@@ -532,6 +605,9 @@ namespace RAnimation
         add(fullBusy, fullBusy, "ActionOutranksFull", evAction, 10, "RememberMontage");
         add(upperBusy, fullBusy, "ActionOutranksFull", evAction, 10, "RememberMontage");
         add(fullBusy, upperBusy, "ActionOutranksUpper", evAction, 10, "RememberMontage");
+        // CancelAction (D4): fade the slot out and free the region; a non-cancelable montage ignores it.
+        add(upperBusy, free, "CancelUpperBody", evCancel, 15, "StopUpperBodySlot");
+        add(fullBusy, free, "CancelFullBody", evCancel, 15, "StopFullBodySlot");
 
         // Weapon
         add(unarmed, pistol, nullptr, evToggleWeapon, 5);
@@ -552,19 +628,20 @@ namespace RAnimation
         data.deadState = definition.FindState("Dead");
     }
 
-    bool CharacterController::Init(const std::string& assetsDir, std::string& outError)
+    std::shared_ptr<CharacterShared> CharacterController::CreateShared(const std::string& assetsDir, std::string& outError)
     {
-        mAssetsDir = assetsDir;
-        RegisterCharacterTypes(mRegistry);
+        auto shared = std::make_shared<CharacterShared>();
+        shared->assetsDir = assetsDir;
+        RegisterCharacterTypes(shared->registry);
 
         const std::string path = (std::filesystem::path(assetsDir) / kDefinitionRelPath).generic_string();
         std::string error;
         if (std::filesystem::exists(path))
         {
-            mDefinition = StateMachineSerializer::DeserializeDefinition(path, mRegistry, mDoc, error);
-            if (mDefinition)
+            shared->definition = StateMachineSerializer::DeserializeDefinition(path, shared->registry, shared->doc, error);
+            if (shared->definition)
             {
-                mSource = path;
+                shared->source = path;
             }
             else
             {
@@ -574,35 +651,53 @@ namespace RAnimation
                            error);
             }
         }
-        if (!mDefinition)
+        if (!shared->definition)
         {
-            mDefinition = BuildDefaultDefinition(mRegistry, error);
-            if (!mDefinition)
+            shared->definition = BuildDefaultDefinition(shared->registry, error);
+            if (!shared->definition)
             {
                 outError = error;
-                return false;
+                return nullptr;
             }
-            mSource = "(built-in)";
-            mDoc = "Controllable character: Locomotion {Stand, Crouch, Sprint, Turn, Airborne, Dead} || Action {Free, "
-                   "UpperBodyBusy, FullBodyBusy} || Weapon {Unarmed, Pistol}. Montages and graph inputs by name; "
-                   "model data in <Stem>.profile.json.";
+            shared->source = "(built-in)";
+            shared->doc = "Controllable character: Locomotion {Stand, Crouch, Sprint, Turn, Airborne, Dead} || Action {Free, "
+                          "UpperBodyBusy, FullBodyBusy} || Weapon {Unarmed, Pistol}. Montages (with CancelAction) and graph "
+                          "inputs by name; model data in <Stem>.profile.json.";
         }
-        return true;
+        return shared;
+    }
+
+    bool CharacterController::Init(const std::string& assetsDir, std::string& outError)
+    {
+        mShared = CreateShared(assetsDir, outError);
+        return mShared != nullptr;
+    }
+
+    const std::string& CharacterController::DefinitionSource() const
+    {
+        static const std::string kNone;
+        return mShared ? mShared->source : kNone;
+    }
+
+    const std::string& CharacterController::DefinitionDoc() const
+    {
+        static const std::string kNone;
+        return mShared ? mShared->doc : kNone;
     }
 
     bool CharacterController::SaveDefinition(const std::string& path, std::string& outError) const
     {
-        if (!mDefinition)
+        if (!mShared || !mShared->definition)
         {
             outError = "no definition";
             return false;
         }
-        return StateMachineSerializer::SerializeDefinition(*mDefinition, mDoc, path, outError);
+        return StateMachineSerializer::SerializeDefinition(*mShared->definition, mShared->doc, path, outError);
     }
 
     bool CharacterController::Attach(std::shared_ptr<ModelInstance> instance, std::string& outError)
     {
-        if (!mDefinition)
+        if (!mShared || !mShared->definition)
         {
             outError = "controller is not initialised";
             return false;
@@ -613,6 +708,9 @@ namespace RAnimation
             return false;
         }
         const Model& model = *instance->GetModel();
+        auto& mProfileCache = mShared->profileCache;
+        auto& mGraphCache = mShared->graphCache;
+        const std::shared_ptr<StateMachineDefinition>& mDefinition = mShared->definition;
 
         // profile (cached per path) ----------------------------------------------------------------------
         const std::string profilePath = CharacterProfile::PathForModel(model);
@@ -667,6 +765,8 @@ namespace RAnimation
         mAppliedLocoSelect.clear();
         mLog.clear();
         mNotifies.clear();
+        mRequests.clear();
+        mStatusChanges.clear();
 
         const InstanceSettings settings = mInstance->GetInstanceSettings();
         mMotion.position = settings.mWorldPosition;
@@ -737,21 +837,281 @@ namespace RAnimation
         mMotion.airborne = true;
     }
 
-    bool CharacterController::RequestAction(const std::string& montage)
+    bool CharacterController::RequestAction(const std::string& montage, RequestId request)
     {
         if (!mManager || !mProfile)
         {
+            SetRequestStatus(request, RequestStatus::Rejected);
             return false;
         }
         if (mProfile->FindMontage(montage) == nullptr)
         {
             PushLog(fmt::format("action '{}' is not in the profile", montage));
+            SetRequestStatus(request, RequestStatus::Rejected);
             return false;
         }
+        SetRequestStatus(request, RequestStatus::Pending);
         Event e;
-        e.id = mDefinition->FindEvent("Action");
-        e.payload = montage;
+        e.id = mManager->Definition().FindEvent("Action");
+        e.payload = ActionPayload{montage, request};
         mManager->DispatchEvent(e);
+        return true;
+    }
+
+    void CharacterController::CancelAction(RequestId request)
+    {
+        if (!mManager)
+        {
+            return;
+        }
+        Event e;
+        e.id = mManager->Definition().FindEvent("CancelAction");
+        e.payload = request;
+        if (e.id != kInvalidEventId)
+        {
+            mManager->DispatchEvent(e);
+        }
+    }
+
+    void CharacterController::SetRequestStatus(RequestId id, RequestStatus status)
+    {
+        if (id == 0)
+        {
+            return;
+        }
+        auto it = mRequests.find(id);
+        if (it != mRequests.end() && it->second == status)
+        {
+            return;
+        }
+        mRequests[id] = status;
+        mStatusChanges.emplace_back(id, status);
+        // Keep the table bounded: drop the oldest finished requests (an unknown id reads as Cancelled, which
+        // is what a long-forgotten request is anyway).
+        while (mRequests.size() > 128)
+        {
+            auto oldest = std::find_if(mRequests.begin(), mRequests.end(), [](const auto& r) { return IsFinished(r.second); });
+            if (oldest == mRequests.end())
+            {
+                break;
+            }
+            mRequests.erase(oldest);
+        }
+    }
+
+    // After the state machine ran: busy states that entered took their request (Accepted), busy states that
+    // left report how (Completed / Cancelled), and a request still Pending was not taken by any transition.
+    void CharacterController::UpdateRequests()
+    {
+        for (const RequestId id : mAnim.currentRequest)
+        {
+            if (id != 0)
+            {
+                auto it = mRequests.find(id);
+                if (it == mRequests.end() || it->second == RequestStatus::Pending)
+                {
+                    SetRequestStatus(id, RequestStatus::Accepted);
+                }
+            }
+        }
+        for (const auto& [id, completed] : mAnim.endedRequests)
+        {
+            // a request that entered and left within one update still counts as accepted first
+            SetRequestStatus(id, completed ? RequestStatus::Completed : RequestStatus::Cancelled);
+        }
+        mAnim.endedRequests.clear();
+        std::vector<RequestId> undecided;
+        for (const auto& [id, status] : mRequests)
+        {
+            if (status == RequestStatus::Pending)
+            {
+                undecided.push_back(id);
+            }
+        }
+        for (RequestId id : undecided)
+        {
+            SetRequestStatus(id, RequestStatus::Rejected);
+        }
+    }
+
+    bool CharacterController::Armed() const
+    {
+        if (!mManager)
+        {
+            return false;
+        }
+        const StateId pistol = mManager->Definition().FindState("Pistol");
+        return pistol != kInvalidStateId && mManager->IsActive(pistol);
+    }
+
+    void CharacterController::BuildFeedback(ExecutionFeedback& out)
+    {
+        out.motion = mMotion;
+        out.armed = Armed();
+        out.dead = mAnim.dead;
+        out.requests = mRequests;
+        out.statusChanges = std::move(mStatusChanges);
+        mStatusChanges.clear();
+    }
+
+    void CharacterController::SaveRuntime(SaveNode& out) const
+    {
+        SaveNode& motion = out.Child("Motion");
+        motion.Set("grounded", mMotion.grounded);
+        motion.Set("airborne", mMotion.airborne);
+        motion.Set("speed", mMotion.speed);
+        motion.Set("verticalVelocity", mMotion.verticalVelocity);
+        motion.Set("yawDeg", mMotion.yawDeg);
+        motion.Set("position", mMotion.position);
+        motion.Set("movementLocked", mMotion.movementLocked);
+
+        // AnimParams: the states write them in OnEnter, which a load does not replay. Slot requests are not
+        // saved (that would replay a montage the graph no longer plays), so is the request bookkeeping.
+        SaveNode& anim = out.Child("AnimParams");
+        anim.Set("locoSelect", mAnim.locoSelect);
+        anim.Set("locoRestart", mAnim.locoRestart);
+        anim.Set("moveSpeed", mAnim.moveSpeed);
+        anim.Set("upperBodyAlphaTarget", mAnim.upperBodyAlphaTarget);
+        anim.Set("currentMontageUpper", mAnim.currentMontage[0]);
+        anim.Set("currentMontageFull", mAnim.currentMontage[1]);
+        anim.Set("movementLock", mAnim.movementLock);
+        anim.Set("dead", mAnim.dead);
+
+        SaveNode& eased = out.Child("Eased");
+        eased.Set("speed", mEasedSpeed);
+        eased.Set("directionDeg", mEasedDirectionDeg);
+        eased.Set("alpha", mEasedAlpha);
+
+        SaveNode& sm = out.Child("StateMachine");
+        if (mManager)
+        {
+            const StateMachineDefinition& def = mManager->Definition();
+            sm.Set("definition", def.Name);
+            sm.Set("running", mManager->IsRunning());
+            std::vector<std::string> leaves;
+            for (StateId leaf : mManager->ActiveLeaves())
+            {
+                leaves.push_back(def.GetState(leaf)->GetName());
+            }
+            sm.Set("activeLeaves", leaves);
+            SaveNode& data = sm.Child("Data");
+            for (const auto& [stateId, stateData] : mManager->Runtime().stateData)
+            {
+                ParamBag bag;
+                stateData->Serialize(bag);
+                if (bag.Values().empty())
+                {
+                    continue;
+                }
+                SaveNode& node = data.Child(def.GetState(stateId)->GetName());
+                for (const auto& [key, value] : bag.Values())
+                {
+                    std::visit([&node, &key](const auto& v) { node.Set(key, v); }, value);
+                }
+            }
+        }
+    }
+
+    bool CharacterController::LoadRuntime(const SaveNode& in, std::string& outError)
+    {
+        if (!mManager)
+        {
+            outError = "controller is not attached";
+            return false;
+        }
+        if (const SaveNode* sm = in.FindChild("StateMachine"))
+        {
+            const StateMachineDefinition& def = mManager->Definition();
+            const std::string name = sm->GetOr<std::string>("definition", "");
+            if (name != def.Name)
+            {
+                outError = fmt::format("saved for state machine '{}', the controller runs '{}'", name, def.Name);
+                return false;
+            }
+            std::vector<std::string> leafNames;
+            sm->Get("activeLeaves", leafNames);
+            std::vector<StateId> leaves;
+            for (const std::string& leafName : leafNames)
+            {
+                const StateId id = def.FindState(leafName);
+                if (id == kInvalidStateId)
+                {
+                    outError = fmt::format("unknown state '{}'", leafName);
+                    return false;
+                }
+                leaves.push_back(id);
+            }
+            if (!mManager->RestoreActiveLeaves(leaves, outError))
+            {
+                return false;
+            }
+            if (const SaveNode* data = sm->FindChild("Data"))
+            {
+                for (const SaveNode& stateNode : data->children)
+                {
+                    const StateId id = def.FindState(stateNode.name);
+                    IStateInstanceData* stateData = id != kInvalidStateId ? mManager->GetStateData(id) : nullptr;
+                    if (stateData == nullptr)
+                    {
+                        continue;
+                    }
+                    ParamBag bag;
+                    for (const auto& [key, value] : stateNode.values)
+                    {
+                        if (const bool* b = std::get_if<bool>(&value))
+                            bag.Set(key, *b);
+                        else if (const int* i = std::get_if<int>(&value))
+                            bag.Set(key, *i);
+                        else if (const float* f = std::get_if<float>(&value))
+                            bag.Set(key, *f);
+                        else if (const std::string* s = std::get_if<std::string>(&value))
+                            bag.Set(key, *s);
+                    }
+                    stateData->Deserialize(bag);
+                }
+            }
+        }
+        if (const SaveNode* motion = in.FindChild("Motion"))
+        {
+            motion->Get("grounded", mMotion.grounded);
+            motion->Get("airborne", mMotion.airborne);
+            motion->Get("speed", mMotion.speed);
+            motion->Get("verticalVelocity", mMotion.verticalVelocity);
+            motion->Get("yawDeg", mMotion.yawDeg);
+            motion->Get("position", mMotion.position);
+            motion->Get("movementLocked", mMotion.movementLocked);
+            if (mInstance)
+            {
+                InstanceSettings s = mInstance->GetInstanceSettings();
+                s.mWorldPosition = mMotion.position;
+                s.mWorldRotation.y = mMotion.yawDeg;
+                mInstance->SetInstanceSettings(s);
+            }
+        }
+        if (const SaveNode* anim = in.FindChild("AnimParams"))
+        {
+            AnimParams restored;
+            anim->Get("locoSelect", restored.locoSelect);
+            anim->Get("locoRestart", restored.locoRestart);
+            anim->Get("moveSpeed", restored.moveSpeed);
+            anim->Get("upperBodyAlphaTarget", restored.upperBodyAlphaTarget);
+            anim->Get("currentMontageUpper", restored.currentMontage[0]);
+            anim->Get("currentMontageFull", restored.currentMontage[1]);
+            anim->Get("movementLock", restored.movementLock);
+            anim->Get("dead", restored.dead);
+            mAnim = std::move(restored);
+        }
+        if (const SaveNode* eased = in.FindChild("Eased"))
+        {
+            eased->Get("speed", mEasedSpeed);
+            eased->Get("directionDeg", mEasedDirectionDeg);
+            eased->Get("alpha", mEasedAlpha);
+        }
+        // the request table starts empty: every request the decision layer still waits for reads Cancelled
+        mRequests.clear();
+        mStatusChanges.clear();
+        mAppliedLocoSelect.clear(); // ApplyVisuals re-applies the saved selector input on the next frame
+        mInput = CharacterInput{};
         return true;
     }
 
@@ -882,10 +1242,10 @@ namespace RAnimation
                 {
                     mNotifies.pop_front();
                 }
-                if (mManager && mDefinition)
+                if (mManager)
                 {
                     Event e;
-                    e.id = mDefinition->FindEvent("Notify");
+                    e.id = mManager->Definition().FindEvent("Notify");
                     e.payload = std::string(notify);
                     if (e.id != kInvalidEventId)
                     {
@@ -931,6 +1291,7 @@ namespace RAnimation
         Move(deltaTime);
         ReadFeedback(scene);
         mManager->Update(deltaTime);
+        UpdateRequests();
         ApplyVisuals(scene);
     }
 
@@ -994,6 +1355,13 @@ namespace RAnimation
         {
             nodes->aim->Input = std::clamp(0.5f + 0.5f * mInput.aimPitch, 0.0f, 1.0f);
         }
+
+        // CancelAction: fade the slot out (the busy state already left, so the montage name is gone)
+        for (const std::string& slot : mAnim.stopSlots)
+        {
+            nodes->graph->StopMontage(slot, kCancelBlendOutSec);
+        }
+        mAnim.stopSlots.clear();
 
         // montage requests
         for (const SlotRequest& r : mAnim.slotRequests)

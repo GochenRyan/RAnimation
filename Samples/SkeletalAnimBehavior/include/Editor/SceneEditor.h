@@ -8,10 +8,12 @@
 
 #include <glm/glm.hpp>
 
+#include <Model/EntityId.h>
 #include <Model/Model.h>
 #include <Model/ModelInstance.h>
 #include <Model/InstanceSettings.h>
 #include <Model/ModelAndInstanceData.h>
+#include <Model/UsdSceneExporter.h>
 #include <Editor/Editor.h>
 
 namespace RAnimation
@@ -109,8 +111,33 @@ namespace RAnimation
         // Creates one instance per settings entry as a single undo step (crowd spawn).
         void AddInstances(std::shared_ptr<Model> model, const std::vector<InstanceSettings>& settings, const char* commandName);
         void DeleteInstance(std::shared_ptr<ModelInstance> instance);
-        void CloneInstance(std::shared_ptr<ModelInstance> instance);
+        // The clone gets a new entity id; an agent config is copied with possessed cleared.
+        std::shared_ptr<ModelInstance> CloneInstance(std::shared_ptr<ModelInstance> instance);
         void FocusCameraOn(std::shared_ptr<ModelInstance> instance);
+
+        // -- Level import (one undo step) --
+        // Loads every asset not yet in the scene, recreates the instances with their file entity ids and
+        // agent configs, and adds the static layers (gameplay data + a display instance at the origin when
+        // the layer has visible meshes). A file id already taken in this session is replaced by a fresh one.
+        struct ImportResult
+        {
+            int instances = 0;
+            int staticLayers = 0;
+            int failedAssets = 0;
+            int reassignedIds = 0; // file id already in use -> fresh id
+            int newIds = 0;        // file had no id (pre-entity-id level) -> fresh id
+        };
+        ImportResult ImportScene(const ImportedScene& scene);
+
+        // Checkpoint load: drops every instance and static layer and the undo history (not undoable); loaded models
+        // stay in the model list so the following ImportScene reuses them. Entity ids become free again.
+        void ClearForLoad();
+
+        // -- Entity ids --
+        // Every instance gets one when it enters the scene (insert); ids are never reused within a session,
+        // so an instance restored by undo keeps a unique id.
+        EntityId AllocateEntityId();
+        std::shared_ptr<ModelInstance> FindEntity(EntityId id) const;
 
         // Frees the GPU resources of every model still referenced by the scene or the history. Must be
         // called at shutdown while the device is alive (drives the release hook).
@@ -125,6 +152,12 @@ namespace RAnimation
 
         // Frees a model's GPU resources exactly once via the release hook.
         void releaseModelGpu(const std::shared_ptr<Model>& model);
+
+        // Reserves wanted when it is free, else allocates a fresh id (kInvalidEntityId -> fresh id).
+        EntityId claimEntityId(EntityId wanted);
+
+        EntityId mNextEntityId = 1;
+        std::unordered_set<EntityId> mUsedEntityIds{};
 
         ModelAndInstanceData mModelInstData{};
         Editor mEditor{};

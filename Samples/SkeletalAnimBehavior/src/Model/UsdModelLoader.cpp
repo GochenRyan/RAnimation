@@ -33,6 +33,7 @@
 #include <pxr/usd/usd/prim.h>
 #include <pxr/usd/usd/primRange.h>
 #include <pxr/usd/sdf/assetPath.h>
+#include <pxr/usd/usdGeom/imageable.h>
 #include <pxr/usd/usdGeom/mesh.h>
 #include <pxr/usd/usdGeom/primvarsAPI.h>
 #include <pxr/usd/usdGeom/primvar.h>
@@ -227,10 +228,14 @@ namespace
         return true;
     }
 
+    // bake: extra transform folded into points and normals after geomBindTransform. Identity for skinned
+    // meshes (their placement comes from the skeleton); the static path passes the mesh's full
+    // stage-to-canonical * local-to-world so every mesh of an un-rigged asset lands in one model space.
     void buildMesh(const UsdGeomMesh& usdMesh,
                    const std::unordered_map<std::string, int>& jointToBoneId,
                    const std::string& diffuseTexName,
-                   UsdLoadedModel& out)
+                   UsdLoadedModel& out,
+                   const glm::mat4& bake = glm::mat4(1.0f))
     {
         const UsdPrim prim = usdMesh.GetPrim();
 
@@ -322,12 +327,17 @@ namespace
         binding.GetGeomBindTransformAttr().Get(&geomBind);
         const GfMatrix4d geomBindNormal = geomBind.GetInverse().GetTranspose();
 
+        // Bake: normals take the inverse transpose (correct under non-uniform scale); a mirroring bake
+        // (negative determinant) would turn every triangle inside-out, so the winding is swapped below.
+        const glm::mat3 bakeNormal = glm::transpose(glm::inverse(glm::mat3(bake)));
+        const bool bakeMirrors = glm::determinant(glm::mat3(bake)) < 0.0f;
+
         // Pre-transform points once (reused for vertices and normal generation).
         std::vector<glm::vec3> pointPositions(points.size());
         for (size_t i = 0; i < points.size(); ++i)
         {
             const GfVec3d p = geomBind.Transform(GfVec3d(points[i]));
-            pointPositions[i] = glm::vec3(static_cast<float>(p[0]), static_cast<float>(p[1]), static_cast<float>(p[2]));
+            pointPositions[i] = glm::vec3(bake * glm::vec4(static_cast<float>(p[0]), static_cast<float>(p[1]), static_cast<float>(p[2]), 1.0f));
         }
 
         // These USD assets ship no authored normal values, so synthesize smooth (area-weighted) per-point
@@ -346,7 +356,8 @@ namespace
                     const int i0 = faceVertexIndices[static_cast<size_t>(gc)];
                     const int i1 = faceVertexIndices[static_cast<size_t>(gc + k)];
                     const int i2 = faceVertexIndices[static_cast<size_t>(gc + k + 1)];
-                    const glm::vec3 faceNormal = glm::cross(pointPositions[i1] - pointPositions[i0],
+                    const glm::vec3 faceNormal = (bakeMirrors ? -1.0f : 1.0f) *
+                                                 glm::cross(pointPositions[i1] - pointPositions[i0],
                                                             pointPositions[i2] - pointPositions[i0]);
                     generatedNormals[i0] += faceNormal;
                     generatedNormals[i1] += faceNormal;
@@ -382,7 +393,7 @@ namespace
                 {
                     // GfMatrix4d::TransformDir returns GfVec3d (the matrix's scalar type)
                     const GfVec3d n = geomBindNormal.TransformDir(GfVec3d(normals[static_cast<size_t>(ni)]));
-                    v.normal = glm::normalize(
+                    v.normal = glm::normalize(bakeNormal *
                             glm::vec3(static_cast<float>(n[0]), static_cast<float>(n[1]), static_cast<float>(n[2])));
                 }
             }
@@ -457,8 +468,8 @@ namespace
             for (int k = 1; k + 1 < count; ++k)
             {
                 const int c0 = corner;
-                const int c1 = corner + k;
-                const int c2 = corner + k + 1;
+                const int c1 = bakeMirrors ? corner + k + 1 : corner + k;
+                const int c2 = bakeMirrors ? corner + k : corner + k + 1;
 
                 const uint32_t startIndex = static_cast<uint32_t>(mesh.vertices.size());
                 mesh.vertices.emplace_back(buildVertex(static_cast<int>(f), c0));
@@ -692,6 +703,68 @@ namespace
         }
         return std::string();
     }
+
+    // ----- static (un-rigged) assets ------------------------------------------------------------------
+
+    // Meshes that are not drawn: hidden, guide/proxy purpose, or gameplay volumes (ranim:marker, e.g. a
+    // ZONE_ box authored as a cube in the DCC).
+    bool isDisplayMesh(const UsdPrim& prim)
+    {
+        const UsdGeomImageable imageable(prim);
+        if (imageable.ComputeVisibility(UsdTimeCode::Default()) == UsdGeomTokens->invisible)
+        {
+            return false;
+        }
+        const TfToken purpose = imageable.ComputePurpose();
+        if (purpose == UsdGeomTokens->guide || purpose == UsdGeomTokens->proxy)
+        {
+            return false;
+        }
+        return !prim.HasAttribute(TfToken("ranim:marker"));
+    }
+
+    // A stage without a Skeleton: one synthetic root node, no bones, no clips, and EVERY display mesh with
+    // its stage-to-canonical * local-to-world baked into the vertices. DCC exporters put their unit / axis
+    // conversion on the root prim (Maya unit="m": scale 0.01; Blender: Rx(-90)), so only the full
+    // local-to-world places the geometry correctly.
+    bool loadStaticModel(const UsdStageRefPtr& stage, const std::string& assetUsdPath, UsdLoadedModel& out)
+    {
+        const glm::mat4 stageToCanonical = detail::usdconv::StageToCanonicalMatrix(stage);
+        const std::string diffuseTexName = findDiffuseTexture(stage, out);
+
+        UsdGeomXformCache xformCache(UsdTimeCode::Default());
+        int skipped = 0;
+        for (const UsdPrim& prim : stage->Traverse())
+        {
+            if (!prim.IsA<UsdGeomMesh>())
+            {
+                continue;
+            }
+            if (!isDisplayMesh(prim))
+            {
+                ++skipped;
+                continue;
+            }
+            const glm::mat4 bake = stageToCanonical * GlmFromGf(xformCache.GetLocalToWorldTransform(prim));
+            buildMesh(UsdGeomMesh(prim), {}, diffuseTexName, out, bake);
+        }
+
+        if (out.meshes.empty())
+        {
+            fmt::print(stderr, fg(fmt::color::red), "UsdModelLoader: '{}' has neither a UsdSkel Skeleton nor a visible Mesh\n", assetUsdPath);
+            return false;
+        }
+
+        const UsdPrim defaultPrim = stage->GetDefaultPrim();
+        out.nodes = {{defaultPrim ? defaultPrim.GetPath().GetString() : std::string("/"), -1, glm::mat4(1.0f)}};
+        out.rootTransform = glm::mat4(1.0f);
+
+        fmt::print("UsdModelLoader: loaded static '{}' - {} meshes ({} hidden / marker meshes skipped)\n",
+                   assetUsdPath,
+                   out.meshes.size(),
+                   skipped);
+        return true;
+    }
 } // namespace
 
 namespace RAnimation
@@ -724,8 +797,7 @@ namespace RAnimation
 
         if (!skeleton)
         {
-            fmt::print(stderr, fg(fmt::color::red), "UsdModelLoader: no UsdSkel Skeleton found in '{}'\n", assetUsdPath);
-            return false;
+            return loadStaticModel(stage, assetUsdPath, out);
         }
 
         // skeleton-local -> world (SkelRoot/Armature orientation), carried by the synthetic root node,

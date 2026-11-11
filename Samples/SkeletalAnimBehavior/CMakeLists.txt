@@ -26,10 +26,12 @@ target_link_libraries(SkeletalAnimBehavior PRIVATE ImGuiFileDialog)
 target_link_libraries(SkeletalAnimBehavior PRIVATE imgui_node_editor)
 # Jolt Physics: per-bone collision bodies + queries (CMake/jolt_options.cmake adds the submodule).
 target_link_libraries(SkeletalAnimBehavior PRIVATE Jolt)
-# TRS texture format + loader (Tools/TrsTexture). Models, animgraphs, state machine and level files are
-# shared with SkeletalAnimControls (Assets/SkeletalAnimControls); the collision JSON is shared with
-# SkeletalAnimCollision (Assets/SkeletalAnimCollision/collision). Only shaders live under
-# Assets/SkeletalAnimBehavior. The shared bake step runs before this sample builds.
+# TRS texture format + loader (Tools/TrsTexture). Models and animgraphs are shared with SkeletalAnimControls
+# (Assets/SkeletalAnimControls); the collision JSON is shared with SkeletalAnimCollision
+# (Assets/SkeletalAnimCollision/collision). Assets/SkeletalAnimBehavior holds shader/, level/ (engine-written
+# *.level.usda + Maya-written *.static.usda, see Tools/Maya/BehaviorScene), behavior/ (*.behaviortree.usda,
+# global.blackboard.usda), profile/ (character profiles with this sample's montages) and statemachine/ (the
+# character definition with CancelAction). The shared bake step runs before this sample builds.
 target_link_libraries(SkeletalAnimBehavior PRIVATE TrsTexture)
 add_dependencies(SkeletalAnimBehavior BakeTrsTextures)
 

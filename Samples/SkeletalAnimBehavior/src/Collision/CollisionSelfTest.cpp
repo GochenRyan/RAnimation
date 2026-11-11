@@ -211,6 +211,121 @@ namespace RAnimation
         }
     } // namespace
 
+    namespace
+    {
+        // D19 / §7.3 merging rules on synthetic records: owners 0 and 1 are characters (entities 10, 11),
+        // kStaticOwnerBit | 0 a boundary wall.
+        void TestContactMerger()
+        {
+            fmt::print("\n-- contact events: merging (D19, 7.3) --\n");
+            ContactMerger merger;
+            const auto resolve = [](uint32_t owner)
+            {
+                ContactOwnerInfo info;
+                info.valid = true;
+                if (owner & kStaticOwnerBit)
+                {
+                    info.isStatic = true;
+                    info.tag = StaticColliderTag::Boundary;
+                }
+                else
+                {
+                    info.entity = 10 + owner;
+                }
+                return info;
+            };
+            auto raw = [](uint32_t o1, uint32_t o2, uint32_t s1, uint32_t s2, bool touching, glm::vec3 n = glm::vec3(1.0f, 0.0f, 0.0f))
+            {
+                RawContactEvent e;
+                e.owner1 = o1;
+                e.owner2 = o2;
+                e.sub1 = s1;
+                e.sub2 = s2;
+                e.touching = touching;
+                e.normal = n;
+                return e;
+            };
+            std::vector<ContactEvent> out;
+            std::vector<RawContactEvent> in = {raw(0, 1, 1, 2, false)};
+            merger.Apply(in, resolve, out);
+            Check(out.empty(), "a speculative contact (depth <= 0) does not begin anything");
+            in = {raw(0, 1, 1, 2, true)};
+            merger.Apply(in, resolve, out);
+            Check(out.size() == 2 && out[0].begin && out[0].a == 10 && out[0].b == 11 && out[1].a == 11 && out[1].b == 10,
+                  "the speculative pair starts touching (Persisted): Begin for both characters");
+            Check(Near(out[0].normalOnA.x, -1.0f, 1e-5f) && Near(out[1].normalOnA.x, 1.0f, 1e-5f), "  normals point away from the other one");
+            out.clear();
+            in = {raw(1, 0, 4, 3, true)}; // second sub-shape pair, reported the other way round
+            merger.Apply(in, resolve, out);
+            Check(out.empty() && merger.TouchingOwnerPairs() == 1, "a second touching sub-shape pair of the same entities: no new event");
+            in = {raw(0, 1, 1, 2, false)};
+            merger.Apply(in, resolve, out);
+            Check(out.empty(), "one of two sub-shape pairs ends: the entities still touch");
+            in = {raw(0, 1, 3, 4, false)};
+            merger.Apply(in, resolve, out);
+            Check(out.size() == 2 && !out[0].begin && !out[1].begin && merger.TouchingOwnerPairs() == 0, "the last one ends: End for both");
+            out.clear();
+            in = {raw(0, kStaticOwnerBit | 0u, 5, 0, true, glm::vec3(0.0f, 0.0f, 1.0f))};
+            merger.Apply(in, resolve, out);
+            Check(out.size() == 1 && out[0].a == 10 && out[0].staticBody && out[0].tag == StaticColliderTag::Boundary &&
+                          Near(out[0].normalOnA.z, -1.0f, 1e-5f),
+                  "character vs boundary wall: one event, static, normal pointing back to the character");
+            out.clear();
+            in = {raw(0, 1, 1, 2, true)};
+            merger.Apply(in, resolve, out);
+            out.clear();
+            merger.RemoveOwner(0, resolve, out);
+            int ends = 0;
+            for (const ContactEvent& e : out)
+            {
+                ends += e.begin ? 0 : 1;
+            }
+            Check(ends == 3 && merger.TouchingOwnerPairs() == 0, "removing a body ends all its pairs at once (2 for the character pair + 1 for the wall)");
+            out.clear();
+            in = {raw(0, 1, 1, 2, false)}; // Jolt's late OnContactRemoved after the removal
+            merger.Apply(in, resolve, out);
+            Check(out.empty(), "the late OnContactRemoved finds nothing and is ignored");
+        }
+
+        void TestStaticLayer()
+        {
+            fmt::print("\n-- static layer, full push, line of sight (7.2) --\n");
+            CollisionWorld world;
+            std::string error;
+            CollisionThreadingPolicy single;
+            single.mode = CollisionThreadingPolicy::Mode::Single;
+            Check(world.Init(8, single, error), "world init");
+            StaticBoxDesc wall;
+            wall.center = glm::vec3(0.0f, 1.0f, -1.0f);
+            wall.halfExtents = glm::vec3(3.0f, 1.0f, 0.25f);
+            Check(world.SetStaticBoxes(std::span<const StaticBoxDesc>(&wall, 1), error) && world.StaticCount() == 1, "one static box");
+            Check(world.RayCastStatic(glm::vec3(0.0f, 1.5f, 1.0f), glm::vec3(0.0f, 1.5f, -3.0f)), "a ray through the wall is blocked");
+            Check(!world.RayCastStatic(glm::vec3(0.0f, 2.5f, 1.0f), glm::vec3(0.0f, 2.5f, -3.0f)), "a ray above the wall is not");
+            Check(!world.RayCastStatic(glm::vec3(5.0f, 1.0f, 1.0f), glm::vec3(5.0f, 1.0f, -3.0f)), "a ray beside the wall is not");
+
+            // capsule (radius 0.35) at z = -0.5: overlaps the wall face at z = -0.75 by 0.1
+            CollisionProfile p = CapsuleProfile(0.6f, 0.35f);
+            Check(world.AddBody(0, p, glm::vec3(0.0f, 0.95f, -0.5f), error), "character body next to the wall");
+            PoseAt(world, 0, glm::vec3(0.0f, 0.95f, -0.5f));
+            world.Step(1.0f / 60.0f);
+            const std::span<const CollisionPush> pushes = world.Resolve();
+            Check(pushes.size() == 1 && pushes[0].delta.z > 0.07f && pushes[0].delta.z < 0.13f,
+                  fmt::format("the character takes the whole penetration (push z = {:.3f}, expected ~0.10)", pushes.empty() ? 0.0f : pushes[0].delta.z));
+            std::vector<RawContactEvent> events = world.TakeContactEvents();
+            bool touchingStatic = false;
+            for (const RawContactEvent& e : events)
+            {
+                touchingStatic = touchingStatic || (e.touching && ((e.owner1 | e.owner2) & kStaticOwnerBit) != 0);
+            }
+            Check(touchingStatic, "the contact is recorded with the static owner");
+            world.RemoveBody(0);
+            world.Step(1.0f / 60.0f);
+            events = world.TakeContactEvents();
+            Check(events.empty(), "after removal Jolt's OnContactRemoved for the body is dropped (owner unknown)");
+            world.Shutdown();
+        }
+    } // namespace
+
     int RunCollisionSelfTests()
     {
         gChecks = 0;
@@ -220,6 +335,8 @@ namespace RAnimation
         TestWorldPushes(CollisionThreadingPolicy::Mode::Single, "single-threaded");
         TestWorldPushes(CollisionThreadingPolicy::Mode::Pool, "thread pool");
         TestPackedGroupSymmetry();
+        TestContactMerger();
+        TestStaticLayer();
         fmt::print("\nCollision result: {}/{} passed\n", gChecks - gFails, gChecks);
         return gFails;
     }

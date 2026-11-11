@@ -7,6 +7,9 @@
 #include <Application/Application.h>
 #include <StateMachine/StateMachineSelfTest.h>
 #include <Collision/CollisionSelfTest.h>
+#include <Editor/LevelSelfTest.h>
+#include <Behavior/BehaviorSelfTest.h>
+#include <Behavior/BehaviorTestAssets.h>
 
 using namespace RAnimation;
 
@@ -22,7 +25,9 @@ using namespace RAnimation;
 //                             scripted input sequence (implies --fixed-dt 1/60 and --frames 420); the
 //                             transition log is checked at the end (exit 1 on mismatch)
 //   --save-statemachine <f>   write the built-in character state machine as <f> (.statemachine.usda)
-//   --selftest                run the state-machine + collision self tests (no window, no GPU) and exit with the failure count
+//   --selftest                run the state-machine + collision + level IO self tests (no window, no GPU) and exit with the failure count
+//   --level-roundtrip <f>     after --scene: export the scene to <f>, re-import it and check entity ids / agent configs /
+//                             static layers survive, check a clone gets a new id, print the static layers (exit 1 on mismatch)
 //   --no-collision            do not create the Jolt collision world
 //   --collision-debug-draw    start with the collision AABB + shape wireframes visible
 //   --collision-threads m     auto | single | pool: job system for PhysicsSystem::Update (auto switches by body count)
@@ -30,6 +35,17 @@ using namespace RAnimation;
 //   --collision-bench         benchmark the collision stage (needs --scene; prints a Markdown table, then exits)
 //   --collision-bench-sizes   comma-separated instance counts for the benchmark (default 1,2,4,...,256)
 //   --collision-bench-frames  frames per benchmark cell (default 300)
+//   --behavior                behaviour smoke test on --scene (behavior_test.level.usda): scripted player, contact /
+//                             boundary / sight / zone / patrol / interaction / request lifecycle checks, a checkpoint
+//                             save + load mid-run; implies --fixed-dt 1/60 and --frames 1800 (exit 1 on failure)
+//   --write-behavior-assets   write the test level's behaviour trees + global blackboard to Assets/SkeletalAnimBehavior/behavior
+//   --show-bt-editor          open the behaviour tree editor window at start (follows the selected agent in View mode)
+//   --editor-smoke            after --scene behavior_test.level.usda: drive the behaviour tree editor with injected mouse /
+//                             key input (add node, refused save / mode switch, error focus, link + rejected link, delete,
+//                             reorder by x, undo / redo, save, Edit -> View restarts only the affected agent, live view,
+//                             possession release); exit 1 on failure
+//   --behavior-bench <N>      after --scene: N extra patrol / watcher agents (View mode, 10 Hz), prints the per-frame cost
+//                             of perception, decisions and execution averaged over --frames (default 600)
 int main(int argc, char* argv[])
 {
     SmokeTestOptions smoke;
@@ -39,7 +55,42 @@ int main(int argc, char* argv[])
         const bool hasValue = i + 1 < argc;
         if (arg == "--selftest")
         {
-            return RunStateMachineSelfTests() + RunCollisionSelfTests();
+            return RunStateMachineSelfTests() + RunCollisionSelfTests() + RunLevelSelfTests() + RunBehaviorSelfTests();
+        }
+        else if (arg == "--write-behavior-assets")
+        {
+            BehaviorSystem behavior;
+            std::string error;
+            if (!behavior.Init(ASSETS_SRC_DIR "/SkeletalAnimBehavior", error) || !WriteBehaviorTestAssets(behavior, error))
+            {
+                fmt::print(stderr, "--write-behavior-assets: {}\n", error);
+                return 1;
+            }
+            return 0;
+        }
+        else if (arg == "--behavior")
+        {
+            smoke.behavior = true;
+        }
+        else if (arg == "--show-bt-editor")
+        {
+            smoke.showBehaviorEditor = true;
+        }
+        else if (arg == "--editor-smoke")
+        {
+            smoke.editorSmoke = true;
+        }
+        else if (arg == "--view")
+        {
+            smoke.viewMode = true;
+        }
+        else if (arg == "--select" && hasValue)
+        {
+            smoke.selectEntity = std::strtoull(argv[++i], nullptr, 10);
+        }
+        else if (arg == "--behavior-bench" && hasValue)
+        {
+            smoke.behaviorBench = std::atoi(argv[++i]);
         }
         else if (arg == "--no-collision")
         {
@@ -104,6 +155,10 @@ int main(int argc, char* argv[])
         else if (arg == "--verify")
         {
             smoke.verify = true;
+        }
+        else if (arg == "--level-roundtrip" && hasValue)
+        {
+            smoke.levelRoundTripPath = argv[++i];
         }
         else
         {

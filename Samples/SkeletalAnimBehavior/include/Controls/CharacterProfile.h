@@ -17,6 +17,7 @@ namespace RAnimation
     {
         std::string slot; // AnimSlot name in the graph ("UpperBody" / "FullBody")
         MontageDesc desc;
+        bool cancelable = true; // CancelAction fades it out; false = it always plays to the end (D4)
     };
 
     struct CharacterProfile
@@ -47,7 +48,8 @@ namespace RAnimation
             return it != montages.end() ? &it->second : nullptr;
         }
 
-        // <dir of the model's asset usda>/<Stem>.profile.json, e.g. ual_mannequin/UAL_Mannequin.profile.json
+        // Assets/SkeletalAnimBehavior/profile/<Stem>.profile.json when it exists (this sample's montages, e.g.
+        // wave / talk for the behaviour trees), else <dir of the model's asset usda>/<Stem>.profile.json.
         static std::string PathForModel(const Model& model);
         static bool Load(const std::string& path, CharacterProfile& out, std::string& outError);
     };

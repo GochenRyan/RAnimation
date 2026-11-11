@@ -22,7 +22,9 @@
 #include <Editor/Command.h>
 #include <Editor/SceneEditor.h>
 #include <Renderer/UserInterface.h>
-#include <Controls/CharacterController.h>
+#include <Agent/CharacterSystem.h>
+#include <fmt/format.h>
+#include <cmath>
 #include <Collision/CollisionSystem.h>
 
 using namespace RAnimation;
@@ -164,7 +166,7 @@ void UserInterface::drawMenuBarAndHotkeys(RRenderData& renderData, SceneEditor& 
     {
         if (ImGui::IsKeyChordPressed(ImGuiMod_Ctrl | ImGuiKey_E))
         {
-            sceneEditor.ToggleMode();
+            requestModeToggle(sceneEditor);
         }
         if (editMode)
         {
@@ -228,7 +230,7 @@ void UserInterface::drawMenuBarAndHotkeys(RRenderData& renderData, SceneEditor& 
             bool editFlag = editMode;
             if (ImGui::MenuItem("Edit Mode", "Ctrl+E", &editFlag))
             {
-                sceneEditor.ToggleMode();
+                requestModeToggle(sceneEditor);
             }
 
             ImGui::EndMenu();
@@ -260,38 +262,11 @@ void UserInterface::drawMenuBarAndHotkeys(RRenderData& renderData, SceneEditor& 
             ModelAndInstanceData& modInstData = sceneEditor.ModelData();
             const std::string scenePath = ImGuiFileDialog::Instance()->GetFilePathName();
 
-            std::vector<ImportedSceneInstance> imported;
-            CameraRig importedRig;
-            if (ImportSceneFromUsd(scenePath, imported, importedRig))
+            ImportedScene imported;
+            if (ImportSceneFromUsd(scenePath, imported))
             {
-                renderData.rdCameraRig = importedRig;
-
-                for (const ImportedSceneInstance& imp : imported)
-                {
-                    std::shared_ptr<Model> model = sceneEditor.GetModel(imp.assetPath);
-                    if (model == nullptr)
-                    {
-                        // first instance of this asset: AddModel loads it and creates one default instance,
-                        // which we reconfigure with this instance's settings
-                        if (!sceneEditor.AddModel(imp.assetPath))
-                        {
-                            continue;
-                        }
-                        if (!modInstData.miModelInstances.empty())
-                        {
-                            modInstData.miModelInstances.back()->SetInstanceSettings(imp.settings);
-                        }
-                    }
-                    else
-                    {
-                        // further instances of an already-loaded asset
-                        std::shared_ptr<ModelInstance> instance = sceneEditor.AddInstance(model);
-                        if (instance != nullptr)
-                        {
-                            instance->SetInstanceSettings(imp.settings);
-                        }
-                    }
-                }
+                renderData.rdCameraRig = imported.camera;
+                sceneEditor.ImportScene(imported);
 
                 modInstData.miSelectedModel = std::max(0, static_cast<int>(modInstData.miModelList.size()) - 1);
                 modInstData.miSelectedInstance =
@@ -332,6 +307,10 @@ void UserInterface::CreateFrame(RRenderData& renderData, SceneEditor& sceneEdito
     HideMouse(false);
 
     ImGui_ImplSDL3_NewFrame();
+    if (inputInjector)
+    {
+        inputInjector(ImGui::GetIO());
+    }
     ImGui::NewFrame();
     ImGui::DockSpaceOverViewport(0, ImGui::GetMainViewport(), ImGuiDockNodeFlags_PassthruCentralNode);
 
@@ -430,6 +409,7 @@ void UserInterface::CreateFrame(RRenderData& renderData, SceneEditor& sceneEdito
     // The AnimGraph editor is its own dockable window; draw it before the Control window so the early
     // returns below never skip it.
     mAnimGraphPanel.Draw(sceneEditor);
+    mBehaviorTreePanel.Draw(sceneEditor);
 
     if (!ImGui::Begin("Control"))
     {
@@ -824,8 +804,11 @@ void UserInterface::CreateFrame(RRenderData& renderData, SceneEditor& sceneEdito
 
             std::shared_ptr<ModelInstance> instance = modInstData.miModelInstances[modInstData.miSelectedInstance];
             InstanceSettings settings = instance->GetInstanceSettings();
+            // A static layer's display instance is read-only: colliders / zones / markers are an import-time
+            // snapshot of the DCC layer (D22), so moving / cloning / deleting the display would desync them.
+            const bool isStaticDisplay = modInstData.IsStaticLayerModel(instance->GetModel().get());
 
-            ImGui::BeginDisabled(!editMode);
+            ImGui::BeginDisabled(!editMode || isStaticDisplay);
             if (ImGui::Button("Clone Instance"))
             {
                 sceneEditor.CloneInstance(instance);
@@ -836,7 +819,7 @@ void UserInterface::CreateFrame(RRenderData& renderData, SceneEditor& sceneEdito
             ImGui::SameLine();
             const std::string modelName = instance->GetModel()->GetModelFileName();
             const size_t perModelCount = modInstData.miModelInstancesPerModel[modelName].size();
-            ImGui::BeginDisabled(!editMode || perModelCount < 2);
+            ImGui::BeginDisabled(!editMode || isStaticDisplay || perModelCount < 2);
             if (ImGui::Button("Delete Instance"))
             {
                 sceneEditor.DeleteInstance(instance);
@@ -861,7 +844,20 @@ void UserInterface::CreateFrame(RRenderData& renderData, SceneEditor& sceneEdito
                 sceneEditor.FocusCameraOn(instance);
             }
 
-            ImGui::BeginDisabled(!editMode);
+            // Identity / behaviour setup (§9.1 "Agent" area).
+            ImGui::Text("Entity id: %llu", static_cast<unsigned long long>(instance->GetEntityId()));
+            if (isStaticDisplay)
+            {
+                ImGui::SameLine();
+                ImGui::TextDisabled("(static layer display, read-only)");
+                ImGui::TextDisabled("Edit the layer in Maya and re-export it; colliders and markers follow the file.");
+            }
+            else
+            {
+                drawAgentConfig(sceneEditor, instance);
+            }
+
+            ImGui::BeginDisabled(!editMode || isStaticDisplay);
 
             ImGui::SliderFloat3(
                     "World Position", glm::value_ptr(settings.mWorldPosition), -25.0f, 25.0f, "%.2f", sliderFlags);
@@ -883,6 +879,45 @@ void UserInterface::CreateFrame(RRenderData& renderData, SceneEditor& sceneEdito
             ImGui::SliderInt("##MassInstanceCreation", &mManyInstanceCreateNum, 1, 100, "%d", ImGuiSliderFlags_AlwaysClamp);
 
             ImGui::EndDisabled();
+        }
+    }
+
+    if (ImGui::CollapsingHeader("Level (static layers)"))
+    {
+        ImGui::Checkbox("Show colliders / zones / markers", &modInstData.miShowLevelStatics);
+        if (modInstData.miStaticLayers.empty())
+        {
+            ImGui::TextDisabled("no static layer (import a level whose subLayers hold a DCC .static.usda)");
+        }
+        for (const StaticLayer& layer : modInstData.miStaticLayers)
+        {
+            const std::string file = std::filesystem::path(layer.path).filename().generic_string();
+            if (ImGui::TreeNode(layer.path.c_str(), "%s", file.c_str()))
+            {
+                ImGui::Text("display model: %s", layer.model ? "yes" : "none (no visible mesh)");
+                ImGui::Text("%zu collider(s), %zu zone(s), %zu marker(s)", layer.statics.colliders.size(), layer.statics.zones.size(), layer.statics.markers.size());
+                for (const StaticCollider& c : layer.statics.colliders)
+                {
+                    ImGui::BulletText("%s %s  centre (%.2f, %.2f, %.2f)  size (%.2f, %.2f, %.2f)",
+                                      c.tag == StaticColliderTag::Boundary ? "boundary" : "obstacle",
+                                      c.name.c_str(),
+                                      c.box.center.x, c.box.center.y, c.box.center.z,
+                                      2.0f * c.box.halfExtents.x, 2.0f * c.box.halfExtents.y, 2.0f * c.box.halfExtents.z);
+                }
+                for (const StaticZone& z : layer.statics.zones)
+                {
+                    ImGui::BulletText("zone %s  centre (%.2f, %.2f, %.2f)", z.name.c_str(), z.box.center.x, z.box.center.y, z.box.center.z);
+                }
+                for (const StaticMarker& m : layer.statics.markers)
+                {
+                    ImGui::BulletText("%s %s  (%.2f, %.2f, %.2f)", m.kind == StaticMarkerKind::Spawn ? "spawn" : "waypoint", m.name.c_str(), m.position.x, m.position.y, m.position.z);
+                }
+                for (const std::string& w : layer.statics.warnings)
+                {
+                    ImGui::TextColored(ImVec4(1.0f, 0.8f, 0.2f, 1.0f), "%s", w.c_str());
+                }
+                ImGui::TreePop();
+            }
         }
     }
 
@@ -974,7 +1009,7 @@ void UserInterface::CreateFrame(RRenderData& renderData, SceneEditor& sceneEdito
         ImGui::EndDisabled();
     }
 
-    if (ImGui::CollapsingHeader("Character (state machine)", ImGuiTreeNodeFlags_DefaultOpen))
+    if (ImGui::CollapsingHeader("Agent (character + decisions)", ImGuiTreeNodeFlags_DefaultOpen))
     {
         drawCharacterPanel(modInstData);
     }
@@ -1154,81 +1189,233 @@ void UserInterface::drawCollisionPanel(ModelAndInstanceData& modInstData)
     }
 }
 
-void UserInterface::drawCharacterPanel(ModelAndInstanceData& modInstData)
+void UserInterface::requestModeToggle(SceneEditor& sceneEditor)
 {
-    CharacterController* controller = mCharacterController;
-    if (controller == nullptr || controller->Manager() == nullptr && controller->DefinitionSource().empty())
+    if (sceneEditor.IsEditMode())
     {
-        ImGui::TextDisabled("controller unavailable (definition or locomotion graph missing)");
+        std::string reason;
+        if (mBehaviorSystem != nullptr && !mBehaviorTreePanel.CanLeaveEdit(reason))
+        {
+            mModeStatus = "stay in Edit: " + reason;
+            mBehaviorTreePanel.bVisible = true;
+            return;
+        }
+        sceneEditor.SetMode(Editor::Mode::View);
+        mBehaviorTreePanel.OnEnteredView();
+        mModeStatus.clear();
         return;
     }
-    ImGui::TextDisabled("definition: %s", controller->DefinitionSource().c_str());
-    if (!controller->DefinitionDoc().empty())
+    sceneEditor.SetMode(Editor::Mode::Edit);
+}
+
+// Agent config of one instance; every change is one undoable command (a slider drag coalesces).
+void UserInterface::drawAgentConfig(SceneEditor& sceneEditor, const std::shared_ptr<ModelInstance>& instance)
+{
+    const bool editMode = sceneEditor.IsEditMode();
+    std::optional<AgentConfig> config = instance->GetAgentConfig();
+    const std::optional<AgentConfig> before = config;
+    auto record = [&sceneEditor, &instance](const std::optional<AgentConfig>& from, const std::optional<AgentConfig>& to, const char* name)
     {
-        ImGui::TextWrapped("%s", controller->DefinitionDoc().c_str());
+        std::shared_ptr<ModelInstance> target = instance;
+        sceneEditor.ExecuteCommand(std::make_unique<FunctionalCommand>(
+                name, [target, to]() { target->SetAgentConfig(to); }, [target, from]() { target->SetAgentConfig(from); }));
+    };
+
+    ImGui::BeginDisabled(!editMode);
+    bool isAgent = config.has_value();
+    if (ImGui::Checkbox("Agent", &isAgent))
+    {
+        std::optional<AgentConfig> after = isAgent ? std::optional<AgentConfig>(AgentConfig{}) : std::nullopt;
+        record(before, after, isAgent ? "Make agent" : "Remove agent");
+        config = after;
+    }
+    ImGui::EndDisabled();
+    if (!config)
+    {
+        ImGui::SameLine();
+        ImGui::TextDisabled("(crowd instance)");
+        return;
+    }
+    ImGui::BeginDisabled(!editMode);
+    // tree picker: behavior/*.behaviortree.usda
+    if (ImGui::BeginCombo("tree", config->tree.empty() ? "(none: idle)" : config->tree.c_str()))
+    {
+        if (ImGui::Selectable("(none: idle)", config->tree.empty()))
+        {
+            AgentConfig after = *config;
+            after.tree.clear();
+            record(before, after, "Agent tree");
+        }
+        for (const std::string& file : mBehaviorTreePanel.TreeFiles())
+        {
+            if (ImGui::Selectable(file.c_str(), file == config->tree))
+            {
+                AgentConfig after = *config;
+                after.tree = file;
+                record(before, after, "Agent tree");
+            }
+        }
+        ImGui::EndCombo();
+    }
+    AgentConfig edited = *config;
+    auto slider = [&](const char* label, float* value, float lo, float hi, const char* format, const char* commandName)
+    {
+        ImGui::SliderFloat(label, value, lo, hi, format, ImGuiSliderFlags_AlwaysClamp);
+        if (ImGui::IsItemActivated())
+        {
+            mPendingAgentBefore = before;
+            mPendingAgentInstance = instance;
+        }
+        if (ImGui::IsItemActive() || ImGui::IsItemDeactivated())
+        {
+            instance->SetAgentConfig(edited); // live while dragging
+        }
+        if (ImGui::IsItemDeactivatedAfterEdit() && mPendingAgentInstance == instance)
+        {
+            record(mPendingAgentBefore, edited, commandName);
+            mPendingAgentInstance = nullptr;
+        }
+    };
+    slider("tick Hz (0 = tree default)", &edited.tickHz, 0.0f, 60.0f, "%.1f", "Agent tick rate");
+    slider("proximity m", &edited.proximityRadius, 0.5f, 30.0f, "%.1f", "Agent proximity radius");
+    slider("fov half deg", &edited.fovHalfDeg, 5.0f, 180.0f, "%.0f", "Agent field of view");
+    slider("sight m", &edited.sightRange, 1.0f, 60.0f, "%.1f", "Agent sight range");
+    bool possessed = edited.possessed;
+    if (ImGui::Checkbox("possessed at level start", &possessed))
+    {
+        AgentConfig after = edited;
+        after.possessed = possessed;
+        record(before, after, "Agent possession");
+    }
+    ImGui::EndDisabled();
+    if (mCharacterSystem != nullptr)
+    {
+        if (Agent* agent = mCharacterSystem->FindByInstance(instance.get()))
+        {
+            const bool isPlayer = mCharacterSystem->Possessed() == agent->entity;
+            if (ImGui::Button(isPlayer ? "Release (stop possessing)" : "Possess"))
+            {
+                mCharacterSystem->Possess(isPlayer ? kInvalidEntityId : agent->entity);
+            }
+            ImGui::SameLine();
+            if (ImGui::Button("Open tree"))
+            {
+                if (!config->tree.empty())
+                    mBehaviorTreePanel.LoadTree(config->tree);
+                mBehaviorTreePanel.bVisible = true;
+            }
+        }
+        else
+        {
+            ImGui::TextDisabled("(no agent yet: the model needs a character profile)");
+        }
+    }
+}
+
+void UserInterface::drawCharacterPanel(ModelAndInstanceData& modInstData)
+{
+    CharacterSystem* characters = mCharacterSystem;
+    if (characters == nullptr || !characters->IsInitialized())
+    {
+        ImGui::TextDisabled("agents unavailable (state machine definition missing)");
+        return;
+    }
+    ImGui::Checkbox("Show Behavior Tree Editor", &mBehaviorTreePanel.bVisible);
+    if (!mModeStatus.empty())
+    {
+        ImGui::TextColored(ImVec4(1.0f, 0.5f, 0.3f, 1.0f), "%s", mModeStatus.c_str());
+    }
+    // checkpoint (§8.4): executed at the end of the frame by the application
+    ImGui::SetNextItemWidth(320.0f);
+    ImGui::InputText("##slot", mCheckpointSlot, sizeof(mCheckpointSlot));
+    ImGui::SameLine();
+    if (ImGui::Button("Save checkpoint") && mSaveCheckpoint)
+    {
+        mSaveCheckpoint(mCheckpointSlot);
+    }
+    ImGui::SameLine();
+    if (ImGui::Button("Load") && mLoadCheckpoint)
+    {
+        mLoadCheckpoint(mCheckpointSlot);
+    }
+    if (!characters->EventLog().empty())
+    {
+        ImGui::TextDisabled("last: %s", characters->EventLog().back().c_str());
+    }
+    ImGui::TextDisabled("definition: %s", characters->Shared()->source.c_str());
+    {
+        const CharacterSystem::Stats& st = characters->LastStats();
+        ImGui::TextDisabled("%d agent(s), world time %.2f s, ticked %d (woken %d), rays %d | perception %.0f us, decisions %.0f us, "
+                            "execution %.0f us",
+                            st.agents, characters->WorldTime(), st.ticked, st.woken, st.rays, st.perceptionUs, st.decisionUs,
+                            st.executionUs);
     }
 
     const bool hasInstances = !modInstData.miModelInstances.empty();
     std::shared_ptr<ModelInstance> selected = hasInstances ? modInstData.miModelInstances[modInstData.miSelectedInstance] : nullptr;
-    const bool attachedToSelected = controller->IsAttached() && controller->Target() == selected.get();
+    Agent* agent = selected ? characters->FindByInstance(selected.get()) : nullptr;
 
-    ImGui::BeginDisabled(!hasInstances || attachedToSelected);
-    if (ImGui::Button("Attach to selected instance"))
+    if (agent == nullptr)
     {
-        std::string error;
-        if (!controller->Attach(selected, error))
+        ImGui::BeginDisabled(!hasInstances || modInstData.IsStaticLayerModel(selected ? selected->GetModel().get() : nullptr));
+        if (ImGui::Button("Make selected instance an agent (idle)"))
         {
-            mCharacterStatus = error;
+            std::string error;
+            if (characters->AddAgent(selected, nullptr, error) == nullptr)
+                mCharacterStatus = error;
+            else
+                mCharacterStatus.clear();
         }
-        else
+        ImGui::EndDisabled();
+        if (!mCharacterStatus.empty())
         {
-            mCharacterStatus.clear();
+            ImGui::TextColored(ImVec4(1.0f, 0.4f, 0.4f, 1.0f), "%s", mCharacterStatus.c_str());
         }
-    }
-    ImGui::EndDisabled();
-    ImGui::SameLine();
-    ImGui::BeginDisabled(!controller->IsAttached());
-    if (ImGui::Button("Detach"))
-    {
-        controller->Detach();
-    }
-    ImGui::EndDisabled();
-    if (!mCharacterStatus.empty())
-    {
-        ImGui::TextColored(ImVec4(1.0f, 0.4f, 0.4f, 1.0f), "%s", mCharacterStatus.c_str());
-    }
-
-    if (!controller->IsAttached())
-    {
-        ImGui::TextDisabled("not attached");
+        ImGui::TextDisabled("the selected instance is not an agent (give it an agent config, or use the button)");
         return;
     }
+
+    CharacterController* controller = agent->controller.get();
+    const bool possessed = characters->Possessed() == agent->entity;
+    ImGui::Text("agent %llu: brain %s%s", static_cast<unsigned long long>(agent->entity), agent->brain->Describe().c_str(),
+                agent->parkedBrain ? fmt::format(" (own brain parked: {})", agent->parkedBrain->Describe()).c_str() : "");
+    if (!possessed)
+    {
+        if (ImGui::Button("Possess"))
+        {
+            characters->Possess(agent->entity);
+        }
+    }
+    else if (ImGui::Button("Release"))
+    {
+        characters->Possess(kInvalidEntityId);
+    }
+    ImGui::SameLine();
+    if (!agent->fromConfig && ImGui::Button("Remove agent"))
+    {
+        characters->RemoveAgent(agent->entity);
+        return;
+    }
+    const AgentSchedule& s = agent->schedule;
+    ImGui::TextDisabled("schedule: %s, ticks %llu (woken %llu), next timer %s", s.intervalSec > 0.0f ? fmt::format("{:.1f} Hz", 1.0f / s.intervalSec).c_str() : "every frame",
+                        static_cast<unsigned long long>(s.ticks), static_cast<unsigned long long>(s.wakeTicks),
+                        std::isinf(s.nextWakeTime) ? "none" : fmt::format("{:.2f} s", s.nextWakeTime).c_str());
     ImGui::Text("active: %s", controller->ActiveStatesText().c_str());
-    ImGui::TextDisabled("keys (non-Free camera): W/S A/D move, Q/E turn, Shift jog, Alt sprint, Ctrl crouch, V aim (Up/Down pitch),");
-    ImGui::TextDisabled("Space jump, F punch, H hit, G weapon, K die");
-    if (ImGui::Button("Jump"))
+    if (possessed)
     {
-        controller->Jump();
+        ImGui::TextDisabled("keys (non-Free camera): W/S A/D move, Q/E turn, Shift jog, Alt sprint, Ctrl crouch, V aim (Up/Down pitch),");
+        ImGui::TextDisabled("Space jump, F punch, H hit, G weapon, K die, U interact");
     }
-    ImGui::SameLine();
-    if (ImGui::Button("Punch"))
     {
-        controller->RequestAction("punch");
-    }
-    ImGui::SameLine();
-    if (ImGui::Button("Hit"))
-    {
-        controller->RequestAction("hit");
-    }
-    ImGui::SameLine();
-    if (ImGui::Button("Weapon"))
-    {
-        controller->ToggleWeapon();
-    }
-    ImGui::SameLine();
-    if (ImGui::Button("Die"))
-    {
-        controller->Die();
+        const ExecutionFeedback& fb = agent->feedback;
+        ImGui::TextDisabled("feedback: %s%s target %.2f m, facing error %.0f deg%s%s", fb.armed ? "armed, " : "", fb.dead ? "dead, " : "",
+                            fb.distanceToTarget, fb.facingErrorDeg, fb.arrived ? ", arrived" : "", fb.blocked ? ", BLOCKED" : "");
+        std::string requests;
+        for (auto it = fb.requests.rbegin(); it != fb.requests.rend() && std::distance(fb.requests.rbegin(), it) < 6; ++it)
+        {
+            requests += fmt::format("#{} {}  ", it->first, RequestStatusName(it->second));
+        }
+        ImGui::TextDisabled("requests: %s", requests.empty() ? "-" : requests.c_str());
     }
     {
         const MotionState& m = controller->Motion();
@@ -1262,6 +1449,7 @@ void UserInterface::Cleanup(RRenderData& renderData)
     if (ImGui::GetCurrentContext() != nullptr)
     {
         mAnimGraphPanel.Shutdown();
+        mBehaviorTreePanel.Shutdown();
         ImGui::DestroyContext();
     }
 }

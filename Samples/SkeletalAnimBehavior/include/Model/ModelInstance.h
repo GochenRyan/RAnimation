@@ -1,9 +1,11 @@
 #pragma once
 
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
+#include <Model/EntityId.h>
 #include <Model/InstanceSettings.h>
 #include <Model/Model.h>
 #include <AnimGraph/EvalMode.h>
@@ -39,6 +41,15 @@ namespace RAnimation
         void SetInstanceSettings(InstanceSettings settings);
         InstanceSettings GetInstanceSettings();
 
+        // Stable identity; assigned by SceneEditor when the instance enters the scene (or kept from the
+        // level file). Deliberately not part of InstanceSettings, which clone / undo copy around.
+        EntityId GetEntityId() const { return mEntityId; }
+        void SetEntityId(EntityId id) { mEntityId = id; }
+
+        // Level-authored agent configuration (nullopt = plain crowd instance).
+        const std::optional<AgentConfig>& GetAgentConfig() const { return mAgentConfig; }
+        void SetAgentConfig(std::optional<AgentConfig> config) { mAgentConfig = std::move(config); }
+
         ~ModelInstance();
 
         void UpdateModelRootMatrix();
@@ -70,6 +81,8 @@ namespace RAnimation
         std::shared_ptr<Model> mModel = nullptr;
 
         InstanceSettings mInstanceSettings{};
+        EntityId mEntityId = kInvalidEntityId;
+        std::optional<AgentConfig> mAgentConfig;
 
         glm::mat4 mLocalTranslationMatrix = glm::mat4(1.0f);
         glm::mat4 mLocalRotationMatrix = glm::mat4(1.0f);

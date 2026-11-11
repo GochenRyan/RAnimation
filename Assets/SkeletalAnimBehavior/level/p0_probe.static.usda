@@ -1,0 +1,179 @@
+#usda 1.0
+(
+    defaultPrim = "Static"
+    metersPerUnit = 1
+    upAxis = "Y"
+)
+
+def Xform "Static" (
+    kind = "component"
+)
+{
+    float3 xformOp:scale = (0.01, 0.01, 0.01)
+    uniform token[] xformOpOrder = ["xformOp:scale"]
+
+    def Mesh "Ground"
+    {
+        uniform bool doubleSided = 1
+        float3[] extent = [(-1000, 0, -1000), (1000, 0, 1000)]
+        int[] faceVertexCounts = [4]
+        int[] faceVertexIndices = [0, 1, 3, 2]
+        normal3f[] normals = [(0, 1, 0), (0, 1, 0), (0, 1, 0), (0, 1, 0)] (
+            interpolation = "faceVarying"
+        )
+        point3f[] points = [(-1000, 0, 1000), (1000, 0, 1000), (-1000, 0, -1000), (1000, 0, -1000)]
+        texCoord2f[] primvars:st = [(0, 0), (1, 0), (0, 1), (1, 1)] (
+            customData = {
+                dictionary Maya = {
+                    token name = "map1"
+                }
+            }
+            interpolation = "faceVarying"
+        )
+        int[] primvars:st:indices = [0, 1, 3, 2]
+        uniform token subdivisionScheme = "none"
+    }
+
+    def Mesh "COL_Pillar"
+    {
+        uniform bool doubleSided = 1
+        float3[] extent = [(-25, -50, -25), (25, 50, 25)]
+        int[] faceVertexCounts = [4, 4, 4, 4, 4, 4]
+        int[] faceVertexIndices = [0, 1, 3, 2, 2, 3, 5, 4, 4, 5, 7, 6, 6, 7, 1, 0, 1, 7, 5, 3, 6, 0, 2, 4]
+        normal3f[] normals = [(0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 1, 0), (0, 1, 0), (0, 1, 0), (0, 1, 0), (0, 0, -1), (0, 0, -1), (0, 0, -1), (0, 0, -1), (0, -1, 0), (0, -1, 0), (0, -1, 0), (0, -1, 0), (1, 0, 0), (1, 0, 0), (1, 0, 0), (1, 0, 0), (-1, 0, 0), (-1, 0, 0), (-1, 0, 0), (-1, 0, 0)] (
+            interpolation = "faceVarying"
+        )
+        point3f[] points = [(-25, -50, 25), (25, -50, 25), (-25, 50, 25), (25, 50, 25), (-25, 50, -25), (25, 50, -25), (-25, -50, -25), (25, -50, -25)]
+        texCoord2f[] primvars:st = [(0.33, 0), (0.66333336, 0), (0.33, 0.25), (0.66333336, 0.25), (0.33, 0.5), (0.66333336, 0.5), (0.33, 0.75), (0.66333336, 0.75), (0.33, 1), (0.66333336, 1), (1, 0), (1, 0.25), (0, 0), (0, 0.25)] (
+            customData = {
+                dictionary Maya = {
+                    token name = "map1"
+                }
+            }
+            interpolation = "faceVarying"
+        )
+        int[] primvars:st:indices = [0, 1, 3, 2, 2, 3, 5, 4, 4, 5, 7, 6, 6, 7, 9, 8, 1, 10, 11, 3, 12, 0, 2, 13]
+        custom string ranim:collider = "box"
+        custom string ranim:collisionTag = "obstacle"
+        uniform token subdivisionScheme = "none"
+        float3 xformOp:rotateXYZ = (0, 30, 0)
+        double3 xformOp:translate = (300, 50, 200)
+        uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateXYZ"]
+    }
+
+    def Mesh "BND_North"
+    {
+        uniform bool doubleSided = 1
+        float3[] extent = [(-1000, -100, -10), (1000, 100, 10)]
+        int[] faceVertexCounts = [4, 4, 4, 4, 4, 4]
+        int[] faceVertexIndices = [0, 1, 3, 2, 2, 3, 5, 4, 4, 5, 7, 6, 6, 7, 1, 0, 1, 7, 5, 3, 6, 0, 2, 4]
+        normal3f[] normals = [(0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 1, 0), (0, 1, 0), (0, 1, 0), (0, 1, 0), (0, 0, -1), (0, 0, -1), (0, 0, -1), (0, 0, -1), (0, -1, 0), (0, -1, 0), (0, -1, 0), (0, -1, 0), (1, 0, 0), (1, 0, 0), (1, 0, 0), (1, 0, 0), (-1, 0, 0), (-1, 0, 0), (-1, 0, 0), (-1, 0, 0)] (
+            interpolation = "faceVarying"
+        )
+        point3f[] points = [(-1000, -100, 10), (1000, -100, 10), (-1000, 100, 10), (1000, 100, 10), (-1000, 100, -10), (1000, 100, -10), (-1000, -100, -10), (1000, -100, -10)]
+        texCoord2f[] primvars:st = [(0.33, 0), (0.66333336, 0), (0.33, 0.25), (0.66333336, 0.25), (0.33, 0.5), (0.66333336, 0.5), (0.33, 0.75), (0.66333336, 0.75), (0.33, 1), (0.66333336, 1), (1, 0), (1, 0.25), (0, 0), (0, 0.25)] (
+            customData = {
+                dictionary Maya = {
+                    token name = "map1"
+                }
+            }
+            interpolation = "faceVarying"
+        )
+        int[] primvars:st:indices = [0, 1, 3, 2, 2, 3, 5, 4, 4, 5, 7, 6, 6, 7, 9, 8, 1, 10, 11, 3, 12, 0, 2, 13]
+        custom string ranim:collider = "box"
+        custom string ranim:collisionTag = "boundary"
+        uniform token subdivisionScheme = "none"
+        double3 xformOp:translate = (0, 100, -1000)
+        uniform token[] xformOpOrder = ["xformOp:translate"]
+    }
+
+    def Mesh "ZONE_Plaza"
+    {
+        uniform bool doubleSided = 1
+        float3[] extent = [(-500, -100, -500), (500, 100, 500)]
+        int[] faceVertexCounts = [4, 4, 4, 4, 4, 4]
+        int[] faceVertexIndices = [0, 1, 3, 2, 2, 3, 5, 4, 4, 5, 7, 6, 6, 7, 1, 0, 1, 7, 5, 3, 6, 0, 2, 4]
+        normal3f[] normals = [(0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 1, 0), (0, 1, 0), (0, 1, 0), (0, 1, 0), (0, 0, -1), (0, 0, -1), (0, 0, -1), (0, 0, -1), (0, -1, 0), (0, -1, 0), (0, -1, 0), (0, -1, 0), (1, 0, 0), (1, 0, 0), (1, 0, 0), (1, 0, 0), (-1, 0, 0), (-1, 0, 0), (-1, 0, 0), (-1, 0, 0)] (
+            interpolation = "faceVarying"
+        )
+        point3f[] points = [(-500, -100, 500), (500, -100, 500), (-500, 100, 500), (500, 100, 500), (-500, 100, -500), (500, 100, -500), (-500, -100, -500), (500, -100, -500)]
+        texCoord2f[] primvars:st = [(0.33, 0), (0.66333336, 0), (0.33, 0.25), (0.66333336, 0.25), (0.33, 0.5), (0.66333336, 0.5), (0.33, 0.75), (0.66333336, 0.75), (0.33, 1), (0.66333336, 1), (1, 0), (1, 0.25), (0, 0), (0, 0.25)] (
+            customData = {
+                dictionary Maya = {
+                    token name = "map1"
+                }
+            }
+            interpolation = "faceVarying"
+        )
+        int[] primvars:st:indices = [0, 1, 3, 2, 2, 3, 5, 4, 4, 5, 7, 6, 6, 7, 9, 8, 1, 10, 11, 3, 12, 0, 2, 13]
+        custom string ranim:marker = "zone"
+        uniform token subdivisionScheme = "none"
+        double3 xformOp:translate = (0, 100, 0)
+        uniform token[] xformOpOrder = ["xformOp:translate"]
+    }
+
+    def Mesh "ZONE_Corner"
+    {
+        uniform bool doubleSided = 1
+        float3[] extent = [(-100, -100, -100), (100, 100, 100)]
+        int[] faceVertexCounts = [4, 4, 4, 4, 4, 4]
+        int[] faceVertexIndices = [0, 1, 3, 2, 2, 3, 5, 4, 4, 5, 7, 6, 6, 7, 1, 0, 1, 7, 5, 3, 6, 0, 2, 4]
+        normal3f[] normals = [(0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 1, 0), (0, 1, 0), (0, 1, 0), (0, 1, 0), (0, 0, -1), (0, 0, -1), (0, 0, -1), (0, 0, -1), (0, -1, 0), (0, -1, 0), (0, -1, 0), (0, -1, 0), (1, 0, 0), (1, 0, 0), (1, 0, 0), (1, 0, 0), (-1, 0, 0), (-1, 0, 0), (-1, 0, 0), (-1, 0, 0)] (
+            interpolation = "faceVarying"
+        )
+        point3f[] points = [(-100, -100, 100), (100, -100, 100), (-100, 100, 100), (100, 100, 100), (-100, 100, -100), (100, 100, -100), (-100, -100, -100), (100, -100, -100)]
+        texCoord2f[] primvars:st = [(0.33, 0), (0.66333336, 0), (0.33, 0.25), (0.66333336, 0.25), (0.33, 0.5), (0.66333336, 0.5), (0.33, 0.75), (0.66333336, 0.75), (0.33, 1), (0.66333336, 1), (1, 0), (1, 0.25), (0, 0), (0, 0.25)] (
+            customData = {
+                dictionary Maya = {
+                    token name = "map1"
+                }
+            }
+            interpolation = "faceVarying"
+        )
+        int[] primvars:st:indices = [0, 1, 3, 2, 2, 3, 5, 4, 4, 5, 7, 6, 6, 7, 9, 8, 1, 10, 11, 3, 12, 0, 2, 13]
+        custom string ranim:marker = "zone"
+        uniform token subdivisionScheme = "none"
+        double3 xformOp:translate = (-300, 100, -300)
+        uniform token[] xformOpOrder = ["xformOp:translate"]
+    }
+
+    def Xform "WP_patrol_0"
+    {
+        custom string ranim:marker = "waypoint"
+        custom float ranim:radius = 0.75
+        double3 xformOp:translate = (-400, 0, -400)
+        uniform token[] xformOpOrder = ["xformOp:translate"]
+    }
+
+    def Xform "WP_patrol_1"
+    {
+        custom string ranim:marker = "waypoint"
+        custom float ranim:radius = 0.5
+        double3 xformOp:translate = (400, 0, -400)
+        uniform token[] xformOpOrder = ["xformOp:translate"]
+    }
+
+    def Xform "WP_patrol_2"
+    {
+        custom string ranim:marker = "waypoint"
+        custom float ranim:radius = 0.5
+        double3 xformOp:translate = (400, 0, 400)
+        uniform token[] xformOpOrder = ["xformOp:translate"]
+    }
+
+    def Xform "WP_patrol_3"
+    {
+        custom string ranim:marker = "waypoint"
+        custom float ranim:radius = 0.5
+        double3 xformOp:translate = (-400, 0, 400)
+        uniform token[] xformOpOrder = ["xformOp:translate"]
+    }
+
+    def Xform "SPAWN_player"
+    {
+        custom string ranim:marker = "spawn"
+        double3 xformOp:translate = (0, 0, 500)
+        uniform token[] xformOpOrder = ["xformOp:translate"]
+    }
+}
+

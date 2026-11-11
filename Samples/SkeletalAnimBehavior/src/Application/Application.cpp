@@ -65,14 +65,16 @@ bool Application::init(unsigned int width, unsigned int height, std::string titl
             [renderer](const std::shared_ptr<Model>& model) { renderer->ReleaseModel(model); },
             [renderer](const glm::vec3& point) { renderer->FocusCameraOnPoint(point); });
 
-    // The character state machine is optional: a missing definition / graph only disables the panel.
+    // The character state machine is optional: a missing definition / graph only disables the agents.
+    // This sample's definition (with CancelAction) lives under Assets/SkeletalAnimBehavior/statemachine.
     std::string controllerError;
-    if (!mCharacterController.Init(ASSETS_SRC_DIR "/SkeletalAnimControls", controllerError))
+    if (!mCharacterSystem.Init(ASSETS_SRC_DIR "/SkeletalAnimBehavior", controllerError))
     {
-        fmt::print(stderr, fg(fmt::color::yellow), "CharacterController disabled: {}\n", controllerError);
+        fmt::print(stderr, fg(fmt::color::yellow), "CharacterSystem disabled: {}\n", controllerError);
     }
-    mUserInterface.SetCharacterController(&mCharacterController);
+    mUserInterface.SetCharacterSystem(&mCharacterSystem);
     mUserInterface.SetCollisionSystem(&mCollisionSystem);
+    initBehavior();
 
     return true;
 }
@@ -85,6 +87,7 @@ void Application::updateCollision(float deltaTime)
         scene.miDebugLines.Clear();
         return;
     }
+    mCollisionSystem.SyncStatics(scene);
     mCollisionSystem.Sync(scene);
     mCollisionSystem.UpdateBodies(scene);
     mCollisionSystem.Step(deltaTime);
@@ -98,9 +101,9 @@ void Application::updateCollision(float deltaTime)
             {
                 continue;
             }
-            if (mCharacterController.IsAttached() && mCharacterController.Target() == instance)
+            if (Agent* agent = mCharacterSystem.FindByInstance(instance))
             {
-                mCharacterController.ApplyPush(push.delta);
+                mCharacterSystem.ApplyPush(*agent, push.delta);
             }
             else
             {
@@ -115,20 +118,30 @@ void Application::updateCollision(float deltaTime)
 
 void Application::updateCharacterInput()
 {
-    if (!mCharacterController.IsAttached() || mControllerScript)
+    PlayerInputBuffer& player = mCharacterSystem.PlayerInput();
+    player.input = CharacterInput{};
+    if (mCharacterSystem.Possessed() == kInvalidEntityId)
     {
+        player.commands.clear();
         return;
     }
+    const auto command = [&player](CommandType type, const char* montage = "")
+    {
+        IntentCommand c;
+        c.type = type;
+        c.montage = montage;
+        player.commands.push_back(c);
+    };
     // Free camera owns WASD; every other camera follows the selected instance, so the keys drive the
     // character. Text fields / hovered panels keep the keyboard (same guard as the cameras).
     const ImGuiIO& io = ImGui::GetIO();
     const bool keysFree = !io.WantCaptureKeyboard && !io.WantTextInput;
     const bool characterKeys = keysFree && mRenderer->GetRenderData().rdCameraRig.ActiveType() != CameraType::Free;
-    CharacterInput input;
     if (characterKeys)
     {
         // W/S forward, A/D strafe, Q/E turn, Shift jog, Alt sprint, Ctrl crouch, V aim (+ Up/Down pitch),
-        // Space jump, F punch, H hit, G toggle weapon, K die.
+        // Space jump, F punch, H hit, G toggle weapon, K die, U interact (P7).
+        CharacterInput& input = player.input;
         input.moveY = (ImGui::IsKeyDown(ImGuiKey_W) ? 1.0f : 0.0f) - (ImGui::IsKeyDown(ImGuiKey_S) ? 1.0f : 0.0f);
         input.moveX = (ImGui::IsKeyDown(ImGuiKey_D) ? 1.0f : 0.0f) - (ImGui::IsKeyDown(ImGuiKey_A) ? 1.0f : 0.0f);
         input.turn = (ImGui::IsKeyDown(ImGuiKey_E) ? 1.0f : 0.0f) - (ImGui::IsKeyDown(ImGuiKey_Q) ? 1.0f : 0.0f);
@@ -138,27 +151,18 @@ void Application::updateCharacterInput()
         input.aim = ImGui::IsKeyDown(ImGuiKey_V);
         input.aimPitch = (ImGui::IsKeyDown(ImGuiKey_UpArrow) ? 1.0f : 0.0f) - (ImGui::IsKeyDown(ImGuiKey_DownArrow) ? 1.0f : 0.0f);
         if (ImGui::IsKeyPressed(ImGuiKey_Space, false))
-        {
-            mCharacterController.Jump();
-        }
+            command(CommandType::Jump);
         if (ImGui::IsKeyPressed(ImGuiKey_F, false))
-        {
-            mCharacterController.RequestAction("punch");
-        }
+            command(CommandType::Action, "punch");
         if (ImGui::IsKeyPressed(ImGuiKey_H, false))
-        {
-            mCharacterController.RequestAction("hit");
-        }
+            command(CommandType::Action, "hit");
         if (ImGui::IsKeyPressed(ImGuiKey_G, false))
-        {
-            mCharacterController.ToggleWeapon();
-        }
+            command(CommandType::ToggleWeapon);
         if (ImGui::IsKeyPressed(ImGuiKey_K, false))
-        {
-            mCharacterController.Die();
-        }
+            command(CommandType::Die);
+        if (ImGui::IsKeyPressed(ImGuiKey_U, false))
+            command(CommandType::Interact);
     }
-    mCharacterController.SetInput(input);
 }
 
 void Application::MainLoop()
@@ -195,6 +199,10 @@ void Application::MainLoop()
                 {
                     verifyControllerLog();
                 }
+                if (mBehaviorSmoke)
+                {
+                    verifyBehaviorSmoke();
+                }
                 break;
             }
         }
@@ -210,13 +218,17 @@ void Application::MainLoop()
         mUserInterface.CreateFrame(mRenderer->GetRenderData(), mSceneEditor);
         mUserInterface.Render(mRenderer->GetRenderData());
 
-        // Character state machine first: it decides which graph / blend input this frame evaluates.
+        // Agents first: perception -> decisions -> steering -> state machines decide which graph / blend
+        // inputs this frame evaluates. Edit mode pauses perception, decisions and world time (D17).
         if (mControllerScript)
         {
-            runControllerScript(mFramesRendered);
+            checkControllerFrame(mFramesRendered);
         }
-        updateCharacterInput();
-        mCharacterController.Update(deltaTime, mSceneEditor.ModelData());
+        updateAgents(deltaTime);
+        if (mBehaviorSmoke)
+        {
+            observeBehaviorFrame(mFramesRendered);
+        }
 
         // Advance every instance's animation graph (time, CPU seams, Work records) before the camera reads
         // poses and before the renderer packs the frame.
@@ -225,6 +237,14 @@ void Application::MainLoop()
         // Collision after the poses are final for this frame: bodies follow the joints, contacts push the
         // instance roots apart, debug lines are rebuilt. The camera and the renderer see the pushed positions.
         updateCollision(deltaTime);
+        // Level statics (colliders, zones, markers) on top of the collision lines rebuilt above.
+        if (mSceneEditor.ModelData().miShowLevelStatics)
+        {
+            for (const StaticLayer& layer : mSceneEditor.ModelData().miStaticLayers)
+            {
+                AppendLevelStaticsLines(layer.statics, mSceneEditor.ModelData().miDebugLines);
+            }
+        }
 
         // Drive the active camera from this frame's ImGui input + the selected instance, after the UI
         // frame is built (so IO is populated) and before Draw uploads the camera matrices.
@@ -234,6 +254,8 @@ void Application::MainLoop()
         {
             break;
         }
+        // Checkpoint save / load requests run here, when every system is in a consistent state (§8.4).
+        updateBehaviorFrameEnd();
         ++mFramesRendered;
 
         const bool editMode = mSceneEditor.IsEditMode();
@@ -264,7 +286,7 @@ void Application::Cleanup()
         // GPU resources. The Renderer tears down its own device last.
         mRenderer->WaitIdle();
         mCollisionSystem.Shutdown();
-        mCharacterController.Detach();
+        mCharacterSystem.Clear();
         mUserInterface.Cleanup(mRenderer->GetRenderData());
         mSceneEditor.ReleaseAllGpuResources();
         mRenderer->Cleanup();

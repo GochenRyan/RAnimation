@@ -8,10 +8,13 @@
 
 #include <glm/glm.hpp>
 
+#include <Agent/CharacterSignals.h>
+#include <Agent/ExecutionFeedback.h>
 #include <Controls/CharacterProfile.h>
 #include <StateMachine/SMManager.h>
 #include <StateMachine/StateMachineDefinition.h>
 #include <StateMachine/StateTypeRegistry.h>
+#include <Tools/SaveTree.h>
 
 struct ModelAndInstanceData;
 
@@ -45,34 +48,13 @@ namespace RAnimation
     class LayeredBlend;
     class AnimSlot;
 
-    struct CharacterInput
-    {
-        float moveX = 0.0f;    // -1..1 strafe (right positive)
-        float moveY = 0.0f;    // -1..1 forward
-        float turn = 0.0f;     // -1..1 yaw (left/right turn in place or while moving)
-        bool run = false;      // jog instead of walk
-        bool sprint = false;   // sprint sub machine
-        bool crouch = false;
-        bool aim = false;      // raises the upper body layer when armed
-        float aimPitch = 0.0f; // -1..1, drives the aim offset blend space
+    // CharacterInput and MotionState: Agent/CharacterSignals.h (shared with the intent / decision layers).
 
-        float MoveMagnitude() const
-        {
-            const float m = moveX * moveX + moveY * moveY;
-            return m > 1.0f ? 1.0f : (m > 0.0f ? std::sqrt(m) : 0.0f);
-        }
-    };
-
-    // Gameplay truth about where the character is, owned by the controller (Move), read by the guards.
-    struct MotionState
+    // "Action" event payload: the montage plus the request id the controller reports its status under.
+    struct ActionPayload
     {
-        bool grounded = true;
-        bool airborne = false;
-        float speed = 0.0f;           // horizontal m/s actually moved this frame
-        float verticalVelocity = 0.0f;
-        float yawDeg = 0.0f;
-        glm::vec3 position = glm::vec3(0.0f);
-        bool movementLocked = false;  // a montage with lockMove is playing
+        std::string montage;
+        RequestId request = 0;
     };
 
     // What the resident graph reports back before the state machine updates.
@@ -102,6 +84,25 @@ namespace RAnimation
         std::string pendingMontage;       // parked by the RememberMontage transition action for OnEnter
         bool movementLock = false;        // the busy state's montage locks movement
         bool dead = false;
+
+        // Request bookkeeping (not saved: a load empties the request table, D15).
+        RequestId pendingRequest = 0;                          // parked with pendingMontage
+        RequestId currentRequest[2] = {0, 0};                  // what each busy state is playing
+        std::vector<std::pair<RequestId, bool>> endedRequests; // busy state left: (id, completed normally)
+        std::vector<std::string> stopSlots;                    // CancelAction: fade these slots out (ApplyVisuals)
+    };
+
+    // Resources every controller of one definition shares (CharacterSystem creates one set for all agents):
+    // the type registry, the finalized definition, and the profile / graph caches.
+    struct CharacterShared
+    {
+        StateTypeRegistry registry;
+        std::shared_ptr<StateMachineDefinition> definition;
+        std::string source; // definition file or "(built-in)"
+        std::string doc;
+        std::string assetsDir;
+        std::map<std::string, std::shared_ptr<AnimGraphAsset>> graphCache;   // by path
+        std::map<std::string, std::shared_ptr<CharacterProfile>> profileCache; // by path
     };
 
     // What the states see (the SMManager user data). Inputs are read-only for them, AnimParams theirs.
@@ -128,9 +129,14 @@ namespace RAnimation
         static constexpr const char* kUpperBodyLayerNodeName = "UpperBodyLayer";
         static constexpr const char* kUpperBodySlot = "UpperBody";
         static constexpr const char* kFullBodySlot = "FullBody";
+        static constexpr float kCancelBlendOutSec = 0.2f;
 
         // Registers the character state types / guards and loads the definition from assetsDir.
         bool Init(const std::string& assetsDir, std::string& outError);
+        // Same, as a shareable set (one per CharacterSystem); InitShared makes this controller use it.
+        static std::shared_ptr<CharacterShared> CreateShared(const std::string& assetsDir, std::string& outError);
+        void InitShared(std::shared_ptr<CharacterShared> shared) { mShared = std::move(shared); }
+        const std::shared_ptr<CharacterShared>& Shared() const { return mShared; }
 
         static void RegisterCharacterTypes(StateTypeRegistry& registry);
         static std::shared_ptr<StateMachineDefinition> BuildDefaultDefinition(const StateTypeRegistry& registry,
@@ -149,16 +155,31 @@ namespace RAnimation
         // Collision depenetration (CollisionSystem::Resolve, after Update): shifts the gameplay position and the
         // instance together so the push is visible this frame and persists into next frame's Move.
         void ApplyPush(const glm::vec3& delta);
-        bool RequestAction(const std::string& montage);  // event "Action" with the montage name
+        // Event "Action" with the montage name. With a request id the outcome is tracked in the request table:
+        // false here -> Rejected; otherwise Pending until the next Update decides Accepted / Rejected.
+        bool RequestAction(const std::string& montage, RequestId request = 0);
+        // Event "CancelAction": the busy state fades its slot out and returns to Free when the montage is
+        // cancelable (profile, default true); the request then ends Cancelled. 0 = whatever is playing.
+        void CancelAction(RequestId request = 0);
         void ToggleWeapon();
         void Die();
 
         // Per frame, before AnimationSystem::Update: Move -> feedback -> state machine -> ApplyVisuals.
         void Update(float deltaTime, ModelAndInstanceData& scene);
 
+        // Motion / armed / dead and the request table; moves the status changes since the last call into out.
+        void BuildFeedback(ExecutionFeedback& out);
+        bool Armed() const;
+        bool Dead() const { return mAnim.dead; }
+
+        // Checkpoint support (§8.4): Motion, AnimParams (no slot requests), eased values and the state machine
+        // runtime. Loading restores the states without OnEnter and empties the request table.
+        void SaveRuntime(SaveNode& out) const;
+        bool LoadRuntime(const SaveNode& in, std::string& outError);
+
         SMManager* Manager() const { return mManager.get(); }
-        const std::string& DefinitionSource() const { return mSource; }
-        const std::string& DefinitionDoc() const { return mDoc; }
+        const std::string& DefinitionSource() const;
+        const std::string& DefinitionDoc() const;
         const CharacterProfile* Profile() const { return mProfile.get(); }
         const MotionState& Motion() const { return mMotion; }
         const AnimParams& Anim() const { return mAnim; }
@@ -186,21 +207,20 @@ namespace RAnimation
         void ApplyVisuals(ModelAndInstanceData& scene);
         GraphNodes* ResolveNodes(ModelAndInstanceData& scene);
         void PushLog(std::string line);
+        void SetRequestStatus(RequestId id, RequestStatus status);
+        void UpdateRequests();
 
-        StateTypeRegistry mRegistry;
-        std::shared_ptr<StateMachineDefinition> mDefinition;
-        std::string mSource;
-        std::string mDoc;
-        std::string mAssetsDir;
+        std::shared_ptr<CharacterShared> mShared;
 
         std::unique_ptr<SMManager> mManager;
         std::shared_ptr<ModelInstance> mInstance;
         std::shared_ptr<CharacterProfile> mProfile;
         std::shared_ptr<AnimGraphAsset> mGraphAsset;
         std::shared_ptr<AnimGraphAsset> mPreviousAsset; // the instance's graph before Attach, restored on Detach
-        std::map<std::string, std::shared_ptr<AnimGraphAsset>> mGraphCache;   // by path
-        std::map<std::string, std::shared_ptr<CharacterProfile>> mProfileCache; // by path
         GraphNodes mNodes;
+
+        std::map<RequestId, RequestStatus> mRequests;
+        std::vector<std::pair<RequestId, RequestStatus>> mStatusChanges;
 
         CharacterInput mInput;
         MotionState mMotion;

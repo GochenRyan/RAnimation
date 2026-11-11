@@ -7,12 +7,16 @@
 #include "UsdConversion.h"
 
 #include <algorithm>
+#include <cmath>
 #include <filesystem>
+#include <optional>
 #include <string>
 #include <vector>
 
 #include <fmt/base.h>
 #include <fmt/color.h>
+#include <fmt/format.h>
+#include <glm/gtc/quaternion.hpp>
 
 #include <Model/Model.h>
 #include <Model/ModelInstance.h>
@@ -23,6 +27,8 @@
 #include <pxr/base/gf/vec3d.h>
 #include <pxr/base/gf/vec3f.h>
 #include <pxr/base/tf/token.h>
+#include <pxr/base/vt/dictionary.h>
+#include <pxr/base/vt/types.h>
 #include <pxr/base/vt/value.h>
 #include <pxr/usd/sdf/path.h>
 #include <pxr/usd/sdf/reference.h>
@@ -32,7 +38,9 @@
 #include <pxr/usd/usd/prim.h>
 #include <pxr/usd/usd/primRange.h>
 #include <pxr/usd/usd/references.h>
+#include <pxr/usd/usdGeom/boundable.h>
 #include <pxr/usd/usdGeom/xform.h>
+#include <pxr/usd/usdGeom/xformCache.h>
 #include <pxr/usd/usdGeom/xformable.h>
 #include <pxr/usd/usdGeom/xformOp.h>
 
@@ -193,6 +201,176 @@ namespace
         GetVec3(p, 3, "position", rig.stationary.position);
         GetF(p, 3, "damping", rig.stationary.damping);
     }
+
+    // ---- entity id / agent config: customData ranim:entityId, ranim:agent:<field> on instance prims ----
+
+    void WriteAgent(const UsdPrim& p, const AgentConfig& a)
+    {
+        const auto set = [&p](const char* field, const VtValue& v) { p.SetCustomDataByKey(TfToken(std::string("ranim:agent:") + field), v); };
+        set("tree", VtValue(a.tree));
+        set("tickHz", VtValue(a.tickHz));
+        set("proximityRadius", VtValue(a.proximityRadius));
+        set("fovHalfDeg", VtValue(a.fovHalfDeg));
+        set("sightRange", VtValue(a.sightRange));
+        set("possessed", VtValue(a.possessed));
+    }
+
+    bool NumberFrom(const VtValue& v, double& out)
+    {
+        if (v.IsHolding<float>())
+            out = v.Get<float>();
+        else if (v.IsHolding<double>())
+            out = v.Get<double>();
+        else if (v.IsHolding<int>())
+            out = v.Get<int>();
+        else if (v.IsHolding<int64_t>())
+            out = static_cast<double>(v.Get<int64_t>());
+        else if (v.IsHolding<unsigned int>())
+            out = v.Get<unsigned int>();
+        else if (v.IsHolding<uint64_t>())
+            out = static_cast<double>(v.Get<uint64_t>());
+        else if (v.IsHolding<bool>())
+            out = v.Get<bool>() ? 1.0 : 0.0;
+        else
+            return false;
+        return true;
+    }
+
+    EntityId ReadEntityId(const VtValue& v)
+    {
+        if (v.IsHolding<uint64_t>())
+            return v.Get<uint64_t>();
+        if (v.IsHolding<int64_t>())
+            return static_cast<EntityId>(std::max<int64_t>(0, v.Get<int64_t>()));
+        if (v.IsHolding<unsigned int>())
+            return v.Get<unsigned int>();
+        if (v.IsHolding<int>())
+            return static_cast<EntityId>(std::max(0, v.Get<int>()));
+        return kInvalidEntityId;
+    }
+
+    std::optional<AgentConfig> ReadAgent(const UsdPrim& p)
+    {
+        const VtValue v = p.GetCustomDataByKey(TfToken("ranim:agent"));
+        if (!v.IsHolding<VtDictionary>())
+        {
+            return std::nullopt;
+        }
+        const VtDictionary& d = v.Get<VtDictionary>();
+        AgentConfig a;
+        const auto number = [&d](const char* key, float& field)
+        {
+            const auto it = d.find(key);
+            double x = 0.0;
+            if (it != d.end() && NumberFrom(it->second, x))
+            {
+                field = static_cast<float>(x);
+            }
+        };
+        if (const auto it = d.find("tree"); it != d.end() && it->second.IsHolding<std::string>())
+        {
+            a.tree = it->second.Get<std::string>();
+        }
+        number("tickHz", a.tickHz);
+        number("proximityRadius", a.proximityRadius);
+        number("fovHalfDeg", a.fovHalfDeg);
+        number("sightRange", a.sightRange);
+        if (const auto it = d.find("possessed"); it != d.end())
+        {
+            double x = 0.0;
+            a.possessed = NumberFrom(it->second, x) && x != 0.0;
+        }
+        return a;
+    }
+
+    // ---- static layer attributes (authored by the DCC, see Tools/Maya/BehaviorScene) ----
+
+    bool StartsWith(const std::string& s, const char* prefix)
+    {
+        return s.rfind(prefix, 0) == 0;
+    }
+
+    std::string ReadStringAttr(const UsdPrim& p, const char* name)
+    {
+        const UsdAttribute attr = p.GetAttribute(TfToken(name));
+        VtValue v;
+        if (!attr || !attr.Get(&v))
+        {
+            return {};
+        }
+        if (v.IsHolding<std::string>())
+            return v.Get<std::string>();
+        if (v.IsHolding<TfToken>())
+            return v.Get<TfToken>().GetString();
+        return {};
+    }
+
+    bool ReadFloatAttr(const UsdPrim& p, const char* name, float& out)
+    {
+        const UsdAttribute attr = p.GetAttribute(TfToken(name));
+        VtValue v;
+        double x = 0.0;
+        if (!attr || !attr.Get(&v) || !NumberFrom(v, x))
+        {
+            return false;
+        }
+        out = static_cast<float>(x);
+        return true;
+    }
+
+    bool ReadIntAttr(const UsdPrim& p, const char* name, int& out)
+    {
+        float x = 0.0f;
+        if (!ReadFloatAttr(p, name, x))
+        {
+            return false;
+        }
+        out = static_cast<int>(std::lround(x));
+        return true;
+    }
+
+    // Oriented box of a boundable prim: its local extent pushed through world (= stage-to-canonical *
+    // local-to-world). The scale of world goes into the half extents, so a cube exported in centimetres
+    // under a 0.01 root scale comes out in metres.
+    bool BoxFromPrim(const UsdPrim& prim, const glm::mat4& world, StaticBox& box)
+    {
+        const UsdGeomBoundable boundable(prim);
+        if (!boundable)
+        {
+            return false;
+        }
+        VtVec3fArray extent;
+        if (!boundable.GetExtentAttr().Get(&extent) || extent.size() != 2)
+        {
+            extent.clear();
+            if (!UsdGeomBoundable::ComputeExtentFromPlugins(boundable, UsdTimeCode::Default(), &extent) || extent.size() != 2)
+            {
+                return false;
+            }
+        }
+        const glm::vec3 mn(extent[0][0], extent[0][1], extent[0][2]);
+        const glm::vec3 mx(extent[1][0], extent[1][1], extent[1][2]);
+        const glm::vec3 localCenter = (mn + mx) * 0.5f;
+        const glm::vec3 localHalf = (mx - mn) * 0.5f;
+
+        box.center = glm::vec3(world * glm::vec4(localCenter, 1.0f));
+        glm::vec3 axes[3];
+        for (int i = 0; i < 3; ++i)
+        {
+            const glm::vec3 a(world[i]);
+            const float s = glm::length(a);
+            glm::vec3 unit(0.0f);
+            unit[i] = 1.0f;
+            axes[i] = s > 1e-8f ? a / s : unit;
+            box.halfExtents[i] = localHalf[i] * s;
+        }
+        if (glm::dot(glm::cross(axes[0], axes[1]), axes[2]) < 0.0f)
+        {
+            axes[2] = -axes[2]; // mirrored transform: the box is symmetric, keep a proper rotation
+        }
+        box.rotation = glm::normalize(glm::quat_cast(glm::mat3(axes[0], axes[1], axes[2])));
+        return true;
+    }
 } // namespace
 
 namespace RAnimation
@@ -227,8 +405,9 @@ namespace RAnimation
                 continue;
             }
             const std::shared_ptr<Model> model = instance->GetModel();
-            if (!model)
+            if (!model || modInstData.IsStaticLayerModel(model.get()))
             {
+                // static-layer display models come back through the subLayers below
                 continue;
             }
 
@@ -248,6 +427,13 @@ namespace RAnimation
             xform.AddRotateXYZOp().Set(GfVec3f(r.x, r.y, r.z));
             xform.AddScaleOp().Set(GfVec3f(s, s, s));
 
+            // identity and agent configuration (nested dictionaries ranim = { entityId, agent = {...} })
+            prim.SetCustomDataByKey(TfToken("ranim:entityId"), VtValue(static_cast<uint64_t>(instance->GetEntityId())));
+            if (const std::optional<AgentConfig>& agent = instance->GetAgentConfig())
+            {
+                WriteAgent(prim, *agent);
+            }
+
             // editor state that is not part of the xform itself
             const InstanceSettings settings = instance->GetInstanceSettings();
             // authoritative round-trip value; the clip name is written too for human readability
@@ -264,20 +450,32 @@ namespace RAnimation
             ++index;
         }
 
-        if (!stage->GetRootLayer()->Export(outPath))
+        // Static layers go in as relative subLayers. They are added to a detached copy of the layer: on the
+        // in-memory stage a relative sublayer would be resolved against the anonymous layer and fail.
+        SdfLayerRefPtr outLayer = SdfLayer::CreateAnonymous(".usda");
+        outLayer->TransferContent(stage->GetRootLayer());
+        std::vector<std::string> subLayers;
+        for (const StaticLayer& layer : modInstData.miStaticLayers)
+        {
+            subLayers.push_back(referencePathFor(layer.path, outPath));
+        }
+        outLayer->SetSubLayerPaths(subLayers);
+
+        if (!outLayer->Export(outPath))
         {
             fmt::print(stderr, fg(fmt::color::red), "UsdSceneExporter: failed to export '{}'\n", outPath);
             return false;
         }
 
-        fmt::print("UsdSceneExporter: exported {} instance(s) to '{}'\n", index, outPath);
+        fmt::print("UsdSceneExporter: exported {} instance(s) and {} static layer(s) to '{}'\n", index, subLayers.size(), outPath);
         return true;
     }
 
-    bool ImportSceneFromUsd(const std::string& scenePath, std::vector<ImportedSceneInstance>& out,
-                            CameraRig& cameraOut)
+    bool ImportSceneFromUsd(const std::string& scenePath, ImportedScene& scene)
     {
         detail::RegisterUsdPluginsOnce();
+        std::vector<ImportedSceneInstance>& out = scene.instances;
+        CameraRig& cameraOut = scene.camera;
 
         UsdStageRefPtr stage = UsdStage::Open(scenePath);
         if (!stage)
@@ -317,14 +515,18 @@ namespace RAnimation
 
         const SdfLayerHandle rootLayer = stage->GetRootLayer();
 
-        for (const UsdPrim& prim : stage->Traverse())
+        UsdPrimRange range = stage->Traverse();
+        for (auto it = range.begin(); it != range.end(); ++it)
         {
+            const UsdPrim& prim = *it;
             // an instance prim is any prim that references a source asset (as written by ExportSceneToUsd)
             SdfReferenceListOp refOp;
             if (!prim.GetMetadata(SdfFieldKeys->References, &refOp))
             {
                 continue;
             }
+            // the referenced asset's own prims are not instances
+            it.PruneChildren();
             // AddReference prepends by default; fall back through the other list-op slots to be safe.
             SdfReferenceVector refs = refOp.GetPrependedItems();
             if (refs.empty())
@@ -345,8 +547,11 @@ namespace RAnimation
             }
 
             ImportedSceneInstance imported;
+            imported.primPath = prim.GetPath().GetString();
             // resolve the (usually relative) reference path against the scene layer -> loadable path
             imported.assetPath = rootLayer->ComputeAbsolutePath(refs.front().GetAssetPath());
+            imported.entityId = ReadEntityId(prim.GetCustomDataByKey(TfToken("ranim:entityId")));
+            imported.agent = ReadAgent(prim);
 
             // transform from the xformOps
             UsdGeomXformable xformable(prim);
@@ -411,7 +616,171 @@ namespace RAnimation
             out.emplace_back(std::move(imported));
         }
 
-        fmt::print("UsdSceneExporter: imported {} instance(s) from '{}'\n", out.size(), scenePath);
+        // Static layers: every subLayer of the level file (authored order).
+        for (const std::string& subLayer : rootLayer->GetSubLayerPaths())
+        {
+            ImportedStaticLayer layer;
+            layer.path = rootLayer->ComputeAbsolutePath(subLayer);
+            std::string error;
+            if (!LoadLevelStatics(layer.path, layer.statics, error))
+            {
+                fmt::print(stderr, fg(fmt::color::red), "UsdSceneExporter: static layer '{}' skipped: {}\n", subLayer, error);
+                continue;
+            }
+            scene.staticLayers.emplace_back(std::move(layer));
+        }
+
+        fmt::print("UsdSceneExporter: imported {} instance(s) and {} static layer(s) from '{}'\n",
+                   out.size(),
+                   scene.staticLayers.size(),
+                   scenePath);
+        return true;
+    }
+
+    bool LoadLevelStatics(const std::string& staticLayerPath, LevelStatics& out, std::string& error)
+    {
+        detail::RegisterUsdPluginsOnce();
+
+        UsdStageRefPtr stage = UsdStage::Open(staticLayerPath);
+        if (!stage)
+        {
+            error = "could not open '" + staticLayerPath + "'";
+            return false;
+        }
+
+        const glm::mat4 stageToCanonical = detail::usdconv::StageToCanonicalMatrix(stage);
+        UsdGeomXformCache xformCache(UsdTimeCode::Default());
+        const auto warn = [&out](std::string message)
+        {
+            fmt::print(stderr, fg(fmt::color::yellow), "LevelStatics: {}\n", message);
+            out.warnings.push_back(std::move(message));
+        };
+
+        for (const UsdPrim& prim : stage->Traverse())
+        {
+            const std::string name = prim.GetName().GetString();
+            const std::string path = prim.GetPath().GetString();
+            const std::string collider = ReadStringAttr(prim, "ranim:collider");
+            const std::string marker = ReadStringAttr(prim, "ranim:marker");
+            const glm::mat4 world = stageToCanonical * detail::usdconv::GlmFromGf(xformCache.GetLocalToWorldTransform(prim));
+
+            // the naming prefix is the authoring convention; the ranim:* attribute is what counts
+            if ((StartsWith(name, "COL_") || StartsWith(name, "BND_")) && collider.empty())
+            {
+                warn(fmt::format("'{}' is named like a collider but has no ranim:collider (run tag_static_props)", path));
+            }
+            if ((StartsWith(name, "ZONE_") || StartsWith(name, "WP_") || StartsWith(name, "SPAWN_")) && marker.empty())
+            {
+                warn(fmt::format("'{}' is named like a marker but has no ranim:marker (run tag_static_props)", path));
+            }
+
+            if (!collider.empty())
+            {
+                if (collider != "box")
+                {
+                    warn(fmt::format("'{}': ranim:collider = \"{}\" is not supported (only \"box\")", path, collider));
+                    continue;
+                }
+                StaticCollider c;
+                c.name = name;
+                c.path = path;
+                const std::string tag = ReadStringAttr(prim, "ranim:collisionTag");
+                if (tag == "boundary" || (tag.empty() && StartsWith(name, "BND_")))
+                {
+                    c.tag = StaticColliderTag::Boundary;
+                }
+                else if (!tag.empty() && tag != "obstacle")
+                {
+                    warn(fmt::format("'{}': unknown ranim:collisionTag \"{}\", using obstacle", path, tag));
+                }
+                if (!BoxFromPrim(prim, world, c.box))
+                {
+                    warn(fmt::format("'{}': collider has no extent, skipped", path));
+                    continue;
+                }
+                out.colliders.push_back(std::move(c));
+            }
+
+            if (marker == "zone")
+            {
+                StaticZone z;
+                z.name = StartsWith(name, "ZONE_") ? name.substr(5) : name;
+                z.path = path;
+                if (!BoxFromPrim(prim, world, z.box))
+                {
+                    warn(fmt::format("'{}': zone has no extent, skipped", path));
+                    continue;
+                }
+                out.zones.push_back(std::move(z));
+            }
+            else if (marker == "waypoint" || marker == "spawn")
+            {
+                StaticMarker m;
+                m.name = name;
+                m.path = path;
+                m.kind = marker == "spawn" ? StaticMarkerKind::Spawn : StaticMarkerKind::Waypoint;
+                m.position = glm::vec3(world[3]);
+                const glm::vec3 forward = glm::mat3(world) * glm::vec3(0.0f, 0.0f, -1.0f);
+                const glm::vec3 flat(forward.x, 0.0f, forward.z);
+                m.forward = glm::length(flat) > 1e-6f ? glm::normalize(flat) : glm::vec3(0.0f, 0.0f, -1.0f);
+                ReadFloatAttr(prim, "ranim:radius", m.radius);
+                if (m.kind == StaticMarkerKind::Waypoint)
+                {
+                    m.route = ReadStringAttr(prim, "ranim:route");
+                    int index = -1;
+                    const bool hasIndex = ReadIntAttr(prim, "ranim:index", index);
+                    // WP_<route>_<index>: route may itself contain underscores, the index is the last field
+                    const size_t lastUnderscore = name.find_last_of('_');
+                    if (StartsWith(name, "WP_") && lastUnderscore != std::string::npos && lastUnderscore > 3)
+                    {
+                        if (m.route.empty())
+                        {
+                            m.route = name.substr(3, lastUnderscore - 3);
+                        }
+                        if (!hasIndex)
+                        {
+                            const std::string digits = name.substr(lastUnderscore + 1);
+                            if (!digits.empty() && std::all_of(digits.begin(), digits.end(), [](char ch) { return ch >= '0' && ch <= '9'; }))
+                            {
+                                index = std::stoi(digits);
+                            }
+                        }
+                    }
+                    m.index = index;
+                    if (m.route.empty() || m.index < 0)
+                    {
+                        warn(fmt::format("'{}': waypoint without route / index (name it WP_<route>_<index>)", path));
+                    }
+                }
+                out.markers.push_back(std::move(m));
+            }
+            else if (!marker.empty())
+            {
+                warn(fmt::format("'{}': unknown ranim:marker \"{}\"", path, marker));
+            }
+        }
+
+        // duplicate waypoint indices make a route ambiguous
+        for (size_t i = 0; i < out.markers.size(); ++i)
+        {
+            for (size_t j = i + 1; j < out.markers.size(); ++j)
+            {
+                const StaticMarker& a = out.markers[i];
+                const StaticMarker& b = out.markers[j];
+                if (a.kind == StaticMarkerKind::Waypoint && b.kind == StaticMarkerKind::Waypoint && !a.route.empty() &&
+                    a.route == b.route && a.index == b.index)
+                {
+                    warn(fmt::format("waypoints '{}' and '{}' share route '{}' index {}", a.path, b.path, a.route, a.index));
+                }
+            }
+        }
+
+        fmt::print("LevelStatics: '{}' - {} collider(s), {} zone(s), {} marker(s), {} warning(s)\n",
+                   staticLayerPath,
+                   out.colliders.size(),
+                   out.zones.size(),
+                   out.markers.size(),
+                   out.warnings.size());
         return true;
     }
 } // namespace RAnimation

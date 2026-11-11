@@ -73,6 +73,8 @@ namespace RAnimation
     };
 
     // Loads a UsdSkel asset (typically a *.asset.usda that composes skeleton/skinning/geometry/material
-    // layers) plus its sibling animation clips into CPU data. Returns false on failure (message printed).
+    // layers) plus its sibling animation clips into CPU data. A stage without a Skeleton loads as a static
+    // model instead: one root node, no bones / clips, every visible mesh (not ranim:marker volumes) with its
+    // full local-to-world baked into the vertices. Returns false on failure (message printed).
     bool LoadUsdModel(const std::string& assetUsdPath, UsdLoadedModel& out);
 } // namespace RAnimation

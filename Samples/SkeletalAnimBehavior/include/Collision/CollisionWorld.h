@@ -10,9 +10,17 @@
 #include <glm/gtc/quaternion.hpp>
 
 #include <Collision/CollisionProfile.h>
+#include <Collision/ContactEvent.h>
 
 namespace RAnimation
 {
+    // A static level box (§7.2): EMotionType::Static on the STATIC object layer (NON_MOVING broad phase).
+    struct StaticBoxDesc
+    {
+        glm::vec3 center = glm::vec3(0.0f);
+        glm::quat rotation = glm::quat(1.0f, 0.0f, 0.0f, 0.0f);
+        glm::vec3 halfExtents = glm::vec3(0.5f);
+    };
     // How PhysicsSystem::Update is scheduled. Two job systems stay resident; Auto picks the thread pool only
     // once the body count reaches joltThreshold (measured with --collision-bench, see CLAUDE.md).
     struct CollisionThreadingPolicy
@@ -35,8 +43,9 @@ namespace RAnimation
         glm::quat rotation = glm::quat(1.0f, 0.0f, 0.0f, 0.0f);
     };
 
-    // Per-body depenetration from Resolve: the sum over this body's manifolds of half the penetration vector,
-    // with the vertical component removed (the floor stays the controller's business).
+    // Per-body depenetration from Resolve: the sum over this body's manifolds of half the penetration vector
+    // (the full vector against a static body, which never moves), with the vertical component removed (the
+    // floor stays the controller's business).
     struct CollisionPush
     {
         uint32_t slot = 0;
@@ -82,6 +91,15 @@ namespace RAnimation
         // the body keeps the remaining shapes in profile order.
         bool AddBody(uint32_t slot, const CollisionProfile& profile, const glm::vec3& position, std::string& outError);
         void RemoveBody(uint32_t slot);
+
+        // Static level boxes (replaces the previous set). Their contact owners are kStaticOwnerBit | index.
+        bool SetStaticBoxes(std::span<const StaticBoxDesc> boxes, std::string& outError);
+        uint32_t StaticCount() const;
+        // Contact records since the last call (Added / Persisted / Removed, all layers), in callback order per
+        // thread. Call after Step on the main thread.
+        std::vector<RawContactEvent> TakeContactEvents();
+        // First static body hit by the segment (STATIC layer only), as a fraction of from -> to.
+        bool RayCastStatic(const glm::vec3& from, const glm::vec3& to, float* outFraction = nullptr) const;
         bool HasBody(uint32_t slot) const;
         uint32_t BodyCount() const;
         uint32_t ShapeCount(uint32_t slot) const;

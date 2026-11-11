@@ -29,6 +29,8 @@ namespace RAnimation
         void Draw(RRenderData& renderData);
         void DrawInstanced(RRenderData& renderData, uint32_t instanceCount);
         unsigned int GetTriangleCount() const;
+        // CPU copy of the uploaded meshes (model space; static models have their prim transforms baked in).
+        const std::vector<RMesh>& GetMeshes() const { return mModelMeshes; }
 
         std::string GetModelFileName() const;
         std::string GetModelFileNamePath() const;

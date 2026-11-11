@@ -8,6 +8,7 @@
 #include <unordered_set>
 
 #include <AnimGraph/EvalMode.h>
+#include <Model/LevelStatics.h>
 #include <Tools/DebugLines.h>
 
 // forward declaration
@@ -47,8 +48,25 @@ struct ModelAndInstanceData
     bool miTrsInterpolate = true;     // tier C: interpolate between texture rows (off = nearest row)
     float miTrackGlobalTimeSec = 0.0f; // advanced once per frame by AnimationSystem
 
-    /* debug lines for this frame (CollisionSystem::BuildDebugLines), drawn by GizmoDrawPass */
+    /* debug lines for this frame (CollisionSystem::BuildDebugLines + level statics), drawn by GizmoDrawPass */
     RAnimation::DebugLineList miDebugLines{};
+
+    /* DCC-authored static sublayers of the imported level (colliders, zones, markers, display model). The
+       scene exporter writes them back as subLayers and skips the instances showing their display models. */
+    std::vector<RAnimation::StaticLayer> miStaticLayers{};
+    bool miShowLevelStatics = true;
+
+    bool IsStaticLayerModel(const RAnimation::Model* model) const
+    {
+        for (const RAnimation::StaticLayer& layer : miStaticLayers)
+        {
+            if (model != nullptr && layer.model.get() == model)
+            {
+                return true;
+            }
+        }
+        return false;
+    }
 
     /* delete models that were loaded during application runtime */
     std::unordered_set<std::shared_ptr<RAnimation::Model>> miPendingDeleteModels{};

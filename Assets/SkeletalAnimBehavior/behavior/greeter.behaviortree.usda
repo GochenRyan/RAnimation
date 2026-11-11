@@ -1,0 +1,115 @@
+#usda 1.0
+(
+    customLayerData = {
+        dictionary ranim = {
+            int behaviorTreeVersion = 1
+            string doc = "An interaction request (U) -> face the requester and wave."
+        }
+    }
+    defaultPrim = "BehaviorTree"
+)
+
+def Scope "BehaviorTree"
+{
+    custom string ranim:name = "greeter"
+    custom uint ranim:nextId = 10
+    custom rel ranim:root = </BehaviorTree/Nodes/N9>
+    custom float ranim:tickHz = 5
+
+    def Scope "Blackboard"
+    {
+    }
+
+    def Scope "Nodes"
+    {
+        def Scope "N1"
+        {
+            custom float2 ranim:editorPos = (0, 340)
+            custom uint ranim:id = 1
+            custom string ranim:param:key = "@perception.interaction.from"
+            custom string ranim:param:op = "IsSet"
+            custom string ranim:type = "BlackboardCompare"
+        }
+
+        def Scope "N2"
+        {
+            custom float2 ranim:editorPos = (320, 510)
+            custom uint ranim:id = 2
+            custom string ranim:param:text = "greeting"
+            custom string ranim:type = "Log"
+        }
+
+        def Scope "N3"
+        {
+            custom float2 ranim:editorPos = (640, 510)
+            custom uint ranim:id = 3
+            custom string ranim:param:target = "@perception.interaction.from"
+            custom float ranim:param:toleranceDeg = 15
+            custom string ranim:type = "FaceTo"
+        }
+
+        def Scope "N4"
+        {
+            custom float2 ranim:editorPos = (960, 510)
+            custom uint ranim:id = 4
+            custom bool ranim:param:cancelOnHalt = 1
+            custom string ranim:param:montage = "wave"
+            custom bool ranim:param:waitForCompletion = 1
+            custom string ranim:type = "PlayAction"
+        }
+
+        def Scope "N5"
+        {
+            custom float2 ranim:editorPos = (1280, 510)
+            custom uint ranim:id = 5
+            custom string ranim:param:key = "@perception.interaction.from"
+            custom string ranim:type = "ClearBlackboard"
+        }
+
+        def Scope "N6"
+        {
+            custom rel ranim:children = [
+                </BehaviorTree/Nodes/N2>,
+                </BehaviorTree/Nodes/N3>,
+                </BehaviorTree/Nodes/N4>,
+                </BehaviorTree/Nodes/N5>,
+            ]
+            custom float2 ranim:editorPos = (800, 340)
+            custom uint ranim:id = 6
+            custom string ranim:type = "MemSequence"
+        }
+
+        def Scope "N7"
+        {
+            custom rel ranim:children = [
+                </BehaviorTree/Nodes/N1>,
+                </BehaviorTree/Nodes/N6>,
+            ]
+            custom float2 ranim:editorPos = (400, 170)
+            custom uint ranim:id = 7
+            custom string ranim:label = "greet"
+            custom string ranim:type = "ReactiveSequence"
+        }
+
+        def Scope "N8"
+        {
+            custom float2 ranim:editorPos = (1600, 170)
+            custom uint ranim:id = 8
+            custom float ranim:param:seconds = 2
+            custom string ranim:type = "Wait"
+        }
+
+        def Scope "N9"
+        {
+            custom rel ranim:children = [
+                </BehaviorTree/Nodes/N7>,
+                </BehaviorTree/Nodes/N8>,
+            ]
+            custom float2 ranim:editorPos = (1000, 0)
+            custom uint ranim:id = 9
+            custom string ranim:label = "greeter"
+            custom string ranim:type = "MemSelector"
+        }
+    }
+}
+

@@ -11,6 +11,7 @@
 
 #include <Collision/CollisionProfile.h>
 #include <Collision/CollisionWorld.h>
+#include <Collision/ContactEvent.h>
 #include <Tools/DebugLines.h>
 
 struct ModelAndInstanceData;
@@ -70,6 +71,17 @@ namespace RAnimation
         // Clears and refills `out` according to Settings::showAABB / showShapes.
         void BuildDebugLines(DebugLineList& out);
 
+        // ---- behaviour support (§7.2, §7.3) ----
+        // Static level colliders -> static boxes; rebuilt only when the layers change.
+        void SyncStatics(const ModelAndInstanceData& scene);
+        // Merged Begin / End events of the last Step (after Resolve); valid until the next Step, i.e. the
+        // perception stage of the next frame reads them (one frame late on purpose).
+        std::span<const ContactEvent> ContactEvents() const { return mEvents; }
+        // Line of sight: true when a static body lies on the segment.
+        bool LineBlocked(const glm::vec3& from, const glm::vec3& to) const { return mWorld.RayCastStatic(from, to); }
+        uint32_t StaticBodyCount() const { return mWorld.StaticCount(); }
+        size_t TouchingPairs() const { return mMerger.TouchingOwnerPairs(); }
+
         Settings& GetSettings() { return mSettings; }
         const Settings& GetSettings() const { return mSettings; }
         CollisionWorld& World() { return mWorld; }
@@ -101,6 +113,8 @@ namespace RAnimation
         };
 
         const ModelEntry& EnsureModel(const std::shared_ptr<Model>& model);
+        ContactOwnerInfo OwnerInfo(uint32_t owner) const;
+        void RemoveInstanceBody(uint32_t slot);
         void AppendShapeWireframe(DebugLineList& out, const CollisionShapeDesc& shape, const CollisionShapePose& pose, const glm::vec3& color);
 
         CollisionWorld mWorld;
@@ -115,5 +129,11 @@ namespace RAnimation
         std::map<const Model*, std::string> mModelStatus;
         uint32_t mFrame = 0;
         uint32_t mLinesDropped = 0;
+
+        ContactMerger mMerger;
+        std::vector<ContactEvent> mEvents;
+        std::vector<ContactEvent> mPendingEvents; // Ends from body removals, delivered with the next Step
+        std::vector<StaticColliderTag> mStaticTags; // by static index
+        std::string mStaticsSignature;
     };
 } // namespace RAnimation

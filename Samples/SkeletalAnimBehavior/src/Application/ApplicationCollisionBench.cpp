@@ -75,7 +75,7 @@ void Application::runCollisionBench()
     {
         mSceneEditor.DeleteInstance(scene.miModelInstances.back());
     }
-    mCharacterController.Detach();
+    mCharacterSystem.Clear();
     CollisionSystem::Settings& settings = mCollisionSystem.GetSettings();
     settings.enabled = true;
     settings.pushApart = false; // keep the layout stable across the measured frames

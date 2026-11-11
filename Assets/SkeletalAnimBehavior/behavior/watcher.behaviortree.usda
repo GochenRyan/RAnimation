@@ -1,0 +1,154 @@
+#usda 1.0
+(
+    customLayerData = {
+        dictionary ranim = {
+            int behaviorTreeVersion = 1
+            string doc = "Sees the player -> raises the global alarm and faces the last seen position."
+        }
+    }
+    defaultPrim = "BehaviorTree"
+)
+
+def Scope "BehaviorTree"
+{
+    custom string ranim:name = "watcher"
+    custom uint ranim:nextId = 12
+    custom rel ranim:root = </BehaviorTree/Nodes/N11>
+    custom float ranim:tickHz = 2
+
+    def Scope "Blackboard"
+    {
+        def Scope "world_x2E_alarm"
+        {
+            custom bool ranim:default = 0
+            custom string ranim:name = "world.alarm"
+            custom string ranim:scope = "Global"
+            custom string ranim:type = "Bool"
+            custom bool ranim:wakeOnChange = 0
+        }
+
+        def Scope "perception_x2E_player_x2E_visible"
+        {
+            custom bool ranim:default = 0
+            custom string ranim:name = "perception.player.visible"
+            custom string ranim:scope = "Instance"
+            custom string ranim:type = "Bool"
+            custom bool ranim:wakeOnChange = 1
+        }
+    }
+
+    def Scope "Nodes"
+    {
+        def Scope "N1"
+        {
+            custom float2 ranim:editorPos = (640, 340)
+            custom uint ranim:id = 1
+            custom string ranim:param:key = "@perception.player.visible"
+            custom string ranim:param:op = "=="
+            custom string ranim:param:value = "true"
+            custom string ranim:type = "BlackboardCompare"
+        }
+
+        def Scope "N2"
+        {
+            custom float2 ranim:editorPos = (960, 510)
+            custom uint ranim:id = 2
+            custom string ranim:param:text = "I see you"
+            custom string ranim:type = "Log"
+        }
+
+        def Scope "N3"
+        {
+            custom float2 ranim:editorPos = (1280, 510)
+            custom uint ranim:id = 3
+            custom string ranim:param:key = "@world.alarm"
+            custom string ranim:param:value = "true"
+            custom string ranim:type = "SetBlackboard"
+        }
+
+        def Scope "N4"
+        {
+            custom float2 ranim:editorPos = (1600, 510)
+            custom uint ranim:id = 4
+            custom string ranim:param:target = "@perception.player.lastSeenPos"
+            custom float ranim:param:toleranceDeg = 10
+            custom string ranim:type = "FaceTo"
+        }
+
+        def Scope "N5"
+        {
+            custom float2 ranim:editorPos = (1920, 510)
+            custom uint ranim:id = 5
+            custom float ranim:param:seconds = 0.5
+            custom string ranim:type = "Wait"
+        }
+
+        def Scope "N6"
+        {
+            custom rel ranim:children = [
+                </BehaviorTree/Nodes/N2>,
+                </BehaviorTree/Nodes/N3>,
+                </BehaviorTree/Nodes/N4>,
+                </BehaviorTree/Nodes/N5>,
+            ]
+            custom float2 ranim:editorPos = (1440, 340)
+            custom uint ranim:id = 6
+            custom string ranim:type = "MemSequence"
+        }
+
+        def Scope "N7"
+        {
+            custom rel ranim:children = [
+                </BehaviorTree/Nodes/N1>,
+                </BehaviorTree/Nodes/N6>,
+            ]
+            custom float2 ranim:editorPos = (1040, 170)
+            custom uint ranim:id = 7
+            custom string ranim:label = "seen"
+            custom string ranim:type = "ReactiveSequence"
+        }
+
+        def Scope "N8"
+        {
+            custom float2 ranim:editorPos = (0, 340)
+            custom uint ranim:id = 8
+            custom string ranim:param:key = "@perception.player.visible"
+            custom string ranim:param:op = "=="
+            custom string ranim:param:value = "false"
+            custom string ranim:type = "BlackboardCompare"
+        }
+
+        def Scope "N9"
+        {
+            custom float2 ranim:editorPos = (320, 340)
+            custom uint ranim:id = 9
+            custom float ranim:param:seconds = 1
+            custom string ranim:type = "Wait"
+        }
+
+        def Scope "N10"
+        {
+            custom rel ranim:children = [
+                </BehaviorTree/Nodes/N8>,
+                </BehaviorTree/Nodes/N9>,
+            ]
+            custom float2 ranim:editorPos = (160, 170)
+            custom uint ranim:id = 10
+            custom string ranim:label = "idle while unseen"
+            custom string ranim:type = "ReactiveSequence"
+        }
+
+        def Scope "N11"
+        {
+            custom rel ranim:children = [
+                </BehaviorTree/Nodes/N10>,
+                </BehaviorTree/Nodes/N7>,
+            ]
+            custom float2 ranim:editorPos = (600, 0)
+            custom uint ranim:id = 11
+            custom string ranim:label = "watcher"
+            custom string ranim:type = "MemSelector"
+        }
+    }
+}
+

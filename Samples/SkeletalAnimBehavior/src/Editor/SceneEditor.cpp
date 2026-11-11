@@ -281,7 +281,7 @@ void SceneEditor::DeleteInstance(std::shared_ptr<ModelInstance> instance)
             [this, instance]() { insertInstanceInternal(instance); }));
 }
 
-void SceneEditor::CloneInstance(std::shared_ptr<ModelInstance> instance)
+std::shared_ptr<ModelInstance> SceneEditor::CloneInstance(std::shared_ptr<ModelInstance> instance)
 {
     std::shared_ptr<Model> currentModel = instance->GetModel();
     std::shared_ptr<ModelInstance> newInstance = std::make_shared<ModelInstance>(currentModel);
@@ -291,10 +291,206 @@ void SceneEditor::CloneInstance(std::shared_ptr<ModelInstance> instance)
     newInstanceSettings.mWorldPosition += glm::vec3(1.0f, 0.0f, -1.0f);
     newInstance->SetInstanceSettings(newInstanceSettings);
 
+    // same behaviour setup, but only one agent may start possessed; the entity id is assigned on insert
+    std::optional<AgentConfig> agent = instance->GetAgentConfig();
+    if (agent)
+    {
+        agent->possessed = false;
+    }
+    newInstance->SetAgentConfig(agent);
+
     mEditor.Execute(std::make_unique<FunctionalCommand>(
             "Clone Instance",
             [this, newInstance]() { insertInstanceInternal(newInstance); },
             [this, newInstance]() { removeInstanceInternal(newInstance); }));
+    return newInstance;
+}
+
+SceneEditor::ImportResult SceneEditor::ImportScene(const ImportedScene& scene)
+{
+    ImportResult result;
+    std::vector<std::shared_ptr<Model>> newModels;
+    std::vector<std::shared_ptr<ModelInstance>> newInstances;
+    std::vector<StaticLayer> newLayers;
+
+    // GPU loads happen once, here; the command only (re)inserts the loaded pointers.
+    const auto findOrLoad = [&](const std::string& path) -> std::shared_ptr<Model>
+    {
+        if (std::shared_ptr<Model> model = GetModel(path))
+        {
+            return model;
+        }
+        for (const std::shared_ptr<Model>& model : newModels)
+        {
+            if (model->GetModelFileNamePath() == path)
+            {
+                return model;
+            }
+        }
+        std::shared_ptr<Model> model = mLoadModel ? mLoadModel(path) : nullptr;
+        if (model != nullptr)
+        {
+            newModels.push_back(model);
+        }
+        return model;
+    };
+
+    bool possessedSeen = false;
+    for (const ImportedSceneInstance& imp : scene.instances)
+    {
+        std::shared_ptr<Model> model = findOrLoad(imp.assetPath);
+        if (model == nullptr)
+        {
+            ++result.failedAssets;
+            continue;
+        }
+        auto instance = std::make_shared<ModelInstance>(model, imp.settings.mWorldPosition, imp.settings.mWorldRotation, imp.settings.mScale);
+        instance->SetInstanceSettings(imp.settings);
+
+        const EntityId id = claimEntityId(imp.entityId);
+        if (imp.entityId == kInvalidEntityId)
+        {
+            ++result.newIds;
+        }
+        else if (id != imp.entityId)
+        {
+            ++result.reassignedIds;
+            fmt::print(stderr, fg(fmt::color::yellow), "SceneEditor: '{}' entity id {} is already in use, assigned {}\n", imp.primPath, imp.entityId, id);
+        }
+        instance->SetEntityId(id);
+
+        std::optional<AgentConfig> agent = imp.agent;
+        if (agent && agent->possessed)
+        {
+            if (possessedSeen)
+            {
+                fmt::print(stderr, fg(fmt::color::yellow), "SceneEditor: '{}' is a second possessed agent, cleared\n", imp.primPath);
+                agent->possessed = false;
+            }
+            possessedSeen = true;
+        }
+        instance->SetAgentConfig(std::move(agent));
+        newInstances.push_back(std::move(instance));
+    }
+
+    for (const ImportedStaticLayer& imported : scene.staticLayers)
+    {
+        const bool alreadyLoaded = std::any_of(mModelInstData.miStaticLayers.begin(),
+                                               mModelInstData.miStaticLayers.end(),
+                                               [&imported](const StaticLayer& layer) { return layer.path == imported.path; });
+        if (alreadyLoaded)
+        {
+            fmt::print(stderr, fg(fmt::color::yellow), "SceneEditor: static layer '{}' is already in the scene, skipped\n", imported.path);
+            continue;
+        }
+        StaticLayer layer;
+        layer.path = imported.path;
+        layer.statics = imported.statics;
+        // a layer with only markers has no display model; its gameplay data still counts
+        layer.model = findOrLoad(imported.path);
+        if (layer.model != nullptr)
+        {
+            newInstances.push_back(std::make_shared<ModelInstance>(layer.model));
+        }
+        newLayers.push_back(std::move(layer));
+    }
+
+    result.instances = static_cast<int>(scene.instances.size()) - result.failedAssets;
+    result.staticLayers = static_cast<int>(newLayers.size());
+    if (newInstances.empty() && newLayers.empty())
+    {
+        return result;
+    }
+
+    mEditor.Execute(std::make_unique<FunctionalCommand>(
+            "Import Scene",
+            [this, newModels, newInstances, newLayers]()
+            {
+                for (const auto& model : newModels)
+                {
+                    insertModelInternal(model);
+                }
+                for (const auto& instance : newInstances)
+                {
+                    insertInstanceInternal(instance);
+                }
+                for (const StaticLayer& layer : newLayers)
+                {
+                    mModelInstData.miStaticLayers.push_back(layer);
+                }
+            },
+            [this, newModels, newInstances, newLayers]()
+            {
+                auto& layers = mModelInstData.miStaticLayers;
+                for (const StaticLayer& layer : newLayers)
+                {
+                    layers.erase(std::remove_if(layers.begin(), layers.end(), [&layer](const StaticLayer& l) { return l.path == layer.path; }),
+                                 layers.end());
+                }
+                for (const auto& instance : newInstances)
+                {
+                    removeInstanceInternal(instance);
+                }
+                for (const auto& model : newModels)
+                {
+                    removeModelInternal(model);
+                }
+            },
+            [this, newModels](bool currentlyApplied)
+            {
+                if (!currentlyApplied)
+                {
+                    for (const auto& model : newModels)
+                    {
+                        releaseModelGpu(model);
+                    }
+                }
+            }));
+    return result;
+}
+
+void SceneEditor::ClearForLoad()
+{
+    mEditor.Clear();
+    mModelInstData.miModelInstances.clear();
+    mModelInstData.miModelInstancesPerModel.clear();
+    mModelInstData.miStaticLayers.clear();
+    mModelInstData.miSelectedInstance = 0;
+    mUsedEntityIds.clear();
+    mNextEntityId = 1;
+}
+
+EntityId SceneEditor::AllocateEntityId()
+{
+    while (mUsedEntityIds.count(mNextEntityId) != 0)
+    {
+        ++mNextEntityId;
+    }
+    const EntityId id = mNextEntityId++;
+    mUsedEntityIds.insert(id);
+    return id;
+}
+
+EntityId SceneEditor::claimEntityId(EntityId wanted)
+{
+    if (wanted != kInvalidEntityId && mUsedEntityIds.insert(wanted).second)
+    {
+        mNextEntityId = std::max(mNextEntityId, wanted + 1);
+        return wanted;
+    }
+    return AllocateEntityId();
+}
+
+std::shared_ptr<ModelInstance> SceneEditor::FindEntity(EntityId id) const
+{
+    for (const std::shared_ptr<ModelInstance>& instance : mModelInstData.miModelInstances)
+    {
+        if (instance != nullptr && instance->GetEntityId() == id)
+        {
+            return instance;
+        }
+    }
+    return nullptr;
 }
 
 void SceneEditor::FocusCameraOn(std::shared_ptr<ModelInstance> instance)
@@ -359,6 +555,11 @@ void SceneEditor::insertInstanceInternal(const std::shared_ptr<ModelInstance>& i
     if (instance == nullptr)
     {
         return;
+    }
+    // first insertion assigns the id; redo / undo-of-delete re-insert the same object and keep it
+    if (instance->GetEntityId() == kInvalidEntityId)
+    {
+        instance->SetEntityId(AllocateEntityId());
     }
 
     mModelInstData.miModelInstances.emplace_back(instance);

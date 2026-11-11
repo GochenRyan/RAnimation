@@ -3,13 +3,18 @@
 
 #include <algorithm>
 #include <cstdlib>
+#include <filesystem>
+#include <limits>
+#include <set>
 #include <string>
 #include <vector>
 
 #include <fmt/base.h>
 #include <fmt/color.h>
+#include <fmt/format.h>
 
 #include <AnimGraph/AnimGraphAsset.h>
+#include <Agent/ScriptBrain.h>
 #include <Application/Application.h>
 #include <Model/UsdSceneExporter.h>
 
@@ -25,34 +30,31 @@ bool Application::ApplySmokeTestOptions(const SmokeTestOptions& options)
 
     if (!options.scenePath.empty())
     {
-        std::vector<ImportedSceneInstance> imported;
-        CameraRig importedRig;
-        if (!ImportSceneFromUsd(options.scenePath, imported, importedRig))
+        ImportedScene imported;
+        if (!ImportSceneFromUsd(options.scenePath, imported))
         {
             fmt::print(stderr, fg(fmt::color::red), "smoke: could not import scene '{}'\n", options.scenePath);
             return false;
         }
-        renderData.rdCameraRig = importedRig;
-        for (const ImportedSceneInstance& imp : imported)
+        renderData.rdCameraRig = imported.camera;
+        const SceneEditor::ImportResult result = mSceneEditor.ImportScene(imported);
+        fmt::print("smoke: imported {} instance(s), {} static layer(s) from '{}' (entity ids: {} new, {} reassigned; {} asset(s) failed)\n",
+                   result.instances,
+                   result.staticLayers,
+                   options.scenePath,
+                   result.newIds,
+                   result.reassignedIds,
+                   result.failedAssets);
+    }
+
+    if (!options.levelRoundTripPath.empty())
+    {
+        if (options.scenePath.empty())
         {
-            std::shared_ptr<Model> model = mSceneEditor.GetModel(imp.assetPath);
-            if (model == nullptr)
-            {
-                if (!mSceneEditor.AddModel(imp.assetPath))
-                {
-                    continue;
-                }
-                if (!scene.miModelInstances.empty())
-                {
-                    scene.miModelInstances.back()->SetInstanceSettings(imp.settings);
-                }
-            }
-            else if (std::shared_ptr<ModelInstance> instance = mSceneEditor.AddInstance(model))
-            {
-                instance->SetInstanceSettings(imp.settings);
-            }
+            fmt::print(stderr, fg(fmt::color::red), "smoke: --level-roundtrip needs --scene\n");
+            return false;
         }
-        fmt::print("smoke: imported {} instance(s) from '{}'\n", imported.size(), options.scenePath);
+        mVerifyFailed = !runLevelRoundTrip(options.levelRoundTripPath) || mVerifyFailed;
     }
 
     if (!options.evalMode.empty())
@@ -116,7 +118,9 @@ bool Application::ApplySmokeTestOptions(const SmokeTestOptions& options)
     if (!options.saveStateMachinePath.empty())
     {
         std::string error;
-        if (!mCharacterController.SaveDefinition(options.saveStateMachinePath, error))
+        CharacterController writer;
+        writer.InitShared(mCharacterSystem.Shared());
+        if (!writer.SaveDefinition(options.saveStateMachinePath, error))
         {
             fmt::print(stderr, fg(fmt::color::red), "smoke: could not save the state machine: {}\n", error);
             return false;
@@ -195,6 +199,61 @@ bool Application::ApplySmokeTestOptions(const SmokeTestOptions& options)
     mVerifyAtEnd = options.verify;
     mFixedDeltaTime = options.fixedDeltaTime;
 
+    if (options.showBehaviorEditor)
+    {
+        mUserInterface.ShowBehaviorTreeEditor(true);
+    }
+    if (options.viewMode)
+    {
+        mSceneEditor.SetMode(Editor::Mode::View);
+    }
+    if (options.selectEntity != 0)
+    {
+        for (size_t i = 0; i < scene.miModelInstances.size(); ++i)
+        {
+            if (scene.miModelInstances[i]->GetEntityId() == options.selectEntity)
+            {
+                scene.miSelectedInstance = static_cast<int>(i);
+            }
+        }
+    }
+    if (options.editorSmoke && !setupEditorSmoke())
+    {
+        fmt::print(stderr, fg(fmt::color::red), "smoke: --editor-smoke needs --scene behavior_test.level.usda\n");
+        return false;
+    }
+    if (options.behaviorBench > 0)
+    {
+        if (scene.miModelList.empty())
+        {
+            fmt::print(stderr, fg(fmt::color::red), "smoke: --behavior-bench needs a --scene with a character model\n");
+            return false;
+        }
+        spawnBehaviorBench(options.behaviorBench);
+        mSceneEditor.SetMode(Editor::Mode::View);
+        if (mFixedDeltaTime <= 0.0f)
+            mFixedDeltaTime = 1.0f / 60.0f;
+        if (mFrameLimit < 0)
+            mFrameLimit = 600;
+    }
+    if (options.behavior)
+    {
+        if (options.scenePath.empty() || !setupBehaviorSmoke())
+        {
+            fmt::print(stderr, fg(fmt::color::red), "smoke: --behavior needs --scene behavior_test.level.usda\n");
+            return false;
+        }
+        if (mFixedDeltaTime <= 0.0f)
+        {
+            mFixedDeltaTime = 1.0f / 60.0f;
+        }
+        if (mFrameLimit < 0)
+        {
+            mFrameLimit = 1800;
+        }
+        fmt::print("smoke: behaviour scene, dt {:.4f} s, {} frames\n", mFixedDeltaTime, mFrameLimit);
+    }
+
     if (options.controller)
     {
         if (scene.miModelInstances.empty())
@@ -202,13 +261,33 @@ bool Application::ApplySmokeTestOptions(const SmokeTestOptions& options)
             fmt::print(stderr, fg(fmt::color::red), "smoke: --controller needs an instance (use --scene)\n");
             return false;
         }
-        std::string error;
-        if (!mCharacterController.Attach(scene.miModelInstances.front(), error))
+        // The first instance runs the scripted sequence through a ScriptBrain (the same interface a behaviour
+        // tree uses); a level-configured agent on that instance gets its brain replaced.
+        mCharacterSystem.SyncFromScene(scene);
+        const std::shared_ptr<ModelInstance>& first = scene.miModelInstances.front();
+        Agent* agent = mCharacterSystem.FindByInstance(first.get());
+        if (agent != nullptr)
         {
-            fmt::print(stderr, fg(fmt::color::red), "smoke: could not attach the character controller: {}\n", error);
-            return false;
+            if (mCharacterSystem.Possessed() == agent->entity)
+            {
+                mCharacterSystem.Possess(kInvalidEntityId);
+            }
+            mCharacterSystem.SetBrain(*agent, std::make_unique<ScriptBrain>(ScriptBrain::ControllerScript()));
         }
+        else
+        {
+            std::string error;
+            agent = mCharacterSystem.AddAgent(first, std::make_unique<ScriptBrain>(ScriptBrain::ControllerScript()), error);
+            if (agent == nullptr)
+            {
+                fmt::print(stderr, fg(fmt::color::red), "smoke: could not create the scripted agent: {}\n", error);
+                return false;
+            }
+        }
+        mScriptEntity = agent->entity;
         mControllerScript = true;
+        // Edit mode pauses every agent (D17); the editor starts in Edit.
+        mSceneEditor.SetMode(Editor::Mode::View);
         if (mFixedDeltaTime <= 0.0f)
         {
             mFixedDeltaTime = 1.0f / 60.0f;
@@ -218,59 +297,34 @@ bool Application::ApplySmokeTestOptions(const SmokeTestOptions& options)
             mFrameLimit = 600;
         }
         fmt::print("smoke: character controller attached (definition: {}), scripted input, dt {:.4f} s, {} frames\n",
-                   mCharacterController.DefinitionSource(), mFixedDeltaTime, mFrameLimit);
+                   agent->controller->DefinitionSource(), mFixedDeltaTime, mFrameLimit);
     }
     return true;
 }
 
-// Frame-indexed script at 1/60 s. The same script runs on every model that has a profile; the expected
-// transition sequence only names shared states, the timing assumes the UAL / animated_woman clip lengths.
-//   0.5 s walk, 1.5 s jog, 2.5 s jump (Start -> Land on touchdown, Land -> Stand when the clip ends),
-//   5.0 s punch (upper body slot), 5.5 s crouch, 6.5 s stand still, 7.0 s draw the pistol, 7.5 s hit
-//   (full body slot, locks movement), 9.0 s die.
-void Application::runControllerScript(int frame)
+Agent* Application::scriptAgent()
 {
+    return mCharacterSystem.Find(mScriptEntity);
+}
+
+// The scripted sequence itself is ScriptBrain::ControllerScript (ticked by CharacterSystem, frame N of the
+// brain = frame N here). This only checks the gameplay side the state machine never owns.
+void Application::checkControllerFrame(int frame)
+{
+    Agent* agent = scriptAgent();
+    if (agent == nullptr)
+    {
+        fmt::print(fg(fmt::color::red), "smoke[controller] frame {}: the scripted agent is gone\n", frame);
+        mVerifyFailed = true;
+        return;
+    }
+    CharacterController& controller = *agent->controller;
     if (frame == 0)
     {
-        mControllerStart = mCharacterController.Motion().position;
-    }
-    CharacterInput input;
-    if (frame >= 30 && frame < 390)
-    {
-        input.moveY = 1.0f;
-    }
-    if (frame >= 90 && frame < 390)
-    {
-        input.run = true;
-    }
-    if (frame >= 330 && frame < 390)
-    {
-        input.crouch = true;
-    }
-    mCharacterController.SetInput(input);
-    if (frame == 150)
-    {
-        mCharacterController.Jump();
-    }
-    if (frame == 300)
-    {
-        mCharacterController.RequestAction("punch");
-    }
-    if (frame == 420)
-    {
-        mCharacterController.ToggleWeapon();
-    }
-    if (frame == 450)
-    {
-        mCharacterController.RequestAction("hit");
-    }
-    if (frame == 540)
-    {
-        mCharacterController.Die();
+        mControllerStart = controller.Motion().position;
     }
 
-    // Motion assertions: the state machine never owns gameplay state, so check the gameplay side too.
-    const MotionState& motion = mCharacterController.Motion();
+    const MotionState& motion = controller.Motion();
     auto expectMotion = [&](bool ok, const char* what)
     {
         if (!ok)
@@ -286,12 +340,17 @@ void Application::runControllerScript(int frame)
     }
     if (frame == 30 && mCollisionSystem.IsInitialized() && mCollisionSystem.GetSettings().enabled)
     {
-        const size_t instances = mSceneEditor.ModelData().miModelInstances.size();
+        // static-layer display instances never get a character body
+        const ModelAndInstanceData& data = mSceneEditor.ModelData();
+        const size_t instances = static_cast<size_t>(std::count_if(data.miModelInstances.begin(),
+                                                                   data.miModelInstances.end(),
+                                                                   [&data](const std::shared_ptr<ModelInstance>& i)
+                                                                   { return !data.IsStaticLayerModel(i->GetModel().get()); }));
         expectMotion(mCollisionSystem.BodyCount() == instances,
                      "one collision body per instance (CollisionSystem::Sync picked up the whole scene)");
         // Guards the joint-matrix scale trap: the UAL bind pose carries a 100x scale in its 3x3, so a shape
         // offset pushed through the raw matrix lands metres away and the body's AABB turns into a tall column.
-        for (const std::shared_ptr<ModelInstance>& instance : mSceneEditor.ModelData().miModelInstances)
+        for (const std::shared_ptr<ModelInstance>& instance : data.miModelInstances)
         {
             glm::vec3 mn, mx;
             if (!mCollisionSystem.GetInstanceBounds(instance.get(), mn, mx))
@@ -326,8 +385,121 @@ void Application::runControllerScript(int frame)
     if (frame == 30 || frame == 90 || frame == 150 || frame == 300 || frame == 330 || frame == 390 || frame == 420 ||
         frame == 450 || frame == 540)
     {
-        fmt::print("smoke[controller] frame {}: {}\n", frame, mCharacterController.ActiveStatesText());
+        fmt::print("smoke[controller] frame {}: {}\n", frame, controller.ActiveStatesText());
     }
+}
+
+bool Application::runLevelRoundTrip(const std::string& outPath)
+{
+    ModelAndInstanceData& scene = mSceneEditor.ModelData();
+    bool ok = true;
+    const auto check = [&ok](bool condition, const std::string& what)
+    {
+        fmt::print(condition ? fmt::text_style{} : fg(fmt::color::red), "smoke[level] {} {}\n", condition ? "ok  " : "FAIL", what);
+        ok = ok && condition;
+    };
+    const auto vec = [](const glm::vec3& v) { return fmt::format("({:.3f}, {:.3f}, {:.3f})", v.x, v.y, v.z); };
+
+    // what the static layers contributed (the P0 acceptance reads these numbers)
+    for (const StaticLayer& layer : scene.miStaticLayers)
+    {
+        fmt::print("smoke[level] static layer '{}': display model {}, {} collider(s), {} zone(s), {} marker(s), {} warning(s)\n",
+                   layer.path,
+                   layer.model ? fmt::format("{} triangle(s)", layer.model->GetTriangleCount()) : std::string("none"),
+                   layer.statics.colliders.size(),
+                   layer.statics.zones.size(),
+                   layer.statics.markers.size(),
+                   layer.statics.warnings.size());
+        if (layer.model)
+        {
+            // baked display geometry, one line per mesh: these are the numbers the viewport shows
+            for (const RMesh& mesh : layer.model->GetMeshes())
+            {
+                glm::vec3 mn(std::numeric_limits<float>::max());
+                glm::vec3 mx(std::numeric_limits<float>::lowest());
+                for (const RVertex& v : mesh.vertices)
+                {
+                    mn = glm::min(mn, v.position);
+                    mx = glm::max(mx, v.position);
+                }
+                fmt::print("smoke[level]   display mesh {} tris, bounds {} .. {}\n", mesh.indices.size() / 3, vec(mn), vec(mx));
+            }
+        }
+        for (const StaticCollider& c : layer.statics.colliders)
+        {
+            fmt::print("smoke[level]   collider {} ({}) centre {} half {}\n",
+                       c.name,
+                       c.tag == StaticColliderTag::Boundary ? "boundary" : "obstacle",
+                       vec(c.box.center),
+                       vec(c.box.halfExtents));
+        }
+        for (const StaticZone& z : layer.statics.zones)
+        {
+            fmt::print("smoke[level]   zone {} centre {} half {}\n", z.name, vec(z.box.center), vec(z.box.halfExtents));
+        }
+        for (const StaticMarker& m : layer.statics.markers)
+        {
+            fmt::print("smoke[level]   {} {} route '{}' #{} at {} radius {:.2f}\n",
+                       m.kind == StaticMarkerKind::Spawn ? "spawn" : "waypoint",
+                       m.name,
+                       m.route,
+                       m.index,
+                       vec(m.position),
+                       m.radius);
+        }
+    }
+
+    std::vector<std::shared_ptr<ModelInstance>> expected;
+    std::set<EntityId> ids;
+    bool unique = true;
+    for (const std::shared_ptr<ModelInstance>& instance : scene.miModelInstances)
+    {
+        unique = unique && instance->GetEntityId() != kInvalidEntityId && ids.insert(instance->GetEntityId()).second;
+        if (!scene.IsStaticLayerModel(instance->GetModel().get()))
+        {
+            expected.push_back(instance);
+        }
+    }
+    check(unique, fmt::format("every instance has a unique entity id ({} instances)", scene.miModelInstances.size()));
+
+    if (!ExportSceneToUsd(scene, mRenderer->GetRenderData().rdCameraRig, outPath))
+    {
+        check(false, "export to '" + outPath + "'");
+        return false;
+    }
+    ImportedScene back;
+    check(ImportSceneFromUsd(outPath, back), "re-import of the exported level");
+    check(back.instances.size() == expected.size(),
+          fmt::format("instance count survives ({} exported, static display instances excluded: {})", back.instances.size(), expected.size()));
+    int idMismatch = 0;
+    int agentMismatch = 0;
+    for (size_t i = 0; i < std::min(back.instances.size(), expected.size()); ++i)
+    {
+        idMismatch += back.instances[i].entityId != expected[i]->GetEntityId() ? 1 : 0;
+        agentMismatch += back.instances[i].agent != expected[i]->GetAgentConfig() ? 1 : 0;
+    }
+    check(idMismatch == 0, fmt::format("entity ids unchanged after export -> import ({} mismatches)", idMismatch));
+    check(agentMismatch == 0, fmt::format("agent configs unchanged ({} mismatches)", agentMismatch));
+
+    bool layersMatch = back.staticLayers.size() == scene.miStaticLayers.size();
+    for (size_t i = 0; layersMatch && i < back.staticLayers.size(); ++i)
+    {
+        std::error_code ec;
+        layersMatch = std::filesystem::equivalent(back.staticLayers[i].path, scene.miStaticLayers[i].path, ec) &&
+                      back.staticLayers[i].statics.colliders.size() == scene.miStaticLayers[i].statics.colliders.size();
+    }
+    check(layersMatch, fmt::format("static layers written back as subLayers ({})", back.staticLayers.size()));
+
+    if (!expected.empty())
+    {
+        const std::shared_ptr<ModelInstance> clone = mSceneEditor.CloneInstance(expected.front());
+        const EntityId cloneId = clone->GetEntityId();
+        check(cloneId != kInvalidEntityId && ids.count(cloneId) == 0, fmt::format("clone of entity {} gets the new id {}", expected.front()->GetEntityId(), cloneId));
+        mSceneEditor.Undo();
+        check(mSceneEditor.FindEntity(cloneId) == nullptr, "undo removes the clone");
+    }
+    fmt::print(ok ? fg(fmt::color::green) : fg(fmt::color::red), "smoke[level] round trip {}\n", ok ? "OK" : "FAILED");
+    return ok;
 }
 
 void Application::verifyControllerLog()
@@ -337,7 +509,15 @@ void Application::verifyControllerLog()
     const char* expected[] = {"Locomotion -> JumpStart", "JumpStart -> JumpLand", "JumpLand -> Stand", "Free -> UpperBodyBusy",
                               "Stand -> Crouch", "UpperBodyBusy -> Free", "Crouch -> Stand", "Unarmed -> Pistol",
                               "Free -> FullBodyBusy", "FullBodyBusy -> Free", "Locomotion -> Dead"};
-    const std::deque<std::string>& log = mCharacterController.Log();
+    Agent* agent = scriptAgent();
+    if (agent == nullptr)
+    {
+        fmt::print(fg(fmt::color::red), "smoke[controller] the scripted agent is gone\n");
+        mVerifyFailed = true;
+        return;
+    }
+    CharacterController& controller = *agent->controller;
+    const std::deque<std::string>& log = controller.Log();
     size_t next = 0;
     for (const std::string& line : log)
     {
@@ -346,16 +526,16 @@ void Application::verifyControllerLog()
             ++next;
         }
     }
-    fmt::print("smoke[controller] final: {}\n", mCharacterController.ActiveStatesText());
+    fmt::print("smoke[controller] final: {}\n", controller.ActiveStatesText());
     for (const std::string& line : log)
     {
         fmt::print("smoke[controller]   {}\n", line);
     }
-    for (const std::string& line : mCharacterController.Notifies())
+    for (const std::string& line : controller.Notifies())
     {
         fmt::print("smoke[controller]   notify {}\n", line);
     }
-    const bool notified = !mCharacterController.Notifies().empty();
+    const bool notified = !controller.Notifies().empty();
     if (!notified)
     {
         fmt::print(fg(fmt::color::red), "smoke[controller] no montage notify was reported (expected HitWindow from punch)\n");

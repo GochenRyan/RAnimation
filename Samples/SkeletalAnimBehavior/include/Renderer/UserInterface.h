@@ -11,22 +11,45 @@
 #include <Model/ModelInstance.h>
 #include <Editor/SceneEditor.h>
 #include <Editor/AnimGraph/AnimGraphPanel.h>
+#include <Editor/BehaviorTree/BehaviorTreePanel.h>
+#include <functional>
+#include <optional>
 #include <Tools/Timer.h>
+
+struct ImGuiIO;
 
 namespace RAnimation
 {
-    class CharacterController;
+    class CharacterSystem;
     class CollisionSystem;
+    class BehaviorSystem;
 
     class UserInterface
     {
     public:
         bool Init(RRenderData& renderData);
         void HideMouse(bool hide);
-        // Optional: the "Character" header drives this controller (attach / events / state log).
-        void SetCharacterController(CharacterController* controller)
+        // Optional: the "Agent" header shows / drives the selected instance's agent (possession, events).
+        void SetCharacterSystem(CharacterSystem* characters)
         {
-            mCharacterController = controller;
+            mCharacterSystem = characters;
+        }
+        // Optional: behaviour trees (editor window, agent tree picker). Call after SetCharacterSystem.
+        void SetBehaviorSystem(BehaviorSystem* behavior)
+        {
+            mBehaviorSystem = behavior;
+            mBehaviorTreePanel.Initialize(behavior, mCharacterSystem);
+        }
+        void ShowBehaviorTreeEditor(bool visible) { mBehaviorTreePanel.bVisible = visible; }
+        // Test hook: called every frame between the platform backend's NewFrame and ImGui::NewFrame, so injected
+        // events are the last ones in the queue for that frame (--editor-smoke).
+        std::function<void(ImGuiIO&)> inputInjector;
+        BehaviorTreePanel& BehaviorTrees() { return mBehaviorTreePanel; }
+        // Checkpoint buttons (§8.4): the application executes them at the end of the frame.
+        void SetCheckpointHooks(std::function<void(const std::string&)> save, std::function<void(const std::string&)> load)
+        {
+            mSaveCheckpoint = std::move(save);
+            mLoadCheckpoint = std::move(load);
         }
         // Optional: the "Collision (Jolt)" header drives this system (toggles, threading, telemetry).
         void SetCollisionSystem(CollisionSystem* collision)
@@ -43,8 +66,12 @@ namespace RAnimation
         // Builds the top menu bar (Edit menu: undo/redo + mode toggle) and processes editor hotkeys.
         void drawMenuBarAndHotkeys(RRenderData& renderData, SceneEditor& sceneEditor);
 
-        // "Character (state machine)" header: attach / detach, events, active states, transition log.
+        // "Agent" header: the selected instance's agent (brain, schedule, feedback, possession), checkpoints.
         void drawCharacterPanel(ModelAndInstanceData& modInstData);
+        // Instances panel: the selected instance's agent config (tree, tick rate, perception), undoable.
+        void drawAgentConfig(SceneEditor& sceneEditor, const std::shared_ptr<ModelInstance>& instance);
+        // Edit -> View is refused while the behaviour tree editor has unsaved / invalid changes (D17).
+        void requestModeToggle(SceneEditor& sceneEditor);
 
         // "Collision (Jolt)" header: enable / push / debug toggles, thread mode + threshold, per-frame timings.
         void drawCollisionPanel(ModelAndInstanceData& modInstData);
@@ -104,7 +131,15 @@ namespace RAnimation
         AnimGraphPanel mAnimGraphPanel{};
         std::map<std::string, std::shared_ptr<AnimGraphAsset>> mGraphAssetCache;
 
-        CharacterController* mCharacterController = nullptr;
+        CharacterSystem* mCharacterSystem = nullptr;
+        BehaviorSystem* mBehaviorSystem = nullptr;
+        BehaviorTreePanel mBehaviorTreePanel{};
+        std::function<void(const std::string&)> mSaveCheckpoint;
+        std::function<void(const std::string&)> mLoadCheckpoint;
+        char mCheckpointSlot[256] = ASSETS_SRC_DIR "/SkeletalAnimBehavior/saves/quick";
+        std::string mModeStatus;
+        std::optional<AgentConfig> mPendingAgentBefore;
+        std::shared_ptr<ModelInstance> mPendingAgentInstance;
         CollisionSystem* mCollisionSystem = nullptr;
         std::string mCharacterStatus;
 

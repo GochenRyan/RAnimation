@@ -79,6 +79,13 @@ namespace RAnimation
             }
             stem = stem.substr(0, dot);
         }
+        const std::filesystem::path behaviorProfile =
+                std::filesystem::path(ASSETS_SRC_DIR "/SkeletalAnimBehavior/profile") / (stem + ".profile.json");
+        std::error_code ec;
+        if (std::filesystem::exists(behaviorProfile, ec))
+        {
+            return behaviorProfile.lexically_normal().generic_string();
+        }
         return (p.parent_path() / (stem + ".profile.json")).generic_string();
     }
 
@@ -152,6 +159,7 @@ namespace RAnimation
                 pm.desc.loop = BoolOr(m, "loop", false);
                 pm.desc.priority = IntOr(m, "priority", 0);
                 pm.desc.lockMovement = BoolOr(m, "lockMove", false);
+                pm.cancelable = BoolOr(m, "cancelable", true);
                 if (auto n = m.find("notifies"); n != m.end() && n->second.IsArray())
                 {
                     for (const JsValue& nv : n->second.GetJsArray())

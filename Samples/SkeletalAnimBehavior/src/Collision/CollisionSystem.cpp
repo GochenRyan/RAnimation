@@ -60,6 +60,11 @@ namespace RAnimation
 
     void CollisionSystem::Shutdown()
     {
+        mMerger.Clear();
+        mEvents.clear();
+        mPendingEvents.clear();
+        mStaticTags.clear();
+        mStaticsSignature.clear();
         mInstances.clear();
         mModels.clear();
         mModelStatus.clear();
@@ -154,9 +159,7 @@ namespace RAnimation
         {
             if (it->second.frameSeen != mFrame)
             {
-                mWorld.RemoveBody(it->second.slot);
-                mSlotToInstance[it->second.slot] = nullptr;
-                mFreeSlots.push_back(it->second.slot);
+                RemoveInstanceBody(it->second.slot);
                 it = mInstances.erase(it);
             }
             else
@@ -207,6 +210,86 @@ namespace RAnimation
             return;
         }
         mWorld.Step(deltaTime);
+        // D19: worker-thread records -> merged per entity pair on the main thread. Ends raised by body removals
+        // since the last step come first.
+        const std::vector<RawContactEvent> raw = mWorld.TakeContactEvents();
+        mEvents = std::move(mPendingEvents);
+        mPendingEvents.clear();
+        mMerger.Apply(raw, [this](uint32_t owner) { return OwnerInfo(owner); }, mEvents);
+    }
+
+    ContactOwnerInfo CollisionSystem::OwnerInfo(uint32_t owner) const
+    {
+        ContactOwnerInfo info;
+        if ((owner & kStaticOwnerBit) != 0)
+        {
+            const uint32_t index = owner & ~kStaticOwnerBit;
+            info.valid = index < mStaticTags.size();
+            info.isStatic = true;
+            info.tag = info.valid ? mStaticTags[index] : StaticColliderTag::Obstacle;
+            return info;
+        }
+        const ModelInstance* instance = InstanceForSlot(owner);
+        info.valid = instance != nullptr;
+        info.entity = instance != nullptr ? const_cast<ModelInstance*>(instance)->GetEntityId() : kInvalidEntityId;
+        return info;
+    }
+
+    // The body leaves now: End for its pairs right away (7.3), then the slot is freed.
+    void CollisionSystem::RemoveInstanceBody(uint32_t slot)
+    {
+        mMerger.RemoveOwner(slot, [this](uint32_t owner) { return OwnerInfo(owner); }, mPendingEvents);
+        mWorld.RemoveBody(slot);
+        mSlotToInstance[slot] = nullptr;
+        mFreeSlots.push_back(slot);
+    }
+
+    void CollisionSystem::SyncStatics(const ModelAndInstanceData& scene)
+    {
+        if (!mWorld.IsInitialized())
+        {
+            return;
+        }
+        std::string signature;
+        size_t count = 0;
+        for (const StaticLayer& layer : scene.miStaticLayers)
+        {
+            signature += layer.path + "|" + std::to_string(layer.statics.colliders.size()) + ";";
+            count += layer.statics.colliders.size();
+        }
+        if (signature == mStaticsSignature)
+        {
+            return;
+        }
+        mStaticsSignature = signature;
+        // old static owners: their pairs end (indices are about to be reused)
+        for (uint32_t i = 0; i < mStaticTags.size(); ++i)
+        {
+            mMerger.RemoveOwner(kStaticOwnerBit | i, [this](uint32_t owner) { return OwnerInfo(owner); }, mPendingEvents);
+        }
+        std::vector<StaticBoxDesc> boxes;
+        mStaticTags.clear();
+        boxes.reserve(count);
+        for (const StaticLayer& layer : scene.miStaticLayers)
+        {
+            for (const StaticCollider& c : layer.statics.colliders)
+            {
+                StaticBoxDesc b;
+                b.center = c.box.center;
+                b.rotation = c.box.rotation;
+                b.halfExtents = c.box.halfExtents;
+                boxes.push_back(b);
+                mStaticTags.push_back(c.tag);
+            }
+        }
+        std::string error;
+        if (!mWorld.SetStaticBoxes(boxes, error))
+        {
+            fmt::print(stderr, "CollisionSystem: static level: {}\n", error);
+            mStaticTags.clear();
+            return;
+        }
+        fmt::print("CollisionSystem: {} static level box(es)\n", boxes.size());
     }
 
     std::span<const CollisionPush> CollisionSystem::Resolve()
