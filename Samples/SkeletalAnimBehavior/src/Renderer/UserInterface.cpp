@@ -854,7 +854,9 @@ void UserInterface::CreateFrame(RRenderData& renderData, SceneEditor& sceneEdito
             }
             else
             {
+                ImGui::PushID("AgentConfig"); // own ID scope: the Agent header below has a "Possess" button too
                 drawAgentConfig(sceneEditor, instance);
+                ImGui::PopID();
             }
 
             ImGui::BeginDisabled(!editMode || isStaticDisplay);
@@ -1011,7 +1013,9 @@ void UserInterface::CreateFrame(RRenderData& renderData, SceneEditor& sceneEdito
 
     if (ImGui::CollapsingHeader("Agent (character + decisions)", ImGuiTreeNodeFlags_DefaultOpen))
     {
+        ImGui::PushID("CharacterPanel");
         drawCharacterPanel(modInstData);
+        ImGui::PopID();
     }
 
     if (ImGui::CollapsingHeader("Collision (Jolt)", ImGuiTreeNodeFlags_DefaultOpen))
