@@ -1,0 +1,30 @@
+{
+  "cmake.useCMakePresets": "always",
+  "cmake.sourceDirectory": "${workspaceFolder}",
+  "cmake.configureOnOpen": false,
+
+  "C_Cpp.default.configurationProvider": "ms-vscode.cmake-tools",
+  "C_Cpp.default.mergeConfigurations": false,
+  "C_Cpp.default.cppStandard": "c++20",
+  "C_Cpp.default.intelliSenseMode": "windows-msvc-x64",
+
+  "C_Cpp.default.includePath": [],
+  "C_Cpp.default.browse.path": [
+    "${workspaceFolder}/Samples",
+    "${workspaceFolder}/Tools"
+  ],
+  "C_Cpp.default.browse.limitSymbolsToIncludedHeaders": true,
+
+  "C_Cpp.files.exclude": {
+    "**/Packages/vcpkg/**": true,
+    "**/.vcpkg-cache/**": true,
+    "**/build/CMakeFiles/**": true,
+    "**/build/**/CMakeFiles/**": true
+  },
+
+  "breadcrumbs.enabled": true,
+  "breadcrumbs.symbolPath": "on",
+  "breadcrumbs.showFunctions": true,
+  "breadcrumbs.showMethods": true,
+  "editor.stickyScroll.enabled": true
+}

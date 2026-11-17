@@ -1,0 +1,27 @@
+{
+  "version": 2,
+  "configurePresets": [
+    {
+      "name": "vscode-vcpkg",
+      "displayName": "RAnimation - repository vcpkg",
+      "inherits": "vcpkg",
+      "environment": {
+        "VCPKG_ROOT": "${sourceDir}/Packages/vcpkg"
+      }
+    }
+  ],
+  "buildPresets": [
+    {
+      "name": "vscode-debug",
+      "displayName": "RAnimation - Debug",
+      "configurePreset": "vscode-vcpkg",
+      "configuration": "Debug"
+    },
+    {
+      "name": "vscode-relwithdebinfo",
+      "displayName": "RAnimation - RelWithDebInfo",
+      "configurePreset": "vscode-vcpkg",
+      "configuration": "RelWithDebInfo"
+    }
+  ]
+}
