@@ -447,6 +447,44 @@ namespace RAnimation
                 Check(!Compile(sys, b, errors) && HasError(errors, "not in global"), "rule 5: a global key missing from the global schema is rejected");
             }
             {
+                // global keys are used only through a declaration; local keys may not take a global key's name
+                const BlackboardSchema savedGlobal = sys.GlobalSchema();
+                BlackboardSchema schema = savedGlobal;
+                BlackboardKeyDecl g;
+                g.name = "selftest.siren";
+                g.type = BbType::Int;
+                g.scope = BbScope::Global;
+                g.defaultValue = 0;
+                schema.keys.push_back(g);
+                sys.SetGlobalSchema(schema);
+                {
+                    Builder b;
+                    b.Root(b.Add("SetBlackboard", {}, {{"key", "@selftest.siren"}, {"value", "1"}}));
+                    Check(!Compile(sys, b, errors) && HasError(errors, "does not declare"), "rule 5: binding an undeclared global key is rejected");
+                }
+                {
+                    Builder b;
+                    b.Key("selftest.siren", BbType::Int, BbScope::Global, 0);
+                    b.Root(b.Add("SetBlackboard", {}, {{"key", "@selftest.siren"}, {"value", "1"}}));
+                    auto tree = Compile(sys, b, errors);
+                    Check(tree != nullptr && tree->nodes[0].params[0].scope == BbScope::Global, "rule 5: a declared global key binds to the Global scope");
+                }
+                {
+                    Builder b;
+                    b.Key("selftest.siren", BbType::Int, BbScope::Instance, 0);
+                    b.Root(b.Add("SetBlackboard", {}, {{"key", "@selftest.siren"}, {"value", "1"}}));
+                    Check(!Compile(sys, b, errors) && HasError(errors, "name of a global key"), "rule 5: an Instance key may not shadow a global key");
+                }
+                {
+                    Builder b;
+                    const uint32_t owner = b.Add("AddBlackboard", {}, {{"key", "@selftest.siren"}, {"delta", "1"}});
+                    b.NodeKey(owner, "selftest.siren", BbType::Int, 0);
+                    b.Root(owner);
+                    Check(!Compile(sys, b, errors) && HasError(errors, "name of a global key"), "rule 5: a node key may not shadow a global key");
+                }
+                sys.SetGlobalSchema(savedGlobal);
+            }
+            {
                 Builder b;
                 const uint32_t owner = b.Add("AddBlackboard", {}, {{"key", "@count"}, {"delta", "1"}});
                 b.NodeKey(owner, "count", BbType::Int, 0);

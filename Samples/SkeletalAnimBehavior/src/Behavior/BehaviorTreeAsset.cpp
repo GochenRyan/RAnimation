@@ -360,6 +360,12 @@ namespace RAnimation
                 treeKeys[k.name] = {BbScope::Instance, static_cast<uint32_t>(perceptionSlot)};
                 continue;
             }
+            if (k.scope != BbScope::Global && globalSchema.Find(k.name) >= 0)
+            {
+                // a same-named local key would silently take over every binding of the global one
+                fail(~0u, fmt::format("{} key '{}' has the name of a global key", BbScopeName(k.scope), k.name));
+                continue;
+            }
             switch (k.scope)
             {
                 case BbScope::Instance:
@@ -397,6 +403,11 @@ namespace RAnimation
                 if (!names.insert(k.name).second || perception.Find(k.name) >= 0)
                 {
                     fail(d.id, fmt::format("key '{}' is declared twice", k.name));
+                    continue;
+                }
+                if (globalSchema.Find(k.name) >= 0)
+                {
+                    fail(d.id, fmt::format("node key '{}' has the name of a global key", k.name));
                     continue;
                 }
                 k.scope = BbScope::Node;
@@ -473,11 +484,13 @@ namespace RAnimation
                         cp.slot = static_cast<uint32_t>(ps);
                         cp.keyType = perception.keys[static_cast<size_t>(ps)].type;
                     }
-                    else if (const int gs = globalSchema.Find(pd->key); gs >= 0)
+                    else if (globalSchema.Find(pd->key) >= 0)
                     {
-                        cp.scope = BbScope::Global;
-                        cp.slot = static_cast<uint32_t>(gs);
-                        cp.keyType = globalSchema.keys[static_cast<size_t>(gs)].type;
+                        // rule 5: a tree uses a global key only through a declaration (name + type, checked
+                        // against the global schema), so its key list shows every global it depends on
+                        fail(node.id, fmt::format("{}: parameter '{}' binds global key '{}', which the tree does not declare",
+                                                  node.path, spec.name, pd->key));
+                        continue;
                     }
                     else
                     {

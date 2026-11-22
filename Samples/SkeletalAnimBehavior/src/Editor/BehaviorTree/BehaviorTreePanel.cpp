@@ -385,6 +385,30 @@ namespace RAnimation
         Begin();
     }
 
+    bool BehaviorTreePanel::DeclaresKey(const std::string& name) const
+    {
+        for (const BlackboardKeyDecl& k : mDesc.keys)
+            if (k.name == name)
+                return true;
+        return false;
+    }
+
+    void BehaviorTreePanel::DeclareGlobalKey(const std::string& name)
+    {
+        const int g = mBehavior->GlobalSchema().Find(name);
+        if (g < 0 || DeclaresKey(name))
+            return;
+        BlackboardKeyDecl k = mBehavior->GlobalSchema().keys[static_cast<size_t>(g)];
+        k.scope = BbScope::Global;
+        mDesc.keys.push_back(k);
+    }
+
+    void BehaviorTreePanel::UndeclareKey(const std::string& name)
+    {
+        mDesc.keys.erase(std::remove_if(mDesc.keys.begin(), mDesc.keys.end(), [&name](const BlackboardKeyDecl& k) { return k.name == name; }),
+                         mDesc.keys.end());
+    }
+
     uint32_t BehaviorTreePanel::AddNode(const std::string& type, float x, float y)
     {
         BtNodeDesc n;
@@ -1035,6 +1059,7 @@ namespace RAnimation
             std::string name;
             BbType type;
             const char* scope;
+            bool declareGlobal = false; // a global key the tree does not declare yet: choosing it adds the declaration
         };
         std::vector<KeyChoice> keys;
         for (const BlackboardKeyDecl& k : mDesc.keys)
@@ -1042,7 +1067,8 @@ namespace RAnimation
         for (const BlackboardKeyDecl& k : PerceptionSchema().keys)
             keys.push_back({k.name, k.type, "perception"});
         for (const BlackboardKeyDecl& k : mBehavior->GlobalSchema().keys)
-            keys.push_back({k.name, k.type, "Global"});
+            if (!DeclaresKey(k.name))
+                keys.push_back({k.name, k.type, "Global, adds declaration", true});
         {
             // own keys + the keys of the nodes this node decorates (down the decorator chain)
             const BtNodeDesc* cur = n;
@@ -1116,6 +1142,8 @@ namespace RAnimation
                         if (ImGui::Selectable(fmt::format("{}  ({} {})", k.name, k.scope, BbTypeName(k.type)).c_str(), k.name == p.key))
                         {
                             p.key = k.name;
+                            if (k.declareGlobal)
+                                DeclareGlobalKey(k.name); // same undo step as the binding
                             Commit(sceneEditor, "Bind parameter");
                         }
                     }
@@ -1256,18 +1284,29 @@ namespace RAnimation
                 continue;
             if (scope == BbScope::Global)
             {
-                ImGui::TextDisabled("global.blackboard.usda (shared by every tree)");
+                ImGui::TextDisabled("global.blackboard.usda (shared by every tree); tick 'used' to declare a key in this tree");
                 BlackboardSchema schema = mBehavior->GlobalSchema();
                 ImGui::BeginDisabled(!editMode);
                 for (size_t k = 0; k < schema.keys.size(); ++k)
                 {
                     BlackboardKeyDecl& key = schema.keys[k];
                     ImGui::PushID(static_cast<int>(k));
+                    bool used = DeclaresKey(key.name);
+                    if (ImGui::Checkbox("used", &used))
+                    {
+                        if (used)
+                            DeclareGlobalKey(key.name);
+                        else
+                            UndeclareKey(key.name);
+                        Commit(sceneEditor, used ? "Declare global key" : "Undeclare global key");
+                    }
+                    ImGui::SameLine();
                     ImGui::Text("%s (%s)%s", key.name.c_str(), BbTypeName(key.type), key.wakeOnChange ? " wake" : "");
                     ImGui::SameLine();
                     if (ImGui::SmallButton("x"))
                     {
                         Begin();
+                        UndeclareKey(key.name); // other trees that declare it now fail validation, as they should
                         schema.keys.erase(schema.keys.begin() + static_cast<long>(k));
                         mBehavior->SetGlobalSchema(schema);
                         mGlobalModified = true;
@@ -1352,6 +1391,7 @@ namespace RAnimation
                     mBehavior->SetGlobalSchema(schema);
                     mGlobalModified = true;
                     mDirty = true;
+                    DeclareGlobalKey(k.name); // added from this tree's editor: this tree uses it
                 }
                 else
                 {

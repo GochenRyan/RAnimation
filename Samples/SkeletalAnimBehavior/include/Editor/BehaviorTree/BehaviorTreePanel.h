@@ -83,6 +83,10 @@ namespace RAnimation
         void Validate();
         bool Save(std::string& outError);
         uint32_t AddNode(const std::string& type, float x, float y);
+        // a tree uses a global key only through a declaration (compile rule 5); the editor adds / drops it
+        bool DeclaresKey(const std::string& name) const;
+        void DeclareGlobalKey(const std::string& name);
+        void UndeclareKey(const std::string& name);
         BtNodeDesc* ParentOf(uint32_t id);
         bool IsAncestor(uint32_t ancestor, uint32_t node) const;
 
