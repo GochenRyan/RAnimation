@@ -1321,8 +1321,8 @@ void Renderer::UpdateActiveCamera(float deltaTime, ModelAndInstanceData& modInst
     }
 
     // Follow target = the currently selected instance (if any). FirstPerson rides the head joint,
-    // ThirdPerson orbits the head, Stationary looks at the joint-AABB centre (roughly mid-body). All
-    // fall back to the feet origin if joint data is unavailable.
+    // ThirdPerson orbits the head, Stationary looks at the joint-AABB centre (roughly mid-body).
+    // FirstPerson retains its view without a valid head; the others fall back to the feet origin.
     CameraTarget target;
     const int selectedIndex = modInstData.miSelectedInstance;
     if (selectedIndex >= 0 && selectedIndex < static_cast<int>(modInstData.miModelInstances.size()))
@@ -1372,8 +1372,7 @@ void Renderer::UpdateActiveCamera(float deltaTime, ModelAndInstanceData& modInst
                         target.targetWorldPos = glm::vec3(headWorld[3]);
                         if (activeType == CameraType::FirstPerson)
                         {
-                            target.hasHead = true;
-                            target.headWorld = headWorld;
+                            target.SetHeadTransform(headWorld, selected->GetScale());
                         }
                     }
                 }

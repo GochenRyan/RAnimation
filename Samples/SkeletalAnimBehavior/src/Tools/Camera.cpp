@@ -38,6 +38,53 @@ namespace RAnimation
         constexpr float kFirstPersonRollSpeed = 90.0f; // degrees/second for Q/E head roll
     } // namespace
 
+    void CameraTarget::SetHeadTransform(const glm::mat4& world, float scale)
+    {
+        headStatus = HeadPoseStatus::InvalidTransform;
+        if (!std::isfinite(scale) || scale <= 0.0f)
+        {
+            return;
+        }
+        for (int c = 0; c < 4; ++c)
+        {
+            for (int r = 0; r < 4; ++r)
+            {
+                if (!std::isfinite(world[c][r]))
+                {
+                    return;
+                }
+            }
+        }
+        constexpr float tolerance = 1e-4f;
+        if (std::abs(world[0][3]) > tolerance || std::abs(world[1][3]) > tolerance ||
+            std::abs(world[2][3]) > tolerance || std::abs(world[3][3] - 1.0f) > tolerance)
+        {
+            return;
+        }
+
+        glm::mat3 basis(world);
+        for (int c = 0; c < 3; ++c)
+        {
+            const float length = glm::length(basis[c]);
+            if (!std::isfinite(length) || length <= 1e-8f)
+            {
+                return;
+            }
+            basis[c] /= length;
+        }
+        if (std::abs(glm::dot(basis[0], basis[1])) > tolerance ||
+            std::abs(glm::dot(basis[0], basis[2])) > tolerance ||
+            std::abs(glm::dot(basis[1], basis[2])) > tolerance || glm::determinant(basis) <= 0.0f)
+        {
+            return;
+        }
+
+        headPosition = glm::vec3(world[3]);
+        headRotation = glm::normalize(glm::quat_cast(basis));
+        instanceScale = scale;
+        headStatus = HeadPoseStatus::Valid;
+    }
+
     glm::mat4 CameraCommon::MakeProjection(float aspect) const
     {
         glm::mat4 p;
@@ -88,30 +135,22 @@ namespace RAnimation
     {
         common.projMatrix = common.MakeProjection(aspect);
 
-        // Mouse and Q/E always turn the head in first person (no RMB gate). WASD is reserved as "character
-        // input" but this sample has no locomotion system, so it is intentionally unused.
         yawDeg = WrapDegrees(yawDeg + input.mouseDelta.x * mouseSensitivity);
         pitchDeg = glm::clamp(pitchDeg - input.mouseDelta.y * mouseSensitivity, -89.0f, 89.0f);
         rollDeg = WrapDegrees(rollDeg + input.roll * kFirstPersonRollSpeed * deltaTime);
 
-        if (!target.hasHead)
+        headStatus = target.headStatus;
+        if (headStatus != HeadPoseStatus::Valid)
         {
-            // Nothing to ride (no selection or head joint not found): retain the previous view.
             return;
         }
 
-        // Combine the head joint's world orientation with the user's yaw/pitch/roll offset. The view looks
-        // down the eye's local -Z (glm camera convention); which world direction that is depends on the
-        // rig's head-joint axes, so eyeOffset/angles let the user tune it.
-        const glm::quat headRot = glm::quat_cast(glm::mat3(target.headWorld));
-        const glm::quat finalRot = headRot * glm::quat(glm::radians(glm::vec3(pitchDeg, yawDeg, rollDeg)));
+        const glm::quat finalRot = glm::normalize(
+                target.headRotation * glm::quat(glm::radians(glm::vec3(pitchDeg, yawDeg, rollDeg))));
 
-        // Anchor at the head joint (+ a head-local fine offset), then push forward along the look direction
-        // so the eye clears the character's own head mesh. forwardPush follows the actual view axis, so it
-        // is rig-independent.
         const glm::vec3 lookForward = finalRot * glm::vec3(0.0f, 0.0f, -1.0f);
-        const glm::vec3 eyePos =
-                glm::vec3(target.headWorld[3]) + glm::mat3(target.headWorld) * eyeOffset + lookForward * forwardPush;
+        const glm::vec3 eyePos = target.headPosition +
+                                (target.headRotation * eyeOffset + lookForward * forwardPush) * target.instanceScale;
 
         const glm::mat4 eyeXform = glm::translate(glm::mat4(1.0f), eyePos) * glm::mat4_cast(finalRot);
         common.viewMatrix = glm::inverse(eyeXform);

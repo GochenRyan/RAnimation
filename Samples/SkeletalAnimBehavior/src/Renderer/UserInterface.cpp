@@ -547,8 +547,18 @@ void UserInterface::CreateFrame(RRenderData& renderData, SceneEditor& sceneEdito
                 {
                     cam.headBoneName = headBuf;
                 }
-                ImGui::SliderFloat3("Eye Offset", glm::value_ptr(cam.eyeOffset), -1.0f, 1.0f, "%.3f", sliderFlags);
-                ImGui::SliderFloat("Forward Push", &cam.forwardPush, 0.0f, 2.0f, "%.3f", sliderFlags);
+                ImGui::SliderFloat3("Eye Offset (m)##Eye Offset", glm::value_ptr(cam.eyeOffset), -1.0f, 1.0f, "%.3f", sliderFlags);
+                ImGui::SliderFloat("Forward Push (m)##Forward Push", &cam.forwardPush, 0.0f, 2.0f, "%.3f", sliderFlags);
+                ImGui::TextDisabled("Offsets scale with the instance, not the skeleton.");
+                if (cam.headStatus == HeadPoseStatus::InvalidTransform)
+                {
+                    ImGui::TextWrapped("Invalid head transform: requires positive instance scale and non-degenerate, "
+                                       "orthogonal, right-handed head axes. View retained.");
+                }
+                else if (cam.headStatus == HeadPoseStatus::Missing)
+                {
+                    ImGui::TextWrapped("No head joint available. View retained.");
+                }
                 ImGui::SliderFloat("Yaw Offset", &cam.yawDeg, 0.0f, 360.0f, "%.1f", sliderFlags);
                 ImGui::SliderFloat("Pitch Offset", &cam.pitchDeg, -89.0f, 89.0f, "%.1f", sliderFlags);
                 ImGui::SliderFloat("Roll", &cam.rollDeg, 0.0f, 360.0f, "%.1f", sliderFlags);

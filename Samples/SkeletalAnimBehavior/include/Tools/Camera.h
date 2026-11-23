@@ -35,14 +35,24 @@ namespace RAnimation
         float scroll = 0.0f;                    // mouse wheel (ThirdPerson distance)
     };
 
-    // Follow target for FirstPerson/ThirdPerson/Stationary: the currently selected instance. targetWorldPos
-    // is the point to follow/look at; headWorld is the world transform of the head joint (FirstPerson).
+    enum class HeadPoseStatus
+    {
+        Missing,
+        Valid,
+        InvalidTransform
+    };
+
+    // Head pose is rigid; anatomical offsets use only the explicit instance scale.
     struct CameraTarget
     {
         bool hasTarget = false;
         glm::vec3 targetWorldPos = glm::vec3(0.0f);
-        bool hasHead = false;
-        glm::mat4 headWorld = glm::mat4(1.0f);
+        HeadPoseStatus headStatus = HeadPoseStatus::Missing;
+        glm::vec3 headPosition = glm::vec3(0.0f);
+        glm::quat headRotation = glm::quat(1.0f, 0.0f, 0.0f, 0.0f);
+        float instanceScale = 1.0f;
+
+        void SetHeadTransform(const glm::mat4& world, float scale);
     };
 
     // Projection parameters + computed matrices shared by every camera type. MakeProjection builds a
@@ -83,12 +93,14 @@ namespace RAnimation
     {
         CameraCommon common;
         std::string headBoneName = "Head";
-        glm::vec3 eyeOffset = glm::vec3(0.0f, 0.05f, 0.0f); // head-local offset to the eye
-        float forwardPush = 0.3f;                           // push along the look direction, out of the mesh
+        glm::vec3 eyeOffset = glm::vec3(0.0f, 0.05f, 0.0f); // metres in head axes at instance scale 1
+        float forwardPush = 0.3f;                           // metres along the view axis at instance scale 1
         float yawDeg = 0.0f;                                // look offset added to the head orientation
         float pitchDeg = 0.0f;
         float rollDeg = 0.0f;
         float mouseSensitivity = 0.15f;
+
+        HeadPoseStatus headStatus = HeadPoseStatus::Missing; // runtime only
 
         void Update(float deltaTime, const CameraInput& input, const CameraTarget& target, float aspect);
         void Reset() { *this = FirstPersonCamera{}; }

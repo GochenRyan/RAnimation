@@ -10,6 +10,7 @@
 #include <Editor/LevelSelfTest.h>
 #include <Behavior/BehaviorSelfTest.h>
 #include <Behavior/BehaviorTestAssets.h>
+#include <Tools/CameraSelfTest.h>
 
 using namespace RAnimation;
 
@@ -25,7 +26,8 @@ using namespace RAnimation;
 //                             scripted input sequence (implies --fixed-dt 1/60 and --frames 420); the
 //                             transition log is checked at the end (exit 1 on mismatch)
 //   --save-statemachine <f>   write the built-in character state machine as <f> (.statemachine.usda)
-//   --selftest                run the state-machine + collision + level IO self tests (no window, no GPU) and exit with the failure count
+//   --selftest                run all self tests (no window, no GPU) and exit with the failure count
+//   --camera-selftest         run camera transform tests only
 //   --level-roundtrip <f>     after --scene: export the scene to <f>, re-import it and check entity ids / agent configs /
 //                             static layers survive, check a clone gets a new id, print the static layers (exit 1 on mismatch)
 //   --no-collision            do not create the Jolt collision world
@@ -55,7 +57,12 @@ int main(int argc, char* argv[])
         const bool hasValue = i + 1 < argc;
         if (arg == "--selftest")
         {
-            return RunStateMachineSelfTests() + RunCollisionSelfTests() + RunLevelSelfTests() + RunBehaviorSelfTests();
+            return RunStateMachineSelfTests() + RunCollisionSelfTests() + RunLevelSelfTests() + RunBehaviorSelfTests() +
+                   RunCameraSelfTests();
+        }
+        else if (arg == "--camera-selftest")
+        {
+            return RunCameraSelfTests();
         }
         else if (arg == "--write-behavior-assets")
         {
