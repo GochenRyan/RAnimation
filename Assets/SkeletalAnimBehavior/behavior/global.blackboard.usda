@@ -1,0 +1,26 @@
+#usda 1.0
+(
+    customLayerData = {
+        dictionary ranim = {
+            int blackboardVersion = 1
+            string doc = "Global blackboard schema (BbScope::Global), shared by every tree."
+        }
+    }
+    defaultPrim = "GlobalBlackboard"
+)
+
+def Scope "GlobalBlackboard"
+{
+    def Scope "Blackboard"
+    {
+        def Scope "world_x2E_alarm"
+        {
+            custom bool ranim:default = 0
+            custom string ranim:name = "world.alarm"
+            custom string ranim:scope = "Global"
+            custom string ranim:type = "Bool"
+            custom bool ranim:wakeOnChange = 1
+        }
+    }
+}
+

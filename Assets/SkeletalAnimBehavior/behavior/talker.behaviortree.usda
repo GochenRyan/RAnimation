@@ -1,0 +1,145 @@
+#usda 1.0
+(
+    customLayerData = {
+        dictionary ranim = {
+            int behaviorTreeVersion = 1
+            string doc = "Talks (PlayAction waits for it); a talk that ends Cancelled or Rejected leads to the other branch."
+        }
+    }
+    defaultPrim = "BehaviorTree"
+)
+
+def Scope "BehaviorTree"
+{
+    custom string ranim:name = "talker"
+    custom uint ranim:nextId = 11
+    custom rel ranim:root = </BehaviorTree/Nodes/N10>
+    custom float ranim:tickHz = 10
+
+    def Scope "Blackboard"
+    {
+        def Scope "talked"
+        {
+            custom bool ranim:default = 0
+            custom string ranim:name = "talked"
+            custom string ranim:scope = "Instance"
+            custom string ranim:type = "Bool"
+            custom bool ranim:wakeOnChange = 0
+        }
+
+        def Scope "otherBranch"
+        {
+            custom bool ranim:default = 0
+            custom string ranim:name = "otherBranch"
+            custom string ranim:scope = "Instance"
+            custom string ranim:type = "Bool"
+            custom bool ranim:wakeOnChange = 0
+        }
+    }
+
+    def Scope "Nodes"
+    {
+        def Scope "N1"
+        {
+            custom float2 ranim:editorPos = (0, 340)
+            custom uint ranim:id = 1
+            custom string ranim:param:key = "@talked"
+            custom string ranim:param:op = "=="
+            custom string ranim:param:value = "false"
+            custom string ranim:type = "BlackboardCompare"
+        }
+
+        def Scope "N2"
+        {
+            custom float2 ranim:editorPos = (320, 510)
+            custom uint ranim:id = 2
+            custom bool ranim:param:cancelOnHalt = 1
+            custom string ranim:param:montage = "talk"
+            custom bool ranim:param:waitForCompletion = 1
+            custom string ranim:type = "PlayAction"
+        }
+
+        def Scope "N3"
+        {
+            custom float2 ranim:editorPos = (640, 510)
+            custom uint ranim:id = 3
+            custom string ranim:param:key = "@talked"
+            custom string ranim:param:value = "true"
+            custom string ranim:type = "SetBlackboard"
+        }
+
+        def Scope "N4"
+        {
+            custom rel ranim:children = [
+                </BehaviorTree/Nodes/N2>,
+                </BehaviorTree/Nodes/N3>,
+            ]
+            custom float2 ranim:editorPos = (480, 340)
+            custom uint ranim:id = 4
+            custom string ranim:type = "MemSequence"
+        }
+
+        def Scope "N5"
+        {
+            custom rel ranim:children = [
+                </BehaviorTree/Nodes/N1>,
+                </BehaviorTree/Nodes/N4>,
+            ]
+            custom float2 ranim:editorPos = (240, 170)
+            custom uint ranim:id = 5
+            custom string ranim:label = "talk"
+            custom string ranim:type = "ReactiveSequence"
+        }
+
+        def Scope "N6"
+        {
+            custom float2 ranim:editorPos = (960, 340)
+            custom uint ranim:id = 6
+            custom string ranim:param:text = "other branch"
+            custom string ranim:type = "Log"
+        }
+
+        def Scope "N7"
+        {
+            custom float2 ranim:editorPos = (1280, 340)
+            custom uint ranim:id = 7
+            custom string ranim:param:key = "@otherBranch"
+            custom string ranim:param:value = "true"
+            custom string ranim:type = "SetBlackboard"
+        }
+
+        def Scope "N8"
+        {
+            custom float2 ranim:editorPos = (1600, 340)
+            custom uint ranim:id = 8
+            custom float ranim:param:seconds = 1000
+            custom string ranim:type = "Wait"
+        }
+
+        def Scope "N9"
+        {
+            custom rel ranim:children = [
+                </BehaviorTree/Nodes/N6>,
+                </BehaviorTree/Nodes/N7>,
+                </BehaviorTree/Nodes/N8>,
+            ]
+            custom float2 ranim:editorPos = (1280, 170)
+            custom uint ranim:id = 9
+            custom string ranim:label = "other branch"
+            custom string ranim:type = "MemSequence"
+        }
+
+        def Scope "N10"
+        {
+            custom rel ranim:children = [
+                </BehaviorTree/Nodes/N5>,
+                </BehaviorTree/Nodes/N9>,
+            ]
+            custom float2 ranim:editorPos = (760, 0)
+            custom uint ranim:id = 10
+            custom string ranim:label = "talker"
+            custom string ranim:type = "MemSelector"
+        }
+    }
+}
+

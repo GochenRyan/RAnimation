@@ -1,0 +1,190 @@
+#usda 1.0
+(
+    customLayerData = {
+        dictionary ranim = {
+            int behaviorTreeVersion = 1
+            string doc = "Jog forward; a boundary wall turns it away along the wall normal."
+        }
+    }
+    defaultPrim = "BehaviorTree"
+)
+
+def Scope "BehaviorTree"
+{
+    custom string ranim:name = "bouncer"
+    custom uint ranim:nextId = 14
+    custom rel ranim:root = </BehaviorTree/Nodes/N13>
+    custom float ranim:tickHz = 10
+
+    def Scope "Blackboard"
+    {
+        def Scope "goal"
+        {
+            custom float3 ranim:default = (0, 0, 0)
+            custom string ranim:name = "goal"
+            custom string ranim:scope = "Instance"
+            custom string ranim:type = "Vec3"
+            custom bool ranim:wakeOnChange = 0
+        }
+
+        def Scope "ready"
+        {
+            custom bool ranim:default = 0
+            custom string ranim:name = "ready"
+            custom string ranim:scope = "Instance"
+            custom string ranim:type = "Bool"
+            custom bool ranim:wakeOnChange = 0
+        }
+
+        def Scope "turned"
+        {
+            custom bool ranim:default = 0
+            custom string ranim:name = "turned"
+            custom string ranim:scope = "Instance"
+            custom string ranim:type = "Bool"
+            custom bool ranim:wakeOnChange = 0
+        }
+    }
+
+    def Scope "Nodes"
+    {
+        def Scope "N1"
+        {
+            custom float2 ranim:editorPos = (0, 340)
+            custom uint ranim:id = 1
+            custom string ranim:param:key = "@ready"
+            custom string ranim:param:op = "=="
+            custom string ranim:param:value = "false"
+            custom string ranim:type = "BlackboardCompare"
+        }
+
+        def Scope "N2"
+        {
+            custom float2 ranim:editorPos = (320, 340)
+            custom uint ranim:id = 2
+            custom float ranim:param:distance = 30
+            custom bool ranim:param:facing = 1
+            custom string ranim:param:out = "@goal"
+            custom string ranim:type = "ProjectPoint"
+        }
+
+        def Scope "N3"
+        {
+            custom float2 ranim:editorPos = (640, 340)
+            custom uint ranim:id = 3
+            custom string ranim:param:key = "@ready"
+            custom string ranim:param:value = "true"
+            custom string ranim:type = "SetBlackboard"
+        }
+
+        def Scope "N4"
+        {
+            custom rel ranim:children = [
+                </BehaviorTree/Nodes/N1>,
+                </BehaviorTree/Nodes/N2>,
+                </BehaviorTree/Nodes/N3>,
+            ]
+            custom float2 ranim:editorPos = (320, 170)
+            custom uint ranim:id = 4
+            custom string ranim:label = "setup"
+            custom string ranim:type = "MemSequence"
+        }
+
+        def Scope "N5"
+        {
+            custom float2 ranim:editorPos = (960, 340)
+            custom uint ranim:id = 5
+            custom string ranim:param:key = "@perception.boundary.touching"
+            custom string ranim:param:op = "=="
+            custom string ranim:param:value = "false"
+            custom string ranim:type = "BlackboardCompare"
+        }
+
+        def Scope "N6"
+        {
+            custom float2 ranim:editorPos = (1280, 340)
+            custom uint ranim:id = 6
+            custom float ranim:param:arriveRadius = 0.5
+            custom bool ranim:param:failOnBlocked = 0
+            custom string ranim:param:gait = "Jog"
+            custom string ranim:param:target = "@goal"
+            custom string ranim:type = "MoveTo"
+        }
+
+        def Scope "N7"
+        {
+            custom rel ranim:children = [
+                </BehaviorTree/Nodes/N5>,
+                </BehaviorTree/Nodes/N6>,
+            ]
+            custom float2 ranim:editorPos = (1120, 170)
+            custom uint ranim:id = 7
+            custom string ranim:label = "jog until a wall"
+            custom string ranim:type = "ReactiveSequence"
+        }
+
+        def Scope "N8"
+        {
+            custom float2 ranim:editorPos = (1600, 340)
+            custom uint ranim:id = 8
+            custom string ranim:param:text = "wall"
+            custom string ranim:type = "Log"
+        }
+
+        def Scope "N9"
+        {
+            custom float2 ranim:editorPos = (1920, 340)
+            custom uint ranim:id = 9
+            custom string ranim:param:direction = "@perception.boundary.normal"
+            custom float ranim:param:distance = 8
+            custom string ranim:param:out = "@goal"
+            custom string ranim:type = "ProjectPoint"
+        }
+
+        def Scope "N10"
+        {
+            custom float2 ranim:editorPos = (2240, 340)
+            custom uint ranim:id = 10
+            custom string ranim:param:key = "@turned"
+            custom string ranim:param:value = "true"
+            custom string ranim:type = "SetBlackboard"
+        }
+
+        def Scope "N11"
+        {
+            custom float2 ranim:editorPos = (2560, 340)
+            custom uint ranim:id = 11
+            custom string ranim:param:target = "@goal"
+            custom float ranim:param:toleranceDeg = 20
+            custom string ranim:type = "FaceTo"
+        }
+
+        def Scope "N12"
+        {
+            custom rel ranim:children = [
+                </BehaviorTree/Nodes/N8>,
+                </BehaviorTree/Nodes/N9>,
+                </BehaviorTree/Nodes/N10>,
+                </BehaviorTree/Nodes/N11>,
+            ]
+            custom float2 ranim:editorPos = (2080, 170)
+            custom uint ranim:id = 12
+            custom string ranim:label = "wall: turn away"
+            custom string ranim:type = "MemSequence"
+        }
+
+        def Scope "N13"
+        {
+            custom rel ranim:children = [
+                </BehaviorTree/Nodes/N4>,
+                </BehaviorTree/Nodes/N7>,
+                </BehaviorTree/Nodes/N12>,
+            ]
+            custom float2 ranim:editorPos = (1200, 0)
+            custom uint ranim:id = 13
+            custom string ranim:label = "bouncer"
+            custom string ranim:type = "MemSelector"
+        }
+    }
+}
+

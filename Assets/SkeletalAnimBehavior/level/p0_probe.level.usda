@@ -1,0 +1,93 @@
+#usda 1.0
+(
+    defaultPrim = "Scene"
+    metersPerUnit = 1
+    subLayers = [
+        @p0_probe.static.usda@
+    ]
+    upAxis = "Y"
+)
+
+def Xform "Scene" (
+    customData = {
+        dictionary ranim = {
+            int activeCamera = 0
+            dictionary cam0 = {
+                float far = 500
+                float fov = 60
+                float near = 0.1
+                float pitch = -35
+                float3 position = (0, 9, 12)
+                float yaw = 270
+            }
+        }
+    }
+)
+{
+    def Xform "Instance_0" (
+        customData = {
+            dictionary ranim = {
+                dictionary agent = {
+                    float fovHalfDeg = 60
+                    bool possessed = 1
+                    float proximityRadius = 8
+                    float sightRange = 20
+                    float tickHz = 0
+                    string tree = ""
+                }
+                int animClipNr = 0
+                float animPhase = 0
+                uint64 entityId = 1
+            }
+        }
+        prepend references = @../../SkeletalAnimControls/ual_mannequin/UAL_Mannequin.asset.usda@
+    )
+    {
+        double3 xformOp:translate = (0, 0, 5)
+        float3 xformOp:rotateXYZ = (0, 0, 0)
+        float3 xformOp:scale = (1, 1, 1)
+        uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateXYZ", "xformOp:scale"]
+    }
+
+    def Xform "Instance_1" (
+        customData = {
+            dictionary ranim = {
+                dictionary agent = {
+                    float fovHalfDeg = 60
+                    bool possessed = 0
+                    float proximityRadius = 8
+                    float sightRange = 20
+                    float tickHz = 10
+                    string tree = "behavior/guard.behaviortree.usda"
+                }
+                int animClipNr = 0
+                float animPhase = 0.3
+                uint64 entityId = 2
+            }
+        }
+        prepend references = @../../SkeletalAnimControls/ual_mannequin/UAL_Mannequin.asset.usda@
+    )
+    {
+        double3 xformOp:translate = (3, 0, 3.5)
+        float3 xformOp:rotateXYZ = (0, 180, 0)
+        float3 xformOp:scale = (1, 1, 1)
+        uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateXYZ", "xformOp:scale"]
+    }
+
+    def Xform "Instance_2" (
+        customData = {
+            dictionary ranim = {
+                int animClipNr = 0
+                float animPhase = 0.6
+                uint64 entityId = 3
+            }
+        }
+        prepend references = @../../SkeletalAnimControls/ual_mannequin/UAL_Mannequin.asset.usda@
+    )
+    {
+        double3 xformOp:translate = (-3, 0, 0)
+        float3 xformOp:rotateXYZ = (0, 90, 0)
+        float3 xformOp:scale = (1, 1, 1)
+        uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateXYZ", "xformOp:scale"]
+    }
+}

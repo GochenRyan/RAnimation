@@ -1,0 +1,106 @@
+#usda 1.0
+(
+    customLayerData = {
+        dictionary ranim = {
+            int behaviorTreeVersion = 1
+            string doc = "Route 'patrol': FindMarker -> MoveTo -> next index, forever."
+        }
+    }
+    defaultPrim = "BehaviorTree"
+)
+
+def Scope "BehaviorTree"
+{
+    custom string ranim:name = "patrol"
+    custom uint ranim:nextId = 6
+    custom rel ranim:root = </BehaviorTree/Nodes/N5>
+    custom float ranim:tickHz = 10
+
+    def Scope "Blackboard"
+    {
+        def Scope "wp"
+        {
+            custom int ranim:default = 0
+            custom string ranim:name = "wp"
+            custom string ranim:scope = "Instance"
+            custom string ranim:type = "Int"
+            custom bool ranim:wakeOnChange = 0
+        }
+
+        def Scope "target"
+        {
+            custom float3 ranim:default = (0, 0, 0)
+            custom string ranim:name = "target"
+            custom string ranim:scope = "Instance"
+            custom string ranim:type = "Vec3"
+            custom bool ranim:wakeOnChange = 0
+        }
+
+        def Scope "patrol_x2E_laps"
+        {
+            custom float ranim:default = 0
+            custom string ranim:name = "patrol.laps"
+            custom string ranim:scope = "TreeShared"
+            custom string ranim:type = "Float"
+            custom bool ranim:wakeOnChange = 0
+        }
+    }
+
+    def Scope "Nodes"
+    {
+        def Scope "N1"
+        {
+            custom float2 ranim:editorPos = (0, 170)
+            custom uint ranim:id = 1
+            custom string ranim:param:index = "@wp"
+            custom string ranim:param:kind = "Waypoint"
+            custom string ranim:param:name = "patrol"
+            custom string ranim:param:out = "@target"
+            custom string ranim:type = "FindMarker"
+        }
+
+        def Scope "N2"
+        {
+            custom float2 ranim:editorPos = (320, 170)
+            custom uint ranim:id = 2
+            custom float ranim:param:arriveRadius = 0.4
+            custom bool ranim:param:failOnBlocked = 0
+            custom string ranim:param:gait = "Jog"
+            custom string ranim:param:target = "@target"
+            custom string ranim:type = "MoveTo"
+        }
+
+        def Scope "N3"
+        {
+            custom float2 ranim:editorPos = (640, 170)
+            custom uint ranim:id = 3
+            custom float ranim:param:delta = 1
+            custom string ranim:param:key = "@wp"
+            custom string ranim:type = "AddBlackboard"
+        }
+
+        def Scope "N4"
+        {
+            custom float2 ranim:editorPos = (960, 170)
+            custom uint ranim:id = 4
+            custom float ranim:param:delta = 0.1666667
+            custom string ranim:param:key = "@patrol.laps"
+            custom string ranim:type = "AddBlackboard"
+        }
+
+        def Scope "N5"
+        {
+            custom rel ranim:children = [
+                </BehaviorTree/Nodes/N1>,
+                </BehaviorTree/Nodes/N2>,
+                </BehaviorTree/Nodes/N3>,
+                </BehaviorTree/Nodes/N4>,
+            ]
+            custom float2 ranim:editorPos = (480, 0)
+            custom uint ranim:id = 5
+            custom string ranim:label = "patrol"
+            custom string ranim:type = "MemSequence"
+        }
+    }
+}
+

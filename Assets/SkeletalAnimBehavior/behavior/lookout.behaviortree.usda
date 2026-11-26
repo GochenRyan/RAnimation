@@ -1,0 +1,34 @@
+#usda 1.0
+(
+    customLayerData = {
+        dictionary ranim = {
+            int behaviorTreeVersion = 1
+            string doc = "Stands still (the FOV array only perceives)."
+        }
+    }
+    defaultPrim = "BehaviorTree"
+)
+
+def Scope "BehaviorTree"
+{
+    custom string ranim:name = "lookout"
+    custom uint ranim:nextId = 2
+    custom rel ranim:root = </BehaviorTree/Nodes/N1>
+    custom float ranim:tickHz = 2
+
+    def Scope "Blackboard"
+    {
+    }
+
+    def Scope "Nodes"
+    {
+        def Scope "N1"
+        {
+            custom float2 ranim:editorPos = (0, 0)
+            custom uint ranim:id = 1
+            custom float ranim:param:seconds = 5
+            custom string ranim:type = "Wait"
+        }
+    }
+}
+
