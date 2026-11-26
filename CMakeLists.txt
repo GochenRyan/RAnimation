@@ -88,8 +88,9 @@ if(RANIM_HAS_USD)
     # SkeletalAnimBehavior = SkeletalAnimCollision + instance behavior; shares the Controls assets/bake
     # step and the Collision sample's collision JSON. Only its shaders live under Assets/SkeletalAnimBehavior.
     add_subdirectory(Samples/SkeletalAnimBehavior)
+    add_subdirectory(Samples/SkeletalAnimIK)
 else()
-    message(STATUS "Skipping USD-dependent targets (OpenUSD not found): SkeletalAnimHelper, SkeletalAnimControls, SkeletalAnimCollision, SkeletalAnimBehavior, TrsTextureBaker, Jolt.")
+    message(STATUS "Skipping USD-dependent targets (OpenUSD not found): SkeletalAnimHelper, SkeletalAnimControls, SkeletalAnimCollision, SkeletalAnimBehavior, SkeletalAnimIK, TrsTextureBaker, Jolt.")
 endif()
 
 function(get_all_targets result dir)
